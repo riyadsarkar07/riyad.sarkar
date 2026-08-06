@@ -24,7 +24,7 @@ export function MobileMenu() {
   };
 
   return (
-    <div className="lg:hidden">
+    <div className="xl:hidden">
       <Button
         variant="ghost"
         size="icon"
@@ -46,12 +46,19 @@ export function MobileMenu() {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-[300px] flex-col p-6 pt-24 shadow-glow-lg"
+              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-full max-w-[300px] flex-col p-6 pt-24 shadow-glow-lg"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
             >
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
               <nav aria-label="Mobile navigation">
                 <ul className="flex flex-col gap-1">
                   {navItems.map((item, index) => (

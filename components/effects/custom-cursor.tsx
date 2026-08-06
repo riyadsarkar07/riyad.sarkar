@@ -3,15 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useFinePointer } from "@/hooks/use-media-query";
 
+const TRAIL_COUNT = 4;
+
 /**
- * Premium custom cursor — a small glowing dot plus a smooth
- * follower ring that expands over interactive elements.
- * Only activates on fine pointers (desktop).
+ * Premium custom cursor — a small glowing dot, a smooth follower
+ * ring that expands over interactive elements, plus a subtle
+ * multi-point trail. Only activates on fine pointers (desktop).
  */
 export function CustomCursor() {
   const finePointer = useFinePointer();
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
+  const trailRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [hovering, setHovering] = useState(false);
   const [pressed, setPressed] = useState(false);
 
@@ -20,6 +23,9 @@ export function CustomCursor() {
 
     const pos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const ringPos = { ...pos };
+    const trail: { x: number; y: number }[] = Array.from({ length: TRAIL_COUNT }, () => ({
+      ...pos,
+    }));
     let raf = 0;
 
     document.documentElement.classList.add("custom-cursor-active");
@@ -46,6 +52,20 @@ export function CustomCursor() {
       if (ringRef.current) {
         ringRef.current.style.transform = `translate3d(${ringPos.x}px, ${ringPos.y}px, 0) translate(-50%, -50%)`;
       }
+
+      let prev = { x: pos.x, y: pos.y };
+      for (let i = 0; i < TRAIL_COUNT; i++) {
+        const point = trail[i];
+        point.x += (prev.x - point.x) * 0.35;
+        point.y += (prev.y - point.y) * 0.35;
+        const el = trailRefs.current[i];
+        if (el) {
+          el.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%)`;
+          el.style.opacity = String((TRAIL_COUNT - i) * 0.16);
+        }
+        prev = { ...point };
+      }
+
       raf = requestAnimationFrame(loop);
     };
 
@@ -69,6 +89,16 @@ export function CustomCursor() {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[150]" aria-hidden>
+      {Array.from({ length: TRAIL_COUNT }).map((_, i) => (
+        <div
+          key={i}
+          ref={(el) => {
+            trailRefs.current[i] = el;
+          }}
+          className="fixed left-0 top-0 h-1.5 w-1.5 rounded-full bg-sky-400/80 will-change-transform"
+          style={{ position: "fixed", opacity: 0 }}
+        />
+      ))}
       <div
         ref={dotRef}
         className="fixed left-0 top-0 h-2 w-2 rounded-full bg-primary shadow-glow"

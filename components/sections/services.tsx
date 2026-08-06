@@ -89,7 +89,7 @@ function ServiceCard({ id }: { id: string }) {
             </ul>
           </div>
 
-          <div className="mt-2 flex items-center justify-between gap-4 border-t border-border pt-5">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
             <Badge variant="gradient">{service.title}</Badge>
             <Button size="sm" onClick={() => setOpen(false)}>
               {t.common.contactMe}

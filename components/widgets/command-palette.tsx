@@ -179,14 +179,14 @@ export function CommandPalette() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between border-t border-border/60 bg-background/40 px-5 py-3 text-[10px] text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border/60 bg-background/40 px-5 py-3 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <kbd className="rounded border border-border px-1.5 py-0.5">↑↓</kbd> navigate
                 </span>
                 <span className="flex items-center gap-1">
                   <kbd className="rounded border border-border px-1.5 py-0.5">↵</kbd> select
                 </span>
-                <span className="flex items-center gap-1">
+                <span className="hidden items-center gap-1 min-[380px]:flex">
                   <kbd className="flex items-center gap-0.5 rounded border border-border px-1.5 py-0.5">
                     <Command className="h-2.5 w-2.5" /> K
                   </kbd>{" "}

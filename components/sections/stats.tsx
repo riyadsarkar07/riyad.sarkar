@@ -21,7 +21,7 @@ function AnimatedStat({
   return (
     <RevealItem className="group relative overflow-hidden rounded-2xl border border-border/60 bg-white/50 p-6 text-center backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:border-primary/30 hover:shadow-glow dark:bg-white/[0.04]">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-      <p className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+      <p className="font-display text-3xl font-bold tracking-tight min-[400px]:text-4xl sm:text-5xl">
         <span ref={ref} className="text-gradient">
           {formatNumber(current)}
         </span>

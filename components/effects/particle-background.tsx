@@ -30,15 +30,28 @@ export function ParticleBackground({ density = 60 }: { density?: number }) {
     let particles: Particle[] = [];
     let width = 0;
     let height = 0;
+    let rectLeft = 0;
+    let rectTop = 0;
     let raf = 0;
     let running = true;
 
     const hueRange = [199, 210, 222];
 
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+    const mouse = { x: -9999, y: -9999, active: false };
+
+    const onMouseMove = (e: MouseEvent) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+      mouse.active = true;
+    };
+
     const init = () => {
       const rect = canvas.getBoundingClientRect();
       width = rect.width;
       height = rect.height;
+      rectLeft = rect.left;
+      rectTop = rect.top;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = width * dpr;
       canvas.height = height * dpr;
@@ -62,6 +75,19 @@ export function ParticleBackground({ density = 60 }: { density?: number }) {
       for (const p of particles) {
         p.x += p.speedX;
         p.y += p.speedY;
+
+        if (finePointer && mouse.active) {
+          const mdx = p.x - (mouse.x - rectLeft);
+          const mdy = p.y - (mouse.y - rectTop);
+          const dist = Math.sqrt(mdx * mdx + mdy * mdy);
+          const radius = 110;
+          if (dist < radius && dist > 0.01) {
+            const force = ((radius - dist) / radius) * 0.55;
+            p.x += (mdx / dist) * force;
+            p.y += (mdy / dist) * force;
+          }
+        }
+
         if (p.x < 0) p.x = width;
         if (p.x > width) p.x = 0;
         if (p.y < 0) p.y = height;
@@ -107,10 +133,14 @@ export function ParticleBackground({ density = 60 }: { density?: number }) {
     init();
     draw();
     window.addEventListener("resize", init);
+    window.addEventListener("scroll", init, { passive: true });
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.removeEventListener("resize", init);
+      window.removeEventListener("scroll", init);
+      window.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("visibilitychange", onVisibility);
       cancelAnimationFrame(raf);
     };

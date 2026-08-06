@@ -28,7 +28,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 /** Compact row of social icon buttons. */
 export function SocialLinks({ size = "md" }: { size?: "sm" | "md" }) {
-  const boxSize = size === "sm" ? "h-9 w-9" : "h-11 w-11";
+  const boxSize = size === "sm" ? "h-10 w-10" : "h-11 w-11";
 
   return (
     <div className="flex flex-wrap items-center gap-2">

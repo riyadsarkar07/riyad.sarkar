@@ -131,6 +131,14 @@ const config: Config = {
           "0%": { transform: "translateY(0)" },
           "100%": { transform: "translateY(-50%)" },
         },
+        blink: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
+        },
+        ripple: {
+          "0%": { transform: "scale(0.35)", opacity: "0.6" },
+          "100%": { transform: "scale(1)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -146,6 +154,8 @@ const config: Config = {
         shimmer: "shimmer 2.5s linear infinite",
         "gradient-x": "gradient-x 8s ease infinite",
         "grid-pan": "grid-pan 2s linear infinite",
+        blink: "blink 1.1s steps(2, start) infinite",
+        ripple: "ripple 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards",
       },
       backdropBlur: {
         xs: "2px",

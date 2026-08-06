@@ -165,7 +165,7 @@ export function AIAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            className="glass-strong fixed bottom-24 right-6 z-[96] flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-3xl shadow-glow-lg"
+            className="glass-strong fixed bottom-24 right-6 z-[96] flex h-[min(480px,calc(100dvh-7rem))] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-3xl shadow-glow-lg sm:right-6"
             role="dialog"
             aria-label={t.ai.title}
           >

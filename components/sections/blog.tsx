@@ -36,7 +36,7 @@ export function Blog() {
                   />
                 </div>
                 <div className="flex flex-1 flex-col p-6">
-                  <div className="mb-3 flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     <Badge variant="default">{post.category}</Badge>
                     <span className="flex items-center gap-1">
                       <CalendarDays className="h-3.5 w-3.5" />

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import {
   ArrowDown,
   BadgeCheck,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { profile, socials, typingWords } from "@/data/content";
 import { useTyping } from "@/hooks/use-typing";
+import { useFinePointer } from "@/hooks/use-media-query";
 import { useI18n } from "@/lib/i18n";
 import { useLenis } from "@/hooks/use-lenis";
 import { Magnetic } from "@/components/effects/magnetic";
@@ -39,13 +40,38 @@ const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
 
 /**
  * Massive premium hero with floating profile, typewriter roles,
- * magnetic CTAs and a layered animated background.
+ * magnetic CTAs, gentle mouse parallax and a layered background.
  */
 export function Hero() {
   const { t } = useI18n();
   const { lenis } = useLenis();
-  const typed = useTyping(typingWords);
+  const finePointer = useFinePointer();
+  const { text: typed, isDeleting } = useTyping(typingWords);
   const [imageLoaded, setImageLoaded] = useState(false);
+
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const spring = { stiffness: 50, damping: 20, mass: 0.6 };
+  const sx = useSpring(mx, spring);
+  const sy = useSpring(my, spring);
+
+  const parallaxProfileX = useTransform(sx, (v) => v * -16);
+  const parallaxProfileY = useTransform(sy, (v) => v * -16);
+  const parallaxShapesX = useTransform(sx, (v) => v * 28);
+  const parallaxShapesY = useTransform(sy, (v) => v * 28);
+
+  useEffect(() => {
+    if (!finePointer) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const onMove = (e: MouseEvent) => {
+      mx.set(e.clientX / window.innerWidth - 0.5);
+      my.set(e.clientY / window.innerHeight - 0.5);
+    };
+
+    window.addEventListener("mousemove", onMove, { passive: true });
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [finePointer, mx, my]);
 
   const scrollTo = (id: string) => {
     if (lenis) lenis.scrollTo(`#${id}`, { offset: -72, duration: 1.2 });
@@ -58,15 +84,19 @@ export function Hero() {
       <MeshBackground />
       <ParticleBackground density={50} />
 
-      {/* Floating glass shapes */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="animate-float-slow absolute left-[8%] top-[22%] h-16 w-16 rounded-2xl bg-gradient-to-br from-sky-400/30 to-blue-600/20 backdrop-blur-sm" />
-        <div className="animate-float absolute right-[14%] top-[18%] h-10 w-10 rounded-full bg-gradient-to-br from-cyan-400/30 to-sky-500/20 backdrop-blur-sm" />
-        <div className="animate-float-slow absolute bottom-[18%] left-[16%] h-12 w-12 rounded-full border border-cyan-300/40 bg-cyan-400/10 backdrop-blur-sm" />
-        <div className="animate-float absolute bottom-[26%] right-[10%] h-14 w-14 rounded-2xl border border-blue-400/30 bg-blue-400/10 backdrop-blur-sm" />
-      </div>
+      {/* Floating glass shapes (mouse parallax on fine pointers) */}
+      <motion.div
+        className="pointer-events-none absolute inset-0"
+        style={{ x: parallaxShapesX, y: parallaxShapesY }}
+        aria-hidden
+      >
+        <div className="animate-float-slow absolute left-[8%] top-[22%] h-14 w-14 rounded-2xl bg-gradient-to-br from-sky-400/30 to-blue-600/20 backdrop-blur-sm sm:h-16 sm:w-16" />
+        <div className="animate-float absolute right-[14%] top-[18%] h-8 w-8 rounded-full bg-gradient-to-br from-cyan-400/30 to-sky-500/20 backdrop-blur-sm sm:h-10 sm:w-10" />
+        <div className="animate-float-slow absolute bottom-[18%] left-[16%] h-10 w-10 rounded-full border border-cyan-300/40 bg-cyan-400/10 backdrop-blur-sm sm:h-12 sm:w-12" />
+        <div className="animate-float absolute bottom-[26%] right-[10%] h-11 w-11 rounded-2xl border border-blue-400/30 bg-blue-400/10 backdrop-blur-sm sm:h-14 sm:w-14" />
+      </motion.div>
 
-      <div className="container relative z-10 grid items-center gap-14 pb-16 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="container relative z-10 grid items-center gap-10 pb-16 lg:grid-cols-[1.2fr_0.8fr] md:gap-14">
         {/* Left column — copy */}
         <div className="text-center lg:text-left">
           <motion.div
@@ -87,7 +117,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="text-5xl font-bold leading-[1.05] sm:text-6xl md:text-7xl lg:text-[5.25rem]"
+            className="text-4xl font-bold leading-[1.05] min-[400px]:text-5xl sm:text-6xl md:text-7xl lg:text-[5.25rem]"
           >
             {t.hero.name.split(" ")[0]}{" "}
             <span className="text-gradient">{t.hero.name.split(" ").slice(1).join(" ")}</span>
@@ -97,12 +127,22 @@ export function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-5 flex h-9 items-center justify-center gap-3 text-lg font-medium sm:text-2xl lg:justify-start"
+            className="mt-5 flex min-h-9 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-base font-medium sm:text-2xl lg:justify-start"
           >
             <span className="hidden h-6 w-1 rounded-full bg-gradient-to-b from-sky-500 to-blue-600 sm:block" />
             <span className="text-muted-foreground">{t.hero.role1}</span>
             <span className="hidden text-muted-foreground/50 sm:inline">·</span>
-            <span className="text-gradient font-semibold">{typed}</span>
+            <motion.span
+              animate={{ opacity: isDeleting ? 0.3 : 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="inline-flex items-center gap-1"
+            >
+              <span className="text-gradient font-semibold">{typed}</span>
+              <span
+                className="ml-0.5 inline-block h-[1.1em] w-[2px] rounded-full bg-gradient-to-b from-sky-500 to-blue-600 animate-blink"
+                aria-hidden
+              />
+            </motion.span>
           </motion.div>
 
           <motion.p
@@ -184,7 +224,8 @@ export function Hero() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto flex h-[340px] w-[340px] items-center justify-center sm:h-[420px] sm:w-[420px]"
+          style={{ x: parallaxProfileX, y: parallaxProfileY }}
+          className="relative mx-auto flex h-[260px] w-[260px] items-center justify-center min-[375px]:h-[300px] min-[375px]:w-[300px] min-[412px]:h-[330px] min-[412px]:w-[330px] sm:h-[420px] sm:w-[420px]"
         >
           {/* Rotating conic ring */}
           <div
@@ -192,7 +233,8 @@ export function Hero() {
             style={{
               background:
                 "conic-gradient(from 0deg, rgba(14,165,233,0) 0%, rgba(14,165,233,0.7) 12%, rgba(56,189,248,0) 28%, rgba(37,99,235,0.6) 55%, rgba(14,165,233,0) 75%, rgba(56,189,248,0.7) 90%, rgba(14,165,233,0) 100%)",
-              WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
+              WebkitMask:
+                "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
               mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
             }}
           />
@@ -200,19 +242,21 @@ export function Hero() {
           {/* Glow halo */}
           <div className="absolute inset-6 rounded-full bg-gradient-to-br from-sky-400/40 via-cyan-400/25 to-blue-600/30 blur-2xl" />
 
-          {/* Profile image */}
-          <div className="animate-float-slow relative z-10 h-[260px] w-[260px] overflow-hidden rounded-full border-4 border-white/70 shadow-glow-lg sm:h-[320px] sm:w-[320px]">
+          {/* Profile image — perfect 1:1 circle */}
+          <div className="animate-float-slow relative z-10 aspect-square h-[190px] w-[190px] overflow-hidden rounded-full border-4 border-white/70 shadow-glow-lg min-[375px]:h-[220px] min-[375px]:w-[220px] min-[412px]:h-[240px] min-[412px]:w-[240px] sm:h-[320px] sm:w-[320px]">
             <Image
               src={profile.avatar}
               alt="Riyad Sarkar — Cyber Security Specialist"
               fill
-              sizes="(max-width: 640px) 260px, 320px"
               priority
+              quality={95}
+              sizes="(max-width: 640px) 240px, 320px"
+              draggable={false}
               className="object-cover"
               onLoad={() => setImageLoaded(true)}
             />
             {!imageLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sky-100 to-blue-200 text-5xl font-bold text-blue-500/60 dark:from-slate-800 dark:to-slate-900">
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sky-100 to-blue-200 text-4xl font-bold text-blue-500/60 dark:from-slate-800 dark:to-slate-900">
                 {profile.initials}
               </div>
             )}
@@ -220,7 +264,7 @@ export function Hero() {
 
           {/* Floating badges */}
           <motion.div
-            className="glass-strong absolute left-0 top-8 z-20 flex items-center gap-2 rounded-2xl px-4 py-2.5 shadow-glow"
+            className="glass-strong absolute left-0 top-6 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 shadow-glow sm:top-8 sm:px-4 sm:py-2.5"
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
           >
@@ -232,7 +276,7 @@ export function Hero() {
           </motion.div>
 
           <motion.div
-            className="glass-strong absolute bottom-10 right-0 z-20 flex items-center gap-2 rounded-2xl px-4 py-2.5 shadow-glow"
+            className="glass-strong absolute bottom-8 right-0 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 shadow-glow sm:bottom-10 sm:px-4 sm:py-2.5"
             animate={{ y: [0, 12, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
           >

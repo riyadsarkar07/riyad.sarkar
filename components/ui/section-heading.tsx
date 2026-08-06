@@ -14,13 +14,13 @@ export function SectionHeading({ eyebrow, title, description, align = "center" }
       <Reveal>
         <div
           className={
-            "mb-4 flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.25em] text-cyber-500 " +
+            "mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-cyber-500 sm:text-sm sm:tracking-[0.25em] " +
             (align === "center" ? "justify-center" : "")
           }
         >
-          <span className="h-px w-8 bg-gradient-to-r from-transparent to-cyber-500" />
+          <span className="hidden h-px w-8 bg-gradient-to-r from-transparent to-cyber-500 sm:block" />
           {eyebrow}
-          <span className="h-px w-8 bg-gradient-to-l from-transparent to-cyber-500" />
+          <span className="hidden h-px w-8 bg-gradient-to-l from-transparent to-cyber-500 sm:block" />
         </div>
       </Reveal>
       <Reveal delay={0.08}>

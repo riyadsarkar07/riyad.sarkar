@@ -51,7 +51,7 @@ export function Testimonials() {
           onMouseEnter={() => setPaused(true)}
           onMouseLeave={() => setPaused(false)}
         >
-          <div className="perspective-1000 relative min-h-[340px]">
+          <div className="perspective-1000 relative">
             <AnimatePresence mode="wait" custom={direction}>
               <motion.figure
                 key={current.id}
@@ -60,7 +60,7 @@ export function Testimonials() {
                 animate={{ opacity: 1, x: 0, rotateY: 0 }}
                 exit={{ opacity: 0, x: direction * -80, rotateY: direction * -12 }}
                 transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                className="glass gradient-border absolute inset-0 flex flex-col rounded-3xl p-8 md:p-10"
+                className="glass gradient-border relative flex min-h-[360px] flex-col rounded-3xl p-8 md:min-h-[320px] md:p-10"
               >
                 <Quote className="h-10 w-10 text-cyan-400/60" />
                 <div className="mt-4 flex items-center gap-1">
@@ -98,7 +98,7 @@ export function Testimonials() {
           <div className="mt-6 flex items-center justify-center gap-4">
             <button
               onClick={() => go(index - 1, -1)}
-              className="glass flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-all hover:scale-110 hover:text-primary hover:shadow-glow"
+              className="glass flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-all hover:scale-110 hover:text-primary hover:shadow-glow"
               aria-label="Previous testimonial"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -110,19 +110,25 @@ export function Testimonials() {
                   key={item.id}
                   onClick={() => go(dotIndex, dotIndex > index ? 1 : -1)}
                   className={cn(
-                    "h-2 rounded-full transition-all duration-300",
-                    dotIndex === index
-                      ? "w-8 bg-gradient-to-r from-blue-600 to-cyan-400 shadow-glow"
-                      : "w-2 bg-primary/20 hover:bg-primary/40",
+                    "flex h-6 items-center justify-center rounded-full transition-all duration-300",
                   )}
                   aria-label={`Go to testimonial ${dotIndex + 1}`}
-                />
+                >
+                  <span
+                    className={cn(
+                      "block h-2 rounded-full transition-all duration-300",
+                      dotIndex === index
+                        ? "w-8 bg-gradient-to-r from-blue-600 to-cyan-400 shadow-glow"
+                        : "w-2 bg-primary/20 hover:bg-primary/40",
+                    )}
+                  />
+                </button>
               ))}
             </div>
 
             <button
               onClick={() => go(index + 1, 1)}
-              className="glass flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-all hover:scale-110 hover:text-primary hover:shadow-glow"
+              className="glass flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-all hover:scale-110 hover:text-primary hover:shadow-glow"
               aria-label="Next testimonial"
             >
               <ChevronRight className="h-5 w-5" />

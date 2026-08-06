@@ -64,7 +64,7 @@ export function Navbar() {
           </span>
         </a>
 
-        <ul className="hidden items-center gap-0.5 lg:flex">
+        <ul className="hidden items-center gap-0.5 xl:flex">
           {navItems.map((item) => {
             const isActive = active === item.id;
             const label = t.nav[item.labelKey as keyof typeof t.nav];

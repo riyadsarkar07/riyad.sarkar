@@ -141,9 +141,9 @@ export function Consultation() {
                   Pick an available day for your private session.
                 </p>
 
-                <div className="mb-2 flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                <div className="mb-2 grid grid-cols-7 gap-1 text-[11px] font-semibold text-muted-foreground">
                   {dayNames.map((day) => (
-                    <span key={day} className="w-10 text-center">
+                    <span key={day} className="text-center">
                       {day}
                     </span>
                   ))}
@@ -159,7 +159,7 @@ export function Consultation() {
                         onClick={() => setSelectedDate(date)}
                         disabled={weekend}
                         className={cn(
-                          "flex h-10 flex-col items-center justify-center rounded-xl text-sm font-medium transition-all duration-300",
+                          "flex h-11 flex-col items-center justify-center rounded-xl text-sm font-medium transition-all duration-300",
                           active
                             ? "btn-primary-glow text-white shadow-glow scale-105"
                             : weekend
@@ -198,7 +198,7 @@ export function Consultation() {
                       key={time}
                       onClick={() => setSelectedTime(time)}
                       className={cn(
-                        "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-300",
+                        "min-h-10 rounded-full px-3.5 py-2 text-xs font-semibold transition-all duration-300",
                         selectedTime === time
                           ? "btn-primary-glow text-white shadow-glow"
                           : "border border-border bg-white/50 text-muted-foreground hover:text-primary dark:bg-white/5",
