@@ -1,0 +1,270 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import {
+  ArrowDown,
+  BadgeCheck,
+  Download,
+  Facebook,
+  Github,
+  Globe,
+  Instagram,
+  Linkedin,
+  Mail,
+  MessageCircle,
+  Phone,
+  ShieldCheck,
+} from "lucide-react";
+import { profile, socials, typingWords } from "@/data/content";
+import { useTyping } from "@/hooks/use-typing";
+import { useI18n } from "@/lib/i18n";
+import { useLenis } from "@/hooks/use-lenis";
+import { Magnetic } from "@/components/effects/magnetic";
+import { ParticleBackground } from "@/components/effects/particle-background";
+import { MeshBackground } from "@/components/effects/mesh-background";
+import { Button } from "@/components/ui/button";
+
+const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  whatsapp: Phone,
+  messenger: MessageCircle,
+  email: Mail,
+  github: Github,
+  linkedin: Linkedin,
+  facebook: Facebook,
+  instagram: Instagram,
+  telegram: Globe,
+};
+
+/**
+ * Massive premium hero with floating profile, typewriter roles,
+ * magnetic CTAs and a layered animated background.
+ */
+export function Hero() {
+  const { t } = useI18n();
+  const { lenis } = useLenis();
+  const typed = useTyping(typingWords);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  const scrollTo = (id: string) => {
+    if (lenis) lenis.scrollTo(`#${id}`, { offset: -72, duration: 1.2 });
+    else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  return (
+    <section id="home" className="relative flex min-h-screen items-center overflow-hidden pt-24">
+      {/* Layered background */}
+      <MeshBackground />
+      <ParticleBackground density={50} />
+
+      {/* Floating glass shapes */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="animate-float-slow absolute left-[8%] top-[22%] h-16 w-16 rounded-2xl bg-gradient-to-br from-sky-400/30 to-blue-600/20 backdrop-blur-sm" />
+        <div className="animate-float absolute right-[14%] top-[18%] h-10 w-10 rounded-full bg-gradient-to-br from-cyan-400/30 to-sky-500/20 backdrop-blur-sm" />
+        <div className="animate-float-slow absolute bottom-[18%] left-[16%] h-12 w-12 rounded-full border border-cyan-300/40 bg-cyan-400/10 backdrop-blur-sm" />
+        <div className="animate-float absolute bottom-[26%] right-[10%] h-14 w-14 rounded-2xl border border-blue-400/30 bg-blue-400/10 backdrop-blur-sm" />
+      </div>
+
+      <div className="container relative z-10 grid items-center gap-14 pb-16 lg:grid-cols-[1.2fr_0.8fr]">
+        {/* Left column — copy */}
+        <div className="text-center lg:text-left">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="glass mb-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium"
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            <span className="text-muted-foreground">{t.hero.greeting}</span>
+            <span className="font-semibold text-primary">— {t.hero.location}</span>
+          </motion.div>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="text-5xl font-bold leading-[1.05] sm:text-6xl md:text-7xl lg:text-[5.25rem]"
+          >
+            {t.hero.name.split(" ")[0]}{" "}
+            <span className="text-gradient">{t.hero.name.split(" ").slice(1).join(" ")}</span>
+          </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-5 flex h-9 items-center justify-center gap-3 text-lg font-medium sm:text-2xl lg:justify-start"
+          >
+            <span className="hidden h-6 w-1 rounded-full bg-gradient-to-b from-sky-500 to-blue-600 sm:block" />
+            <span className="text-muted-foreground">{t.hero.role1}</span>
+            <span className="hidden text-muted-foreground/50 sm:inline">·</span>
+            <span className="text-gradient font-semibold">{typed}</span>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="mx-auto mt-6 max-w-xl text-balance text-base leading-relaxed text-muted-foreground md:text-lg lg:mx-0"
+          >
+            {t.hero.tagline}
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
+          >
+            <Magnetic>
+              <Button size="lg" onClick={() => scrollTo("consultation")}>
+                <ShieldCheck className="mr-1 h-5 w-5" />
+                {t.hero.primaryCta}
+              </Button>
+            </Magnetic>
+            <Magnetic>
+              <Button size="lg" variant="outline" asChild>
+                <a href={profile.cvUrl} target="_blank" rel="noopener noreferrer" download>
+                  <Download className="mr-1 h-5 w-5" />
+                  {t.hero.downloadCv}
+                </a>
+              </Button>
+            </Magnetic>
+          </motion.div>
+
+          {/* Social row */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-8 flex flex-wrap items-center justify-center gap-2 lg:justify-start"
+          >
+            <span className="mr-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              Reach me
+            </span>
+            {socials.map((social) => {
+              const Icon = roleIcons[social.id] ?? Globe;
+              return (
+                <Magnetic key={social.id} strength={0.25}>
+                  <a
+                    href={social.href}
+                    target={social.href.startsWith("mailto") ? undefined : "_blank"}
+                    rel="noopener noreferrer"
+                    aria-label={social.label}
+                    className="glass flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-all duration-300 hover:scale-110 hover:text-primary hover:shadow-glow"
+                  >
+                    <Icon className="h-[18px] w-[18px]" />
+                  </a>
+                </Magnetic>
+              );
+            })}
+          </motion.div>
+
+          {/* Trust badge */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-8 inline-flex items-center gap-3 rounded-2xl border border-cyan-300/40 bg-cyan-400/10 px-4 py-3 backdrop-blur-sm"
+          >
+            <BadgeCheck className="h-8 w-8 shrink-0 text-cyan-500" />
+            <div className="text-left">
+              <p className="text-sm font-semibold">{t.hero.verified}</p>
+              <p className="text-xs text-muted-foreground">{t.hero.verifiedSub}</p>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Right column — floating profile */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="relative mx-auto flex h-[340px] w-[340px] items-center justify-center sm:h-[420px] sm:w-[420px]"
+        >
+          {/* Rotating conic ring */}
+          <div
+            className="animate-spin-slow absolute inset-0 rounded-full"
+            style={{
+              background:
+                "conic-gradient(from 0deg, rgba(14,165,233,0) 0%, rgba(14,165,233,0.7) 12%, rgba(56,189,248,0) 28%, rgba(37,99,235,0.6) 55%, rgba(14,165,233,0) 75%, rgba(56,189,248,0.7) 90%, rgba(14,165,233,0) 100%)",
+              WebkitMask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
+              mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
+            }}
+          />
+
+          {/* Glow halo */}
+          <div className="absolute inset-6 rounded-full bg-gradient-to-br from-sky-400/40 via-cyan-400/25 to-blue-600/30 blur-2xl" />
+
+          {/* Profile image */}
+          <div className="animate-float-slow relative z-10 h-[260px] w-[260px] overflow-hidden rounded-full border-4 border-white/70 shadow-glow-lg sm:h-[320px] sm:w-[320px]">
+            <Image
+              src={profile.avatar}
+              alt="Riyad Sarkar — Cyber Security Specialist"
+              fill
+              sizes="(max-width: 640px) 260px, 320px"
+              priority
+              className="object-cover"
+              onLoad={() => setImageLoaded(true)}
+            />
+            {!imageLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sky-100 to-blue-200 text-5xl font-bold text-blue-500/60 dark:from-slate-800 dark:to-slate-900">
+                {profile.initials}
+              </div>
+            )}
+          </div>
+
+          {/* Floating badges */}
+          <motion.div
+            className="glass-strong absolute left-0 top-8 z-20 flex items-center gap-2 rounded-2xl px-4 py-2.5 shadow-glow"
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <ShieldCheck className="h-5 w-5 text-cyan-500" />
+            <div className="text-left">
+              <p className="text-xs font-semibold leading-none">99% Success</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Recovery rate</p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="glass-strong absolute bottom-10 right-0 z-20 flex items-center gap-2 rounded-2xl px-4 py-2.5 shadow-glow"
+            animate={{ y: [0, 12, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            <div className="text-left">
+              <p className="text-xs font-semibold leading-none">24/7 Support</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Always available</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      </div>
+
+      {/* Scroll indicator */}
+      <motion.button
+        onClick={() => scrollTo("stats")}
+        className="absolute bottom-7 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 text-muted-foreground transition-colors hover:text-primary md:flex"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.8 }}
+        aria-label={t.hero.scroll}
+      >
+        <span className="text-[11px] font-medium uppercase tracking-[0.3em]">{t.hero.scroll}</span>
+        <motion.span
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <ArrowDown className="h-4 w-4" />
+        </motion.span>
+      </motion.button>
+    </section>
+  );
+}

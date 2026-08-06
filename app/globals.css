@@ -1,0 +1,248 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 100% 99%;
+    --foreground: 217 40% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 217 40% 12%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 217 20% 42%;
+    --border: 214 60% 92%;
+    --input: 214 60% 90%;
+    --ring: 199 89% 48%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 217 60% 6%;
+    --foreground: 210 40% 96%;
+    --card: 217 50% 9%;
+    --card-foreground: 210 40% 96%;
+    --muted: 217 40% 14%;
+    --muted-foreground: 214 25% 70%;
+    --border: 217 40% 18%;
+    --input: 217 40% 20%;
+    --ring: 199 89% 55%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans overflow-x-hidden;
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+
+  ::selection {
+    background: rgba(14, 165, 233, 0.25);
+    color: inherit;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #38bdf8, #2563eb);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #0ea5e9, #1d4ed8);
+    background-clip: padding-box;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+
+  img {
+    user-select: none;
+  }
+}
+
+@layer components {
+  /* ---------- Luxury glass surfaces ---------- */
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      0 8px 32px rgba(2, 71, 132, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  .dark .glass {
+    background: rgba(13, 27, 48, 0.55);
+    border-color: rgba(148, 197, 255, 0.12);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+  }
+
+  .dark .glass-strong {
+    background: rgba(9, 20, 38, 0.85);
+    border-color: rgba(148, 197, 255, 0.14);
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(120deg, #2563eb 0%, #0ea5e9 45%, #38bdf8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Animated gradient border card */
+  .gradient-border {
+    position: relative;
+    background-clip: padding-box;
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.5), rgba(37, 99, 235, 0.15), rgba(56, 189, 248, 0.5));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  /* Soft animated primary button */
+  .btn-primary-glow {
+    background: linear-gradient(120deg, #2563eb, #0ea5e9, #38bdf8);
+    background-size: 200% auto;
+    box-shadow: 0 8px 24px rgba(14, 165, 233, 0.35);
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .btn-primary-glow:hover {
+    background-position: right center;
+    box-shadow: 0 12px 40px rgba(14, 165, 233, 0.5);
+    transform: translateY(-2px);
+  }
+
+  /* Grid backdrop */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(14, 165, 233, 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(14, 165, 233, 0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .dark .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+  }
+
+  /* Section shell */
+  .section {
+    @apply relative py-24 md:py-32;
+  }
+
+  .section-heading {
+    @apply mb-4 text-sm font-semibold uppercase tracking-[0.25em] text-cyber-500;
+  }
+
+  .section-title {
+    @apply text-3xl font-bold sm:text-4xl md:text-5xl;
+  }
+
+  /* Hide custom cursor on coarse pointers */
+  .custom-cursor-active,
+  .custom-cursor-active * {
+    cursor: none !important;
+  }
+}
+
+@layer utilities {
+  .noise-overlay {
+    background-image: url("/noise.svg");
+    background-size: 180px 180px;
+    mix-blend-mode: overlay;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .mask-fade-x {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent);
+    mask-image: linear-gradient(to bottom, black 60%, transparent);
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Custom cursor fallback ---------- */
+@media (pointer: coarse) {
+  .custom-cursor-active,
+  .custom-cursor-active * {
+    cursor: auto !important;
+  }
+}
