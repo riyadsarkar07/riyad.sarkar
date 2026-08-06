@@ -20,8 +20,8 @@ export const profile = {
   initials: "RS",
   role: "Cyber Security Specialist & Digital Recovery Expert",
   location: "Bangladesh",
-  email: process.env.NEXT_PUBLIC_PROFILE_EMAIL ?? "hello@riyadsarkar.com",
-  whatsapp: process.env.NEXT_PUBLIC_PROFILE_WHATSAPP ?? "+8801700000000",
+  email: process.env.NEXT_PUBLIC_PROFILE_EMAIL ?? "riyadsarkar1243@gmail.com",
+  whatsapp: process.env.NEXT_PUBLIC_PROFILE_WHATSAPP ?? "+8801577174050",
   cvUrl: process.env.NEXT_PUBLIC_CV_URL ?? "/cv/Riyad-Sarkar-CV.pdf",
   avatar: "/profile.png",
 };
@@ -32,42 +32,42 @@ export const socials = [
     label: "WhatsApp",
     href: process.env.NEXT_PUBLIC_PROFILE_WHATSAPP
       ? `https://wa.me/${process.env.NEXT_PUBLIC_PROFILE_WHATSAPP.replace(/[^0-9]/g, "")}`
-      : "https://wa.me/8801700000000",
+      : "https://wa.me/8801577174050",
   },
   {
     id: "messenger",
     label: "Messenger",
-    href: process.env.NEXT_PUBLIC_PROFILE_FACEBOOK ?? "https://m.me/riyadsarkar",
+    href: process.env.NEXT_PUBLIC_PROFILE_FACEBOOK ?? "https://www.facebook.com/RiyadSarkar007",
   },
   {
     id: "email",
     label: "Email",
-    href: `mailto:${process.env.NEXT_PUBLIC_PROFILE_EMAIL ?? "hello@riyadsarkar.com"}`,
+    href: `mailto:${process.env.NEXT_PUBLIC_PROFILE_EMAIL ?? "riyadsarkar1243@gmail.com"}`,
   },
   {
     id: "github",
     label: "GitHub",
-    href: process.env.NEXT_PUBLIC_PROFILE_GITHUB ?? "https://github.com/riyadsarkar",
+    href: process.env.NEXT_PUBLIC_PROFILE_GITHUB ?? "https://github.com/riyadsarkar07",
   },
   {
     id: "linkedin",
     label: "LinkedIn",
-    href: process.env.NEXT_PUBLIC_PROFILE_LINKEDIN ?? "https://www.linkedin.com/in/riyadsarkar",
+    href: process.env.NEXT_PUBLIC_PROFILE_LINKEDIN ?? "https://www.linkedin.com/in/riyad-sarkar-6694a2180",
   },
   {
     id: "facebook",
     label: "Facebook",
-    href: process.env.NEXT_PUBLIC_PROFILE_FACEBOOK ?? "https://www.facebook.com/riyadsarkar",
+    href: process.env.NEXT_PUBLIC_PROFILE_FACEBOOK ?? "https://www.facebook.com/RiyadSarkar007",
   },
   {
     id: "instagram",
     label: "Instagram",
-    href: process.env.NEXT_PUBLIC_PROFILE_INSTAGRAM ?? "https://www.instagram.com/riyadsarkar",
+    href: process.env.NEXT_PUBLIC_PROFILE_INSTAGRAM ?? "https://www.instagram.com/riyad__sharker",
   },
   {
     id: "telegram",
     label: "Telegram",
-    href: process.env.NEXT_PUBLIC_PROFILE_TELEGRAM ?? "https://t.me/riyadsarkar",
+    href: process.env.NEXT_PUBLIC_PROFILE_TELEGRAM ?? "https://t.me/Riyads11",
   },
 ];
 

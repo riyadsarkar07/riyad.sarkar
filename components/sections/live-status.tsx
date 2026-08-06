@@ -22,7 +22,7 @@ export function LiveStatus() {
             <VisitorCounter />
           </RevealItem>
           <RevealItem>
-            <GitHubGraph username="riyadsarkar" />
+            <GitHubGraph username="riyadsarkar07" />
           </RevealItem>
         </RevealGroup>
       </div>
