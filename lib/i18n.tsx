@@ -108,9 +108,11 @@ type Dictionary = {
   };
   ai: {
     title: string;
+    subtitle: string;
     placeholder: string;
     greeting: string;
     restart: string;
+    suggestions: string[];
   };
   blog: {
     title: string;
@@ -225,11 +227,21 @@ const en: Dictionary = {
     terms: "Terms",
   },
   ai: {
-    title: "Cyber Assistant",
-    placeholder: "Ask about services, recovery, security…",
+    title: "Riyad AI Assistant",
+    subtitle: "Cyber Security & Digital Recovery Assistant",
+    placeholder: "Ask about recovery, security, pricing…",
     greeting:
-      "Hello! I'm Riyad's AI assistant. Ask me about account recovery, security audits, pricing or anything else.",
+      "Hello! I'm Riyad's AI Assistant.\n\nI can help you with cyber security, account recovery, digital identity protection, appointments, and general questions about Riyad Sarkar's professional services.",
     restart: "Start over",
+    suggestions: [
+      "Facebook Recovery",
+      "Instagram Recovery",
+      "Business Manager",
+      "Copyright",
+      "Pricing",
+      "Book Appointment",
+      "Contact",
+    ],
   },
   blog: {
     title: "Latest Insights",
@@ -342,11 +354,21 @@ const bn: Dictionary = {
     terms: "শর্তাবলী",
   },
   ai: {
-    title: "সাইবার সহকারী",
-    placeholder: "সেবা, রিকভারি, নিরাপত্তা সম্পর্কে জিজ্ঞাসা করুন…",
+    title: "রিয়াদ AI সহকারী",
+    subtitle: "সাইবার সিকিউরিটি ও ডিজিটাল রিকভারি সহকারী",
+    placeholder: "রিকভারি, সিকিউরিটি, মূল্য সম্পর্কে জিজ্ঞাসা করুন…",
     greeting:
-      "হ্যালো! আমি রিয়াদের AI সহকারী। অ্যাকাউন্ট রিকভারি, সিকিউরিটি অডিট, মূল্য ইত্যাদি সম্পর্কে আমাকে জিজ্ঞাসা করুন।",
+      "হ্যালো! আমি রিয়াদের AI সহকারী।\n\nআমি সাইবার সিকিউরিটি, অ্যাকাউন্ট রিকভারি, ডিজিটাল আইডেন্টিটি প্রোটেকশন, অ্যাপয়েন্টমেন্ট এবং রিয়াদ সরকারের পেশাদার সেবা সম্পর্কিত যেকোনো প্রশ্নে আপনাকে সাহায্য করতে পারি।",
     restart: "পুনরায় শুরু করুন",
+    suggestions: [
+      "ফেসবুক রিকভারি",
+      "ইনস্টাগ্রাম রিকভারি",
+      "বিজনেস ম্যানেজার",
+      "কপিরাইট",
+      "মূল্য",
+      "অ্যাপয়েন্টমেন্ট বুক",
+      "যোগাযোগ",
+    ],
   },
   blog: {
     title: "সাম্প্রতিক লেখা",
