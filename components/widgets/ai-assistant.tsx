@@ -244,14 +244,19 @@ export function AIAssistant() {
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 300, damping: 28 }}
+            initial={{ opacity: 0, y: 24, scale: 0.92, filter: "blur(10px)" }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 24, scale: 0.95, filter: "blur(6px)" }}
+            transition={{ type: "spring", stiffness: 260, damping: 24 }}
             className="glass-strong fixed bottom-24 right-6 z-[96] flex h-[min(520px,calc(100dvh-7rem))] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-3xl shadow-glow-lg sm:right-6"
             role="dialog"
             aria-label={t.ai.title}
           >
+            {/* Floating glow blobs */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+              <div className="absolute -right-12 -top-12 h-44 w-44 rounded-full bg-cyan-400/25 blur-3xl" />
+              <div className="animate-float-slow absolute -bottom-14 -left-10 h-40 w-40 rounded-full bg-blue-500/20 blur-3xl" />
+            </div>
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-border/60 bg-gradient-to-r from-blue-600/10 to-cyan-400/10 px-5 py-4">
               <div className="relative">
@@ -277,8 +282,10 @@ export function AIAssistant() {
               {messages.map((message) => (
                 <motion.div
                   key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  layout
+                  initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 380, damping: 26 }}
                   className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
                 >
                   <div
@@ -300,7 +307,7 @@ export function AIAssistant() {
                       <motion.span
                         key={dot}
                         className="h-1.5 w-1.5 rounded-full bg-primary"
-                        animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+                        animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0], scale: [0.8, 1.1, 0.8] }}
                         transition={{ duration: 1, repeat: Infinity, delay: dot * 0.2 }}
                       />
                     ))}

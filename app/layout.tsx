@@ -9,6 +9,7 @@ import { Loader } from "@/components/effects/loader";
 import { CustomCursor } from "@/components/effects/custom-cursor";
 import { MouseGlow } from "@/components/effects/mouse-glow";
 import { ClickRipple } from "@/components/effects/click-ripple";
+import { TiltController } from "@/components/effects/tilt-controller";
 import { NoiseOverlay } from "@/components/effects/noise-overlay";
 import { ScrollProgress } from "@/components/effects/scroll-progress";
 import { SoundProvider } from "@/lib/sound";
@@ -60,6 +61,7 @@ export default function RootLayout({
             <CustomCursor />
             <MouseGlow />
             <ClickRipple />
+            <TiltController />
             <NoiseOverlay />
             <ScrollProgress />
             <Navbar />

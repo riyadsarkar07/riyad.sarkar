@@ -6,12 +6,14 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import {
   ArrowDown,
   BadgeCheck,
+  Cpu,
   Download,
   Facebook,
   Github,
   Globe,
   Instagram,
   Linkedin,
+  Lock,
   Mail,
   MessageCircle,
   Phone,
@@ -25,6 +27,10 @@ import { useLenis } from "@/hooks/use-lenis";
 import { Magnetic } from "@/components/effects/magnetic";
 import { ParticleBackground } from "@/components/effects/particle-background";
 import { MeshBackground } from "@/components/effects/mesh-background";
+import { CyberGrid } from "@/components/effects/cyber-grid";
+import { HoloShield } from "@/components/effects/holo-shield";
+import { OrbitRings } from "@/components/effects/orbit-rings";
+import { Parallax } from "@/components/effects/parallax";
 import { Button } from "@/components/ui/button";
 
 const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -59,6 +65,8 @@ export function Hero() {
   const parallaxProfileY = useTransform(sy, (v) => v * -16);
   const parallaxShapesX = useTransform(sx, (v) => v * 28);
   const parallaxShapesY = useTransform(sy, (v) => v * 28);
+  const rotateProfileX = useTransform(sy, (v) => -v * 8);
+  const rotateProfileY = useTransform(sx, (v) => v * 8);
 
   useEffect(() => {
     if (!finePointer) return;
@@ -82,18 +90,36 @@ export function Hero() {
     <section id="home" className="relative flex min-h-screen items-center overflow-hidden pt-24">
       {/* Layered background */}
       <MeshBackground />
+      <CyberGrid />
       <ParticleBackground density={50} />
 
-      {/* Floating glass shapes (mouse parallax on fine pointers) */}
+      {/* Floating glass shapes + cyber symbols (mouse + scroll parallax) */}
       <motion.div
         className="pointer-events-none absolute inset-0"
         style={{ x: parallaxShapesX, y: parallaxShapesY }}
         aria-hidden
       >
-        <div className="animate-float-slow absolute left-[8%] top-[22%] h-14 w-14 rounded-2xl bg-gradient-to-br from-sky-400/30 to-blue-600/20 backdrop-blur-sm sm:h-16 sm:w-16" />
-        <div className="animate-float absolute right-[14%] top-[18%] h-8 w-8 rounded-full bg-gradient-to-br from-cyan-400/30 to-sky-500/20 backdrop-blur-sm sm:h-10 sm:w-10" />
-        <div className="animate-float-slow absolute bottom-[18%] left-[16%] h-10 w-10 rounded-full border border-cyan-300/40 bg-cyan-400/10 backdrop-blur-sm sm:h-12 sm:w-12" />
-        <div className="animate-float absolute bottom-[26%] right-[10%] h-11 w-11 rounded-2xl border border-blue-400/30 bg-blue-400/10 backdrop-blur-sm sm:h-14 sm:w-14" />
+        <Parallax className="absolute inset-0" offset={36}>
+          <div className="animate-float-slow absolute left-[8%] top-[22%] h-14 w-14 rounded-2xl bg-gradient-to-br from-sky-400/30 to-blue-600/20 backdrop-blur-sm sm:h-16 sm:w-16" />
+          <div className="animate-float absolute right-[14%] top-[18%] h-8 w-8 rounded-full bg-gradient-to-br from-cyan-400/30 to-sky-500/20 backdrop-blur-sm sm:h-10 sm:w-10" />
+          <div className="animate-float-slow absolute bottom-[18%] left-[16%] h-10 w-10 rounded-full border border-cyan-300/40 bg-cyan-400/10 backdrop-blur-sm sm:h-12 sm:w-12" />
+          <div className="animate-float absolute bottom-[26%] right-[10%] h-11 w-11 rounded-2xl border border-blue-400/30 bg-blue-400/10 backdrop-blur-sm sm:h-14 sm:w-14" />
+
+          {/* Rotating cyber cube */}
+          <div className="absolute right-[30%] top-[38%] hidden lg:block">
+            <div className="animate-cube-spin h-10 w-10 rounded-lg border border-cyan-300/40 bg-gradient-to-br from-cyan-400/20 to-blue-600/20 shadow-[0_0_24px_rgba(56,189,248,0.35)] backdrop-blur-sm" />
+          </div>
+
+          {/* Floating lock chip */}
+          <div className="absolute bottom-[30%] right-[22%] hidden items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-3 py-2 backdrop-blur-sm lg:flex">
+            <Lock className="icon-glow h-4 w-4 text-cyan-400" />
+          </div>
+
+          {/* Floating cpu chip */}
+          <div className="absolute left-[24%] top-[52%] hidden items-center gap-2 rounded-2xl border border-blue-400/30 bg-blue-400/10 px-3 py-2 backdrop-blur-sm lg:flex">
+            <Cpu className="icon-glow h-4 w-4 text-sky-400" />
+          </div>
+        </Parallax>
       </motion.div>
 
       <div className="container relative z-10 grid items-center gap-10 pb-16 lg:grid-cols-[1.2fr_0.8fr] md:gap-14">
@@ -197,7 +223,7 @@ export function Hero() {
                     aria-label={social.label}
                     className="glass flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-all duration-300 hover:scale-110 hover:text-primary hover:shadow-glow"
                   >
-                    <Icon className="h-[18px] w-[18px]" />
+                    <Icon className="icon-glow h-[18px] w-[18px]" />
                   </a>
                 </Magnetic>
               );
@@ -224,12 +250,21 @@ export function Hero() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          style={{ x: parallaxProfileX, y: parallaxProfileY }}
+          style={{
+            x: parallaxProfileX,
+            y: parallaxProfileY,
+            rotateX: rotateProfileX,
+            rotateY: rotateProfileY,
+            transformPerspective: 1000,
+          }}
           className="relative mx-auto flex h-[260px] w-[260px] items-center justify-center min-[375px]:h-[300px] min-[375px]:w-[300px] min-[412px]:h-[330px] min-[412px]:w-[330px] sm:h-[420px] sm:w-[420px]"
         >
+          {/* Holographic cyber shield behind the profile */}
+          <HoloShield className="z-0 scale-[1.15]" />
+
           {/* Rotating conic ring */}
           <div
-            className="animate-spin-slow absolute inset-0 rounded-full"
+            className="animate-spin-slow absolute inset-0 z-[1] rounded-full"
             style={{
               background:
                 "conic-gradient(from 0deg, rgba(14,165,233,0) 0%, rgba(14,165,233,0.7) 12%, rgba(56,189,248,0) 28%, rgba(37,99,235,0.6) 55%, rgba(14,165,233,0) 75%, rgba(56,189,248,0.7) 90%, rgba(14,165,233,0) 100%)",
@@ -239,11 +274,14 @@ export function Hero() {
             }}
           />
 
-          {/* Glow halo */}
-          <div className="absolute inset-6 rounded-full bg-gradient-to-br from-sky-400/40 via-cyan-400/25 to-blue-600/30 blur-2xl" />
+          {/* Rotating rings + orbit particles + energy pulses */}
+          <OrbitRings />
+
+          {/* Glow halo — breathing */}
+          <div className="animate-breath absolute inset-6 rounded-full bg-gradient-to-br from-sky-400/40 via-cyan-400/25 to-blue-600/30 blur-2xl" />
 
           {/* Profile image — perfect 1:1 circle */}
-          <div className="animate-float-slow relative z-10 aspect-square h-[190px] w-[190px] overflow-hidden rounded-full border-4 border-white/70 shadow-glow-lg min-[375px]:h-[220px] min-[375px]:w-[220px] min-[412px]:h-[240px] min-[412px]:w-[240px] sm:h-[320px] sm:w-[320px]">
+          <div className="animate-float-slow relative z-10 aspect-square h-[190px] w-[190px] overflow-hidden rounded-full border-4 border-white/70 shadow-glow-lg transition-transform duration-500 hover:scale-[1.04] min-[375px]:h-[220px] min-[375px]:w-[220px] min-[412px]:h-[240px] min-[412px]:w-[240px] sm:h-[320px] sm:w-[320px]">
             <Image
               src={profile.avatar}
               alt="Riyad Sarkar — Cyber Security Specialist"

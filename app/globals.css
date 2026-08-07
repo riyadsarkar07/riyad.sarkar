@@ -171,6 +171,102 @@
   .btn-primary-glow:hover::after {
     transform: translateX(100%);
   }
+  .btn-primary-glow:hover {
+    transform: translateY(-2px) scale(1.02);
+  }
+  .btn-primary-glow:active {
+    transform: translateY(0) scale(0.96);
+  }
+  .btn-outline-glow {
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(14, 165, 233, 0.3);
+    transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .btn-outline-glow::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    background: radial-gradient(160px circle at var(--mgx, 50%) var(--mgy, 50%), rgba(56, 189, 248, 0.22), transparent 60%);
+  }
+  .btn-outline-glow:hover::before {
+    opacity: 1;
+  }
+  .btn-outline-glow:hover {
+    border-color: rgba(14, 165, 233, 0.6);
+    box-shadow: 0 12px 36px rgba(14, 165, 233, 0.22);
+    transform: translateY(-2px);
+  }
+  .btn-outline-glow:active {
+    transform: translateY(0) scale(0.96);
+  }
+
+  /* 3D tilt cards (managed by TiltController) */
+  .tilt-card {
+    transform-style: preserve-3d;
+  }
+  .tilt-card.tilt-active {
+    border-color: rgba(14, 165, 233, 0.4);
+    box-shadow:
+      0 28px 64px rgba(14, 165, 233, 0.22),
+      0 12px 32px rgba(2, 71, 132, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+  .dark .tilt-card.tilt-active {
+    box-shadow:
+      0 28px 64px rgba(14, 165, 233, 0.28),
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .tilt-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: radial-gradient(
+      520px circle at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
+      rgba(56, 189, 248, 0.18),
+      rgba(37, 99, 235, 0.07) 35%,
+      transparent 62%
+    );
+  }
+  .tilt-card.tilt-active::after {
+    opacity: 1;
+  }
+
+  /* Icon motion utilities */
+  .icon-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  .icon-glow {
+    transition: filter 0.3s ease, transform 0.3s ease;
+  }
+  .icon-glow:hover {
+    filter: drop-shadow(0 0 10px rgba(14, 165, 233, 0.9));
+  }
+  .icon-spin {
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .icon-spin:hover {
+    transform: rotate(180deg) scale(1.1);
+  }
+
+  /* Light streak used in hero / sections */
+  .light-streak {
+    position: absolute;
+    height: 1px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.9), transparent);
+    filter: blur(0.5px);
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+  }
 
   /* Grid backdrop */
   .bg-grid {

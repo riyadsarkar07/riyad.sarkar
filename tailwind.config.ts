@@ -139,6 +139,35 @@ const config: Config = {
           "0%": { transform: "scale(0.35)", opacity: "0.6" },
           "100%": { transform: "scale(1)", opacity: "0" },
         },
+        "spin-reverse": {
+          to: { transform: "rotate(-360deg)" },
+        },
+        breath: {
+          "0%, 100%": { opacity: "0.45", transform: "scale(0.94)" },
+          "50%": { opacity: "1", transform: "scale(1.06)" },
+        },
+        "pulse-soft": {
+          "0%": { transform: "scale(0.85)", opacity: "0.7" },
+          "100%": { transform: "scale(1.75)", opacity: "0" },
+        },
+        "light-streak": {
+          "0%": { transform: "translateX(-140%) skewX(-18deg)", opacity: "0" },
+          "15%": { opacity: "1" },
+          "85%": { opacity: "1" },
+          "100%": { transform: "translateX(560%) skewX(-18deg)", opacity: "0" },
+        },
+        "float-card": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
+        "cube-spin": {
+          "0%": { transform: "rotateX(-22deg) rotateY(0deg)" },
+          "100%": { transform: "rotateX(-22deg) rotateY(360deg)" },
+        },
+        "orbit-dot": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -156,6 +185,13 @@ const config: Config = {
         "grid-pan": "grid-pan 2s linear infinite",
         blink: "blink 1.1s steps(2, start) infinite",
         ripple: "ripple 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "spin-reverse": "spin-reverse 16s linear infinite",
+        breath: "breath 5s ease-in-out infinite",
+        "pulse-soft": "pulse-soft 3.4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "light-streak": "light-streak 9s ease-in-out infinite",
+        "float-card": "float-card 7s ease-in-out infinite",
+        "cube-spin": "cube-spin 14s linear infinite",
+        "orbit-dot": "orbit-dot 12s linear infinite",
       },
       backdropBlur: {
         xs: "2px",

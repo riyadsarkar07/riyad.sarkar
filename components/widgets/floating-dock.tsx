@@ -44,7 +44,7 @@ export function FloatingDock() {
       className="fixed bottom-6 left-1/2 z-[92] hidden -translate-x-1/2 md:block"
       aria-label="Quick navigation dock"
     >
-      <div className="glass-strong flex items-center gap-1.5 rounded-full p-1.5 shadow-glow-lg">
+      <div className="glass-strong flex items-center gap-1.5 rounded-full p-1.5 shadow-glow-lg transition-shadow duration-300 hover:shadow-glow">
         {dockItems.map((item) => (
           <motion.button
             key={item.id}
@@ -55,8 +55,8 @@ export function FloatingDock() {
             className="group relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
             aria-label={item.label}
           >
-            <item.icon className="h-5 w-5" />
-            <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+            <item.icon className="icon-glow h-5 w-5" />
+            <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">
               {item.label}
             </span>
           </motion.button>
@@ -71,8 +71,8 @@ export function FloatingDock() {
           className="group relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
           aria-label="Command palette"
         >
-          <Command className="h-5 w-5" />
-          <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          <Command className="icon-glow h-5 w-5" />
+          <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">
             Command palette
           </span>
         </motion.button>

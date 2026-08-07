@@ -28,7 +28,7 @@ function ServiceCard({ id }: { id: string }) {
   return (
     <>
       <div ref={ref} style={{ transform }} className="transition-transform duration-200 will-change-transform">
-        <div className="group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-7 transition-all duration-500 hover:shadow-glow-lg">
+        <div className="group glass gradient-border animate-float-card relative flex h-full flex-col overflow-hidden rounded-3xl p-7 transition-all duration-500 hover:shadow-glow-lg">
           <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${service.gradient} blur-2xl transition-opacity duration-500 opacity-40 group-hover:opacity-90`} />
 
           <div className="mb-5 flex items-center justify-between">
