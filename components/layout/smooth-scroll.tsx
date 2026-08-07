@@ -25,12 +25,11 @@ export function SmoothScrollProvider() {
     if (prefersReducedMotion()) return;
 
     const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => 1 - Math.pow(1 - t, 3),
+      lerp: 0.1,
       smoothWheel: true,
       wheelMultiplier: 1,
-      touchMultiplier: 1.1,
-      syncTouch: true,
+      touchMultiplier: 1,
+      syncTouch: false,
     });
     sharedLenis = lenis;
 

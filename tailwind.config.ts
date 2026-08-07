@@ -168,6 +168,15 @@ const config: Config = {
           "0%": { transform: "rotate(0deg)" },
           "100%": { transform: "rotate(360deg)" },
         },
+        "grid-drift": {
+          "0%": { transform: "translateY(0px)" },
+          "100%": { transform: "translateY(48px)" },
+        },
+        "shield-pulse": {
+          "0%": { transform: "scale(0.85)", opacity: "0.55" },
+          "70%": { opacity: "0.15" },
+          "100%": { transform: "scale(1.55)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -192,6 +201,8 @@ const config: Config = {
         "float-card": "float-card 7s ease-in-out infinite",
         "cube-spin": "cube-spin 14s linear infinite",
         "orbit-dot": "orbit-dot 12s linear infinite",
+        "grid-drift": "grid-drift 4s linear infinite",
+        "shield-pulse": "shield-pulse 3.4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
       backdropBlur: {
         xs: "2px",

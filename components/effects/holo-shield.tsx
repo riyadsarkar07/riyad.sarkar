@@ -50,16 +50,17 @@ export function HoloShield({ className }: { className?: string }) {
             strokeLinecap="round"
             opacity="0.7"
           />
-          {/* Cross pulse */}
-          <circle cx="60" cy="72" r="20" stroke="#38bdf8" strokeOpacity="0.4" strokeWidth="1.2">
-            <animate
-              attributeName="r"
-              values="14;26;14"
-              dur="3.4s"
-              repeatCount="indefinite"
-            />
-            <animate attributeName="stroke-opacity" values="0.5;0;0.5" dur="3.4s" repeatCount="indefinite" />
-          </circle>
+          {/* Cross pulse — CSS transform (GPU), no SMIL */}
+          <circle
+            cx="60"
+            cy="72"
+            r="20"
+            stroke="#38bdf8"
+            strokeOpacity="0.4"
+            strokeWidth="1.2"
+            className="animate-shield-pulse"
+            style={{ transformBox: "fill-box", transformOrigin: "center" }}
+          />
         </svg>
       </div>
     </div>
