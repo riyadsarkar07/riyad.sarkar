@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { LayoutDashboard, Menu, UserRound, X } from "lucide-react";
 import { navItems } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useLenis } from "@/hooks/use-lenis";
+import { useSession } from "@/hooks/use-session";
 import { Button } from "@/components/ui/button";
 
 /** Slide-in glass drawer for small screens. */
 export function MobileMenu() {
   const { t } = useI18n();
   const { lenis } = useLenis();
+  const { user } = useSession();
   const [open, setOpen] = useState(false);
 
   const scrollTo = (href: string) => {
@@ -84,10 +87,44 @@ export function MobileMenu() {
                 </ul>
               </nav>
 
-              <div className="mt-auto">
-                <Button className="w-full" onClick={() => scrollTo("#consultation")}>
-                  {t.common.bookConsultation}
+              <div className="mt-auto space-y-3">
+                <Button
+                  asChild
+                  className="w-full"
+                  onClick={() => setOpen(false)}
+                >
+                  <Link href={user ? "/dashboard/appointments/new" : "/login"}>
+                    Book Appointment
+                  </Link>
                 </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  {user ? (
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setOpen(false)}
+                    >
+                      <Link href="/dashboard">
+                        <LayoutDashboard className="h-4 w-4" /> Dashboard
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setOpen(false)}
+                    >
+                      <Link href="/login">
+                        <UserRound className="h-4 w-4" /> Login
+                      </Link>
+                    </Button>
+                  )}
+                  <Button variant="outline" className="w-full" onClick={() => scrollTo("#consultation")}>
+                    {t.common.bookConsultation}
+                  </Button>
+                </div>
               </div>
             </motion.div>
           </>

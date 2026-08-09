@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bot, Send, Sparkles, X } from "lucide-react";
+import { Bot, CalendarPlus, Headset, Send, Sparkles, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -170,6 +172,7 @@ function getReply(input: string, lang: "en" | "bn"): string {
 /** Floating AI chat assistant — Riyad AI Assistant. */
 export function AIAssistant() {
   const { t, lang } = useI18n();
+  const { user } = useSession();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -328,6 +331,22 @@ export function AIAssistant() {
                   {label}
                 </button>
               ))}
+            </div>
+
+            {/* Portal shortcuts */}
+            <div className="grid grid-cols-2 gap-2 px-4 pb-2 pt-1">
+              <Link
+                href={user ? "/dashboard/appointments/new" : "/login"}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-gradient-to-r from-blue-600/15 to-cyan-400/15 px-3 py-2 text-[11px] font-semibold text-primary transition-colors hover:from-blue-600/25 hover:to-cyan-400/25"
+              >
+                <CalendarPlus className="h-3.5 w-3.5" /> Book Appointment
+              </Link>
+              <Link
+                href={user ? "/dashboard/support" : "/login"}
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-primary/5 px-3 py-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-primary/10"
+              >
+                <Headset className="h-3.5 w-3.5" /> Open Support
+              </Link>
             </div>
 
             {/* Input */}

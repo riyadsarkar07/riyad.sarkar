@@ -1,0 +1,466 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import {
+  notifyAppointmentCreated,
+  notifyAppointmentStatus,
+  notifySupportReply,
+  notifyTicketCreated,
+} from "@/lib/notifications";
+import {
+  ALLOWED_FILE_TYPES,
+  APPOINTMENT_SERVICES,
+  MAX_FILE_SIZE,
+  TICKET_CATEGORIES,
+} from "@/lib/constants";
+
+type ActionResult = { ok: boolean; error?: string; referenceId?: string };
+
+/* ------------------------------------------------------------------ */
+/*  Shared helpers                                                     */
+/* ------------------------------------------------------------------ */
+
+async function requireUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { supabase: null, user: null, error: "Not signed in" as string };
+  return { supabase, user, error: null };
+}
+
+function validateFileMeta(meta: {
+  storagePath: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+}): string | null {
+  if (!ALLOWED_FILE_TYPES.includes(meta.mimeType)) return "Invalid file type.";
+  if (meta.size > MAX_FILE_SIZE) return "File too large (max 5 MB).";
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Appointments                                                       */
+/* ------------------------------------------------------------------ */
+
+const appointmentSchema = z.object({
+  fullName: z.string().min(2),
+  email: z.string().email(),
+  phone: z.string().min(6),
+  service: z.enum(APPOINTMENT_SERVICES),
+  date: z.string().min(8),
+  time: z.string().min(1),
+  timezone: z.string().default("Asia/Dhaka (GMT+6)"),
+  priority: z.enum(["low", "normal", "high", "urgent"]),
+  problemDescription: z.string().min(10),
+  additionalDetails: z.string().optional(),
+  preferredContact: z.enum(["email", "whatsapp", "phone"]),
+});
+
+export async function createAppointmentAction(input: {
+  form: z.infer<typeof appointmentSchema>;
+  files?: { storagePath: string; fileName: string; mimeType: string; size: number }[];
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const parsed = appointmentSchema.safeParse(input.form);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid appointment data" };
+  }
+
+  const fileMetas = (input.files ?? []).map((f) => ({
+    ...f,
+    fileError: validateFileMeta(f),
+  }));
+  for (const f of fileMetas) {
+    if (f.fileError) return { ok: false, error: f.fileError };
+    if (!f.storagePath.startsWith(`${user.id}/`)) {
+      return { ok: false, error: "Invalid file path" };
+    }
+  }
+
+  const d = parsed.data;
+
+  const { data: appointment, error: insertError } = await supabase
+    .from("appointments")
+    .insert({
+      user_id: user.id,
+      full_name: d.fullName,
+      email: d.email,
+      phone: d.phone,
+      service: d.service,
+      appointment_date: d.date,
+      appointment_time: d.time,
+      timezone: d.timezone,
+      priority: d.priority,
+      problem_description: d.problemDescription,
+      additional_details: d.additionalDetails ?? null,
+      preferred_contact: d.preferredContact,
+    })
+    .select("*")
+    .maybeSingle();
+
+  if (insertError) {
+    if (insertError.code === "23505") {
+      return { ok: false, error: "You already have an appointment for this date and time." };
+    }
+    return { ok: false, error: insertError.message };
+  }
+  if (!appointment) return { ok: false, error: "Could not create appointment." };
+
+  for (const f of fileMetas) {
+    await supabase.from("appointment_files").insert({
+      appointment_id: appointment.id,
+      user_id: user.id,
+      storage_path: f.storagePath,
+      file_name: f.fileName,
+      mime_type: f.mimeType,
+      size: f.size,
+    });
+  }
+
+  revalidatePath("/dashboard");
+
+  await notifyAppointmentCreated({
+    userId: user.id,
+    userEmail: d.email,
+    userName: d.fullName,
+    referenceId: appointment.reference_id ?? "RS-????",
+    service: d.service,
+    date: d.date,
+    time: d.time,
+  });
+
+  return { ok: true, referenceId: appointment.reference_id ?? undefined };
+}
+
+export async function requestRescheduleAction(id: string, date: string, time: string): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const { error: updateError } = await supabase
+    .from("appointments")
+    .update({ appointment_date: date, appointment_time: time, status: "reschedule_requested" })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (updateError) return { ok: false, error: updateError.message };
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function requestCancellationAction(id: string): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const { error: updateError } = await supabase
+    .from("appointments")
+    .update({ status: "cancelled" })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (updateError) return { ok: false, error: updateError.message };
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Support tickets                                                    */
+/* ------------------------------------------------------------------ */
+
+const ticketSchema = z.object({
+  subject: z.string().min(3),
+  category: z.enum(TICKET_CATEGORIES),
+  priority: z.enum(["low", "normal", "high", "urgent"]),
+  message: z.string().min(10),
+  appointmentId: z.string().uuid().optional().nullable(),
+});
+
+export async function createTicketAction(input: {
+  form: z.infer<typeof ticketSchema>;
+  files?: { storagePath: string; fileName: string; mimeType: string; size: number }[];
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const parsed = ticketSchema.safeParse(input.form);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid ticket data" };
+  }
+
+  const fileMetas = (input.files ?? []).map((f) => ({
+    ...f,
+    fileError: validateFileMeta(f),
+  }));
+  for (const f of fileMetas) {
+    if (f.fileError) return { ok: false, error: f.fileError };
+    if (!f.storagePath.startsWith(`${user.id}/`)) return { ok: false, error: "Invalid file path" };
+  }
+
+  const d = parsed.data;
+  if (d.appointmentId) {
+    const { data: owns } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("id", d.appointmentId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!owns) return { ok: false, error: "Invalid appointment reference" };
+  }
+
+  const { data: ticket, error: insertError } = await supabase
+    .from("support_tickets")
+    .insert({
+      user_id: user.id,
+      appointment_id: d.appointmentId ?? null,
+      subject: d.subject,
+      category: d.category,
+      priority: d.priority,
+      message: d.message,
+    })
+    .select("*")
+    .maybeSingle();
+
+  if (insertError) return { ok: false, error: insertError.message };
+  if (!ticket) return { ok: false, error: "Could not create ticket." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  for (const f of fileMetas) {
+    const { data: fileRow } = await supabase
+      .from("support_files")
+      .insert({
+        ticket_id: ticket.id,
+        user_id: user.id,
+        storage_path: f.storagePath,
+        file_name: f.fileName,
+        mime_type: f.mimeType,
+        size: f.size,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (fileRow) {
+      await supabase
+        .from("support_messages")
+        .insert({
+          ticket_id: ticket.id,
+          sender_id: user.id,
+          sender_role: "user",
+          message: d.message,
+          attachment_file_id: fileRow.id,
+        });
+    }
+  }
+  if (fileMetas.length === 0) {
+    await supabase.from("support_messages").insert({
+      ticket_id: ticket.id,
+      sender_id: user.id,
+      sender_role: "user",
+      message: d.message,
+    });
+  }
+
+  revalidatePath("/dashboard");
+
+  await notifyTicketCreated({
+    userId: user.id,
+    userEmail: profile?.email ?? d.subject,
+    userName: profile?.full_name ?? "Client",
+    referenceId: ticket.reference_id ?? "SUP-????",
+    subject: d.subject,
+  });
+
+  return { ok: true, referenceId: ticket.reference_id ?? undefined };
+}
+
+export async function sendMessageAction(input: {
+  ticketId: string;
+  message: string;
+  file?: { storagePath: string; fileName: string; mimeType: string; size: number };
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data: ticket } = await supabase
+    .from("support_tickets")
+    .select("*")
+    .eq("id", input.ticketId)
+    .maybeSingle();
+  if (!ticket) return { ok: false, error: "Ticket not found" };
+
+  const isAdmin = await isAdminUser();
+  const role: "user" | "admin" = isAdmin ? "admin" : "user";
+
+  let fileId: string | null = null;
+  if (input.file) {
+    const fErr = validateFileMeta(input.file);
+    if (fErr) return { ok: false, error: fErr };
+    const { data: fileRow } = await supabase
+      .from("support_files")
+      .insert({
+        ticket_id: ticket.id,
+        user_id: isAdmin ? null : user.id,
+        storage_path: input.file.storagePath,
+        file_name: input.file.fileName,
+        mime_type: input.file.mimeType,
+        size: input.file.size,
+      })
+      .select("id")
+      .maybeSingle();
+    fileId = fileRow?.id ?? null;
+  }
+
+  const { error: msgError } = await supabase.from("support_messages").insert({
+    ticket_id: ticket.id,
+    sender_id: user.id,
+    sender_role: role,
+    message: input.message,
+    attachment_file_id: fileId,
+  });
+
+  if (msgError) return { ok: false, error: msgError.message };
+
+  if (role === "user" && ticket.status === "open") {
+    await supabase.from("support_tickets").update({ status: "pending" }).eq("id", ticket.id);
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/admin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", ticket.user_id)
+    .maybeSingle();
+
+  await notifySupportReply({
+    userId: role === "admin" ? ticket.user_id : null,
+    userEmail: profile?.email ?? "",
+    userName: profile?.full_name ?? "Client",
+    referenceId: ticket.reference_id ?? "SUP-????",
+    senderRole: role,
+    preview: input.message,
+  });
+
+  return { ok: true };
+}
+
+export async function closeTicketAction(id: string): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const { data: ticket } = await supabase
+    .from("support_tickets")
+    .select("user_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!ticket) return { ok: false, error: "Ticket not found" };
+  const isAdmin = await isAdminUser();
+  if (!isAdmin && ticket.user_id !== user.id) return { ok: false, error: "Not authorized" };
+  const { error: updateError } = await supabase
+    .from("support_tickets")
+    .update({ status: "closed" })
+    .eq("id", id);
+  if (updateError) return { ok: false, error: updateError.message };
+  revalidatePath("/dashboard");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Admin                                                              */
+/* ------------------------------------------------------------------ */
+
+async function isAdminUser() {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("is_admin");
+  return !!data;
+}
+
+export async function adminUpdateAppointmentAction(input: {
+  id: string;
+  status?: string;
+  priority?: string;
+  adminNotes?: string;
+  date?: string;
+  time?: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  const patch: Record<string, unknown> = {};
+  if (input.status) patch.status = input.status;
+  if (input.priority) patch.priority = input.priority;
+  if (input.adminNotes !== undefined) patch.admin_notes = input.adminNotes;
+  if (input.date) patch.appointment_date = input.date;
+  if (input.time) patch.appointment_time = input.time;
+
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select("user_id, email, full_name, reference_id")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (!appointment) return { ok: false, error: "Appointment not found" };
+
+  const { error } = await supabase.from("appointments").update(patch).eq("id", input.id);
+  if (error) return { ok: false, error: error.message };
+
+  if (input.status && appointment.user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", appointment.user_id)
+      .maybeSingle();
+    await notifyAppointmentStatus({
+      userId: appointment.user_id,
+      userEmail: profile?.email ?? appointment.email,
+      userName: profile?.full_name ?? appointment.full_name,
+      referenceId: appointment.reference_id ?? "RS-????",
+      status: input.status,
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function adminUpdateTicketAction(input: {
+  id: string;
+  status?: string;
+  priority?: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  const patch: Record<string, unknown> = {};
+  if (input.status) patch.status = input.status;
+  if (input.priority) patch.priority = input.priority;
+
+  const { error } = await supabase.from("support_tickets").update(patch).eq("id", input.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function markNotificationsReadAction(): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  await supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function updateSettingsAction(key: string, value: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+  const { error } = await supabase.from("settings").upsert({ key, value });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/settings");
+  return { ok: true };
+}

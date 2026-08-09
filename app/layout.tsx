@@ -3,6 +3,7 @@ import { inter, spaceGrotesk } from "@/lib/fonts";
 import { buildMetadata, personJsonLd } from "@/lib/seo";
 import { Providers } from "@/components/providers";
 import { SmoothScrollProvider } from "@/components/layout/smooth-scroll";
+import { PortfolioChrome } from "@/components/layout/portfolio-chrome";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/sections/footer";
 import { Loader } from "@/components/effects/loader";
@@ -64,14 +65,16 @@ export default function RootLayout({
             <TiltController />
             <NoiseOverlay />
             <ScrollProgress />
-            <Navbar />
+            <PortfolioChrome>
+              <Navbar />
+              <Footer />
+              <AIAssistant />
+              <CommandPalette />
+              <CookieConsent />
+              <SoundToggle />
+              <FloatingDock />
+            </PortfolioChrome>
             <main id="main-content">{children}</main>
-            <Footer />
-            <AIAssistant />
-            <CommandPalette />
-            <CookieConsent />
-            <SoundToggle />
-            <FloatingDock />
           </SoundProvider>
         </Providers>
       </body>
