@@ -157,7 +157,7 @@ export default function AdminAppointmentDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <label className="text-sm">
                   <span className="mb-1 block font-medium text-muted-foreground">Status</span>
-                  <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-12 w-full rounded-xl border border-input bg-white/60 px-4 text-sm capitalize dark:bg-white/5">
+                  <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status" className="h-12 w-full rounded-xl border border-input bg-white/60 px-4 text-sm capitalize dark:bg-white/5">
                     {APPOINTMENT_STATUSES.map((s) => (
                       <option key={s} value={s}>{s.replace("_", " ")}</option>
                     ))}
@@ -165,7 +165,7 @@ export default function AdminAppointmentDetailPage() {
                 </label>
                 <label className="text-sm">
                   <span className="mb-1 block font-medium text-muted-foreground">Priority</span>
-                  <select value={priority} onChange={(e) => setPriority(e.target.value)} className="h-12 w-full rounded-xl border border-input bg-white/60 px-4 text-sm capitalize dark:bg-white/5">
+                  <select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label="Priority" className="h-12 w-full rounded-xl border border-input bg-white/60 px-4 text-sm capitalize dark:bg-white/5">
                     {PRIORITIES.map((p) => (
                       <option key={p} value={p}>{p}</option>
                     ))}
