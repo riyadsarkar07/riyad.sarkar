@@ -65,6 +65,7 @@ export default function RootLayout({
             <TiltController />
             <NoiseOverlay />
             <ScrollProgress />
+            <main id="main-content">{children}</main>
             <PortfolioChrome>
               <Navbar />
               <Footer />
@@ -74,7 +75,6 @@ export default function RootLayout({
               <SoundToggle />
               <FloatingDock />
             </PortfolioChrome>
-            <main id="main-content">{children}</main>
           </SoundProvider>
         </Providers>
       </body>
