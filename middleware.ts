@@ -5,7 +5,9 @@ import { updateSession } from "@/lib/supabase/middleware";
  * Route guard:
  *  - /dashboard* requires a signed-in user
  *  - /admin*    requires a signed-in user (admin check happens in the layout)
- *  - /login, /signup, /forgot-password, /reset-password redirect to dashboard if signed in
+ *  - /login, /signup, /reset-password redirect to dashboard if signed in
+ *  - /forgot-password stays reachable while signed in so signed-in users can
+ *    complete the OTP password-recovery flow (e.g. from the profile page).
  */
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
@@ -28,7 +30,6 @@ export async function middleware(request: NextRequest) {
   if (
     pathname === "/login" ||
     pathname === "/signup" ||
-    pathname === "/forgot-password" ||
     pathname === "/reset-password"
   ) {
     const url = request.nextUrl.clone();

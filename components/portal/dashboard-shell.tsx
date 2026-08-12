@@ -3,8 +3,11 @@
 import {
   CalendarDays,
   CalendarPlus,
+  Home,
   LayoutDashboard,
+  Lock,
   MessagesSquare,
+  Settings,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -19,6 +22,9 @@ function DashboardNav() {
     { href: "/dashboard/appointments", label: "My Appointments", icon: CalendarDays },
     { href: "/dashboard/support", label: "Support Inbox", icon: MessagesSquare },
     { href: "/dashboard/profile", label: "Profile", icon: UserRound },
+    { href: "/dashboard/account", label: "Account Settings", icon: Settings },
+    { href: "/dashboard/account#change-password", label: "Change Password", icon: Lock },
+    { href: "/", label: "Portfolio Home / Back to Website", icon: Home, end: true },
   ];
   if (isAdmin) {
     items.push({ href: "/admin", label: "Admin Dashboard", icon: ShieldCheck });

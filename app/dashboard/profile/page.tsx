@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Lock, Mail, Phone, Save, ShieldCheck, UserRound } from "lucide-react";
+import { Loader2, Mail, Phone, Save, ShieldCheck, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { TIMEZONES } from "@/lib/constants";
 import { PageHeader } from "@/components/portal/page-header";
+import { ChangePasswordForm } from "@/components/portal/change-password-form";
 import { Field } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/lib/toast";
 
 export default function ProfilePage() {
-  const { user, profile, updateProfile, resetPassword } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const { toast } = useToast();
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
@@ -28,18 +29,6 @@ export default function ProfilePage() {
       toast("error", "Could not save", error);
     } else {
       toast("success", "Profile updated");
-    }
-  };
-
-  const sendReset = async () => {
-    if (!user) return;
-    setEmailLoading(true);
-    const { error } = await resetPassword(user.email ?? "");
-    setEmailLoading(false);
-    if (error) {
-      toast("error", "Could not send reset link", error);
-    } else {
-      toast("success", "Password reset link sent", "Check your inbox to set a new password.");
     }
   };
 
@@ -131,12 +120,7 @@ export default function ProfilePage() {
                   )}
                 </p>
               </div>
-              <Button variant="outline" className="w-full" onClick={sendReset} disabled={emailLoading}>
-                {emailLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />} Change Password
-              </Button>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                We&apos;ll email you a secure link to set a new password.
-              </p>
+              <ChangePasswordForm />
             </div>
           </div>
         </div>

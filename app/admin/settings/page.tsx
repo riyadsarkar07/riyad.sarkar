@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { updateSettingsAction } from "@/app/actions";
 import { PageHeader } from "@/components/portal/page-header";
+import { ChangePasswordForm } from "@/components/portal/change-password-form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/toast";
 
@@ -102,6 +103,17 @@ export default function AdminSettingsPage() {
               <dd className="text-xs">riyadsarkar1243@gmail.com</dd>
             </div>
           </dl>
+        </section>
+
+        <section id="change-password" className="glass gradient-border rounded-2xl p-6">
+          <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
+            <KeyRound className="h-4 w-4 text-cyan-500" /> Change Password
+          </h2>
+          <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+            Update the password for your own admin account. You&apos;ll stay signed in after
+            changing it.
+          </p>
+          <ChangePasswordForm />
         </section>
       </div>
     </div>

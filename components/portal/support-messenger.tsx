@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarClock,
@@ -618,26 +619,37 @@ export function SupportMessenger({
         )}
       </section>
 
-      {/* New ticket modal */}
-      <AnimatePresence>
-        {showNew && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[70] bg-slate-950/50 backdrop-blur-sm"
-              onClick={() => setShowNew(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 40, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 260, damping: 26 }}
-              className="glass-strong fixed left-1/2 top-1/2 z-[71] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-3xl p-6 shadow-glow-lg"
-              role="dialog"
-              aria-label="New support ticket"
-            >
+      {/* New ticket modal — rendered into <body> so fixed positioning stays
+          viewport-relative. The parent glass surface uses backdrop-filter,
+          which would otherwise become the fixed containing block and push
+          the modal off-screen. */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {showNew && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[70] bg-slate-950/50 backdrop-blur-sm"
+                  onClick={() => setShowNew(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="pointer-events-none fixed inset-0 z-[71] flex items-center justify-center p-4 sm:p-6"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 40, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 40, scale: 0.96 }}
+                    transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                    className="glass-strong pointer-events-auto max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-3xl p-6 shadow-glow-lg"
+                    role="dialog"
+                    aria-label="New support ticket"
+                  >
               <div className="mb-5 flex items-center justify-between">
                 <h3 className="font-display text-lg font-bold">
                   {appointmentRef ? "Contact Support About " : "New Support Ticket"}
@@ -707,9 +719,12 @@ export function SupportMessenger({
                 </Button>
               </div>
             </motion.div>
+                  </motion.div>
           </>
         )}
-      </AnimatePresence>
+          </AnimatePresence>,
+          document.body,
+        )}
     </div>
   );
 }

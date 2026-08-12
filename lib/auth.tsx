@@ -28,8 +28,9 @@ interface AuthContextValue {
   }) => Promise<{ needsEmailConfirmation: boolean; error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: string | null }>;
-  updatePassword: (password: string) => Promise<{ error: string | null }>;
+  sendRecoveryCode: (email: string) => Promise<{ error: string | null }>;
+  verifyRecoveryCode: (email: string, token: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string, currentPassword?: string) => Promise<{ error: string | null }>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
 }
@@ -124,19 +125,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, [supabase]);
 
-  const resetPassword = useCallback(
+  /**
+   * Sends a 6-digit password-recovery OTP to the email via Supabase Auth
+   * (email OTP). `shouldCreateUser: false` prevents account creation and
+   * keeps the response silent for unknown emails (no account enumeration).
+   */
+  const sendRecoveryCode = useCallback(
     async (email: string) => {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
       });
       return { error: error?.message ?? null };
     },
     [supabase],
   );
 
+  /**
+   * Verifies the emailed 6-digit recovery OTP. On success a session is
+   * established so `updatePassword` can change the password directly.
+   */
+  const verifyRecoveryCode = useCallback(
+    async (email: string, token: string) => {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: "email",
+      });
+      return { error: error?.message ?? null };
+    },
+    [supabase],
+  );
+
+  /**
+   * Updates the signed-in user's password. When the session is not a password
+   * recovery flow (and the project requires it), the current password must be
+   * supplied so Supabase can verify the request.
+   */
   const updatePassword = useCallback(
-    async (password: string) => {
-      const { error } = await supabase.auth.updateUser({ password });
+    async (password: string, currentPassword?: string) => {
+      const { error } = await supabase.auth.updateUser({
+        password,
+        ...(currentPassword ? { current_password: currentPassword } : {}),
+      });
       return { error: error?.message ?? null };
     },
     [supabase],
@@ -170,12 +201,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signOut,
-      resetPassword,
+      sendRecoveryCode,
+      verifyRecoveryCode,
       updatePassword,
       updateProfile,
       refreshProfile,
     }),
-    [user, profile, isAdmin, loading, isLoaded, signUp, signIn, signOut, resetPassword, updatePassword, updateProfile, refreshProfile],
+    [user, profile, isAdmin, loading, isLoaded, signUp, signIn, signOut, sendRecoveryCode, verifyRecoveryCode, updatePassword, updateProfile, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
