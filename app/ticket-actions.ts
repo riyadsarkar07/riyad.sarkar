@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { EMAIL_TICKET_STATUSES, PUBLIC_BOOKING_STATUSES } from "@/lib/constants";
 import { adminInbox, renderEmail, sendEmail } from "@/lib/email";
 import { escapeHtml, escapeMultiline } from "@/lib/html";
+import { logPersistFailure } from "@/lib/supabase/errors";
+import { isTimeoutError, withTimeout, type RpcResult } from "@/lib/timeout";
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -47,13 +49,25 @@ export async function lookupEmailTicketAction(input: {
   const supabase = await createActionClient();
   if (!supabase) return { ok: false, error: "Tracking is not available right now." };
 
-  const { data, error } = await supabase.rpc("lookup_email_ticket", {
-    p_email: parsed.data.email,
-    p_reference: parsed.data.referenceId,
-  });
-  if (error) return { ok: false, error: "Unable to look up this ticket right now." };
-  if (!data) return { ok: false, error: "No ticket matched that email and reference number." };
-  return { ok: true, ticket: data as TrackedTicket };
+  try {
+    const { data, error } = await withTimeout<RpcResult<TrackedTicket | null>>(
+      supabase.rpc("lookup_email_ticket", {
+        p_email: parsed.data.email,
+        p_reference: parsed.data.referenceId,
+      }),
+      12_000,
+      "ticket lookup",
+    );
+    if (error) {
+      logPersistFailure("ticket-lookup", error);
+      return { ok: false, error: "Unable to look up this ticket right now." };
+    }
+    if (!data) return { ok: false, error: "No ticket matched that email and reference number." };
+    return { ok: true, ticket: data as TrackedTicket };
+  } catch (error) {
+    if (isTimeoutError(error)) return { ok: false, error: "The lookup timed out. Please try again." };
+    return { ok: false, error: "Unable to look up this ticket right now." };
+  }
 }
 
 export async function replyEmailTicketAction(input: {
@@ -68,13 +82,27 @@ export async function replyEmailTicketAction(input: {
   const supabase = await createActionClient();
   if (!supabase) return { ok: false, error: "Replies are not available right now." };
 
-  const { data, error } = await supabase.rpc("reply_email_ticket", {
-    p_email: parsed.data.email,
-    p_reference: parsed.data.referenceId,
-    p_message: parsed.data.message,
-  });
-  if (error) {
-    if (error.message?.includes("resolved")) return { ok: false, error: "This ticket is resolved and cannot accept new replies." };
+  let data: unknown = null;
+  try {
+    const result = await withTimeout<RpcResult<TrackedTicket["replies"][number] | null>>(
+      supabase.rpc("reply_email_ticket", {
+        p_email: parsed.data.email,
+        p_reference: parsed.data.referenceId,
+        p_message: parsed.data.message,
+      }),
+      12_000,
+      "ticket reply",
+    );
+    if (result.error) {
+      if (result.error.message?.includes("resolved")) {
+        return { ok: false, error: "This ticket is resolved and cannot accept new replies." };
+      }
+      logPersistFailure("ticket-reply", result.error);
+      return { ok: false, error: "Unable to send that reply right now." };
+    }
+    data = result.data;
+  } catch (error) {
+    if (isTimeoutError(error)) return { ok: false, error: "The reply timed out. Please try again." };
     return { ok: false, error: "Unable to send that reply right now." };
   }
   if (!data) return { ok: false, error: "No ticket matched that email and reference number." };

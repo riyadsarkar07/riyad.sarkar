@@ -10,6 +10,8 @@ import {
 import { isDuplicateSubmission, isRateLimited, markSubmission, markSubmitted } from "@/lib/rate-limit";
 import { createActionClient } from "@/lib/supabase/action";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { logPersistFailure, persistFailureMessage, unconfiguredStorageMessage } from "@/lib/supabase/errors";
+import { isTimeoutError, withTimeout, type RpcResult } from "@/lib/timeout";
 import { escapeHtml, escapeMultiline } from "@/lib/html";
 
 const MIN_SUBMIT_MS = 2500;
@@ -30,9 +32,12 @@ async function sendViaEmailJs(data: ContactFormValues, referenceId: string): Pro
   const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
   if (!serviceId || !templateId || !publicKey) return false;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
   const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: controller.signal,
     body: JSON.stringify({
       service_id: serviceId,
       template_id: templateId,
@@ -53,7 +58,7 @@ async function sendViaEmailJs(data: ContactFormValues, referenceId: string): Pro
         reference_id: referenceId,
       },
     }),
-  });
+  }).finally(() => clearTimeout(timer));
 
   return res.ok;
 }
@@ -99,42 +104,54 @@ export async function submitContactAction(
   }
 
   if (!isSupabaseConfigured()) {
-    return {
-      ok: false,
-      error: "Ticket storage is not configured yet. Please email me directly at riyadsarkar1243@gmail.com.",
-    };
+    console.error("[enquiry] supabase public env is missing");
+    return { ok: false, error: unconfiguredStorageMessage("ticket") };
   }
 
   const supabase = await createActionClient();
   if (!supabase) {
-    return {
-      ok: false,
-      error: "Ticket storage is not configured yet. Please email me directly at riyadsarkar1243@gmail.com.",
-    };
+    console.error("[enquiry] supabase client could not be created");
+    return { ok: false, error: unconfiguredStorageMessage("ticket") };
   }
 
   const submissionId = data.submissionId ?? crypto.randomUUID();
-  const { data: inserted, error: insertError } = await supabase.rpc("submit_email_ticket", {
-    p_submission_id: submissionId,
-    p_full_name: data.name,
-    p_email: data.email,
-    p_phone: data.phone ?? "",
-    p_issue_type: data.projectType,
-    p_message: data.message,
-    p_budget: data.budget ?? "",
-    p_timeline: data.timeline ?? "",
-  });
-
-  if (insertError) {
-    console.error("[enquiry] persist failed", insertError.message);
-    return { ok: false, error: "The enquiry could not be saved. Please try again or email me directly." };
+  let inserted: unknown = null;
+  try {
+    const result = await withTimeout<RpcResult<{ id?: string; reference_id?: string; status?: string; duplicate?: boolean } | null>>(
+      supabase.rpc("submit_email_ticket", {
+        p_submission_id: submissionId,
+        p_full_name: data.name,
+        p_email: data.email,
+        p_phone: data.phone ?? "",
+        p_issue_type: data.projectType,
+        p_message: data.message,
+        p_budget: data.budget ?? "",
+        p_timeline: data.timeline ?? "",
+      }),
+      12_000,
+      "enquiry persist",
+    );
+    if (result.error) {
+      logPersistFailure("enquiry", result.error);
+      return { ok: false, error: persistFailureMessage("ticket", result.error) };
+    }
+    inserted = result.data;
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      console.error("[enquiry] persist timed out");
+      return { ok: false, error: persistFailureMessage("ticket", { code: "57014", message: "timeout" }) };
+    }
+    console.error("[enquiry] persist threw", error instanceof Error ? error.name : "unknown");
+    return { ok: false, error: persistFailureMessage("ticket") };
   }
 
   const row = inserted as { id?: string; reference_id?: string; status?: string; duplicate?: boolean } | null;
   const referenceId = row?.reference_id;
   if (!referenceId) {
-    return { ok: false, error: "The enquiry could not be saved. Please try again or email me directly." };
+    logPersistFailure("enquiry", { message: "missing reference" });
+    return { ok: false, error: persistFailureMessage("ticket") };
   }
+  const alreadySaved = row?.duplicate === true;
 
   markSubmitted(emailKey, ip, now);
   markSubmission(submissionId, now);
@@ -173,13 +190,15 @@ export async function submitContactAction(
     data.message,
   ].join("\n");
 
-  const resend = await sendEmail({
-    to: adminInbox(),
-    subject: `New Support Ticket [${referenceId}] — ${data.projectType}`,
-    html,
-    text,
-    replyTo: data.email,
-  });
+  const resend = alreadySaved
+    ? { ok: true, skipped: false as boolean, code: undefined as undefined }
+    : await sendEmail({
+        to: adminInbox(),
+        subject: `New Support Ticket [${referenceId}] — ${data.projectType}`,
+        html,
+        text,
+        replyTo: data.email,
+      });
 
   let emailDelivered = resend.ok && !resend.skipped;
 
@@ -191,7 +210,7 @@ export async function submitContactAction(
     }
   }
 
-  if (emailDelivered) {
+  if (emailDelivered && !alreadySaved) {
     await sendEmail({
       to: data.email,
       subject: `Support ticket opened — ${referenceId}`,

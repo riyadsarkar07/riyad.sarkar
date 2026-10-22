@@ -6,6 +6,8 @@ import { consultationFormSchema, type ConsultationActionResult } from "@/lib/con
 import { isDuplicateSubmission, isRateLimited, markSubmission, markSubmitted } from "@/lib/rate-limit";
 import { createActionClient } from "@/lib/supabase/action";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { logPersistFailure, persistFailureMessage, unconfiguredStorageMessage } from "@/lib/supabase/errors";
+import { isTimeoutError, withTimeout, type RpcResult } from "@/lib/timeout";
 import { escapeHtml, escapeMultiline } from "@/lib/html";
 
 const MIN_SUBMIT_MS = 2500;
@@ -69,45 +71,54 @@ export async function submitConsultationAction(
   }
 
   if (!isSupabaseConfigured()) {
-    return {
-      ok: false,
-      error: "Booking storage is not configured yet. Please email me directly at riyadsarkar1243@gmail.com.",
-    };
+    console.error("[consultation] supabase public env is missing");
+    return { ok: false, error: unconfiguredStorageMessage("booking") };
   }
 
   const supabase = await createActionClient();
   if (!supabase) {
-    return {
-      ok: false,
-      error: "Booking storage is not configured yet. Please email me directly at riyadsarkar1243@gmail.com.",
-    };
+    console.error("[consultation] supabase client could not be created");
+    return { ok: false, error: unconfiguredStorageMessage("booking") };
   }
 
-  const { data: inserted, error: insertError } = await supabase.rpc("submit_consultation_booking", {
-    p_submission_id: data.submissionId,
-    p_full_name: data.name,
-    p_email: data.email,
-    p_phone: data.phone,
-    p_service: data.service,
-    p_date: data.date,
-    p_time: data.time,
-    p_timezone: "Asia/Dhaka",
-    p_description: data.message,
-  });
-
-  if (insertError) {
-    if (insertError.code === "23505") {
-      return { ok: false, error: "You already have an appointment for this date and time." };
+  let inserted: unknown = null;
+  try {
+    const result = await withTimeout<RpcResult<{ id?: string; reference_id?: string; status?: string; duplicate?: boolean } | null>>(
+      supabase.rpc("submit_consultation_booking", {
+        p_submission_id: data.submissionId,
+        p_full_name: data.name,
+        p_email: data.email,
+        p_phone: data.phone,
+        p_service: data.service,
+        p_date: data.date,
+        p_time: data.time,
+        p_timezone: "Asia/Dhaka",
+        p_description: data.message,
+      }),
+      12_000,
+      "consultation persist",
+    );
+    if (result.error) {
+      logPersistFailure("consultation", result.error);
+      return { ok: false, error: persistFailureMessage("booking", result.error) };
     }
-    console.error("[consultation] persist failed", insertError.message);
-    return { ok: false, error: "The appointment could not be saved. Please try again or email me directly." };
+    inserted = result.data;
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      console.error("[consultation] persist timed out");
+      return { ok: false, error: persistFailureMessage("booking", { code: "57014", message: "timeout" }) };
+    }
+    console.error("[consultation] persist threw", error instanceof Error ? error.name : "unknown");
+    return { ok: false, error: persistFailureMessage("booking") };
   }
 
   const row = inserted as { id?: string; reference_id?: string; status?: string; duplicate?: boolean } | null;
   const referenceId = row?.reference_id;
   if (!referenceId) {
-    return { ok: false, error: "The appointment could not be saved. Please try again or email me directly." };
+    logPersistFailure("consultation", { message: "missing reference" });
+    return { ok: false, error: persistFailureMessage("booking") };
   }
+  const alreadySaved = row?.duplicate === true;
 
   markSubmitted(emailKey, ip, now);
   markSubmission(data.submissionId, now);
@@ -145,20 +156,24 @@ export async function submitConsultationAction(
     data.message,
   ].join("\n");
 
-  const adminMail = await sendEmail({
-    to: adminInbox(),
-    subject: `New consultation booking ${referenceId} — ${data.service}`,
-    html: adminHtml,
-    text: adminText,
-    replyTo: data.email,
-  });
+  const adminMail = alreadySaved
+    ? { ok: true, skipped: false as boolean, code: undefined as undefined }
+    : await sendEmail({
+        to: adminInbox(),
+        subject: `New consultation booking ${referenceId} — ${data.service}`,
+        html: adminHtml,
+        text: adminText,
+        replyTo: data.email,
+      });
 
   const emailDelivered = adminMail.ok && !adminMail.skipped;
-  const emailWarning = emailDelivered
+  const emailWarning = alreadySaved
     ? undefined
-    : publicErrorFor(adminMail.skipped ? "missing_key" : adminMail.code);
+    : emailDelivered
+      ? undefined
+      : publicErrorFor(adminMail.skipped ? "missing_key" : adminMail.code);
 
-  if (emailDelivered) {
+  if (emailDelivered && !alreadySaved) {
     await sendEmail({
       to: data.email,
       subject: `Consultation booked — ${referenceId}`,

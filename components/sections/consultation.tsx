@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { submitConsultationAction } from "@/app/consultation-action";
-import { cn } from "@/lib/utils";
+import { ClientTimeoutError, cn, withClientTimeout } from "@/lib/utils";
 
 const serviceOptions = ["General Security Consultation", ...services.map((s) => s.title)];
 
@@ -41,6 +41,10 @@ function nextDays(count: number): Date[] {
   return dates;
 }
 
+function firstWeekday(dates: Date[]): Date {
+  return dates.find((date) => date.getDay() !== 0 && date.getDay() !== 6) ?? dates[0];
+}
+
 interface ConsultationProps {
   variant?: "page" | "section";
 }
@@ -51,7 +55,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
   const { toast } = useToast();
   const reduceMotion = useReducedMotion();
   const [dates] = useState(() => nextDays(14));
-  const [selectedDate, setSelectedDate] = useState<Date>(dates[0]);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => firstWeekday(dates));
   const [selectedTime, setSelectedTime] = useState<string>(consultationTimes[0]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -103,14 +107,18 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
     setSending(true);
     setFormError(null);
     try {
-      const result = await submitConsultationAction({
-        ...data,
-        date: toIsoDate(selectedDate),
-        time: selectedTime,
-        startedAt: startedAt.current,
-        submissionId: submissionId.current,
-        website: "",
-      });
+      const result = await withClientTimeout(
+        submitConsultationAction({
+          ...data,
+          date: toIsoDate(selectedDate),
+          time: selectedTime,
+          startedAt: startedAt.current,
+          submissionId: submissionId.current,
+          website: "",
+        }),
+        20_000,
+        "consultation",
+      );
       if (result.ok) {
         setReferenceId(result.referenceId);
         setEmailWarning(result.emailWarning ?? null);
@@ -122,9 +130,13 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
       }
       setFormError(result.error);
       toast("error", t.consultation.error, result.error);
-    } catch {
-      setFormError(t.consultation.error);
-      toast("error", t.consultation.error);
+    } catch (error) {
+      const message =
+        error instanceof ClientTimeoutError
+          ? "The request timed out. Please try again."
+          : t.consultation.error;
+      setFormError(message);
+      toast("error", t.consultation.error, message);
     } finally {
       setSending(false);
     }
@@ -138,7 +150,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
       id="consultation"
       className={cn(
         "section relative overflow-hidden",
-        isPage && "min-h-screen pb-12 pt-24 sm:pt-28",
+        isPage && "min-h-screen pb-24 pt-24 sm:pb-16 sm:pt-28",
       )}
     >
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
@@ -149,8 +161,8 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
           description={t.consultation.pageIntro}
         />
 
-        <Reveal className="mx-auto mt-6 max-w-5xl sm:mt-8">
-          <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4 text-sm text-muted-foreground sm:px-5">
+        <Reveal className="mx-auto mt-4 max-w-5xl sm:mt-6">
+          <div className="mb-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground sm:mb-5 sm:px-5">
             <p className="flex items-start gap-2.5">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
               <span>{t.consultation.privateNote}</span>
@@ -370,13 +382,15 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                         )}
                       </div>
 
-                      {formError && (
-                        <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300" role="alert">
-                          {formError}
-                        </p>
-                      )}
+                      <div className="min-h-[3.25rem]">
+                        {formError && (
+                          <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300" role="alert">
+                            {formError}
+                          </p>
+                        )}
+                      </div>
 
-                      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                      <div className="flex flex-col gap-3 pb-16 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:pb-2 xl:pb-4">
                         <p className="text-xs text-muted-foreground">
                           <span className="font-semibold text-primary">
                             {selectedDate.toLocaleDateString("en-US", {

@@ -9,7 +9,6 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
-  Copy,
   Facebook,
   Github,
   Globe,
@@ -38,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { submitContactAction } from "@/app/contact-action";
+import { ClientTimeoutError, cn, withClientTimeout } from "@/lib/utils";
 import {
   BUDGET_RANGES,
   PROJECT_TIMELINES,
@@ -45,7 +45,6 @@ import {
   contactFormSchema,
   type ContactFormValues,
 } from "@/lib/contact-schema";
-import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   whatsapp: Phone,
@@ -102,7 +101,6 @@ export function Contact() {
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const supportHref = user ? "/dashboard/support" : "/login?next=/dashboard/support";
 
@@ -123,11 +121,15 @@ export function Contact() {
     setSending(true);
     setFormError(null);
     try {
-      const result = await submitContactAction({
-        ...data,
-        startedAt: startedAt.current,
-        submissionId: submissionId.current,
-      });
+      const result = await withClientTimeout(
+        submitContactAction({
+          ...data,
+          startedAt: startedAt.current,
+          submissionId: submissionId.current,
+        }),
+        20_000,
+        "enquiry",
+      );
       if (result.ok) {
         setReferenceId(result.referenceId);
         setEmailWarning(result.emailWarning ?? null);
@@ -144,9 +146,11 @@ export function Contact() {
       }
       setFormError(result.error);
       toast("error", t.contact.error, result.error);
-    } catch {
-      setFormError(t.contact.error);
-      toast("error", t.contact.error);
+    } catch (error) {
+      const message =
+        error instanceof ClientTimeoutError ? "The request timed out. Please try again." : t.contact.error;
+      setFormError(message);
+      toast("error", t.contact.error, message);
     } finally {
       setSending(false);
     }
@@ -163,16 +167,6 @@ export function Contact() {
   const scrollToForm = () => {
     if (lenis) lenis.scrollTo("#contact-form", { offset: -96, duration: 1.1 });
     else document.getElementById("contact-form")?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const copyEmail = async () => {
-    try {
-      await navigator.clipboard.writeText(profile.email);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      toast("error", t.contact.error);
-    }
   };
 
   const paths = [
@@ -215,7 +209,7 @@ export function Contact() {
   ];
 
   return (
-    <section id="contact" className="section relative scroll-mt-20 overflow-hidden">
+    <section id="contact" className="section relative scroll-mt-24 overflow-hidden pb-24 sm:pb-16">
       <div className="bg-grid pointer-events-none absolute inset-0 opacity-30 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
       <div className="container relative">
         <SectionHeading
@@ -225,7 +219,7 @@ export function Contact() {
         />
 
         <Reveal className="mx-auto mt-6 max-w-6xl sm:mt-8">
-          <div className="mb-6 flex flex-col items-center gap-3 sm:mb-8 sm:flex-row sm:justify-center">
+          <div className="mb-5 flex flex-col items-center gap-3 sm:mb-6 sm:flex-row sm:justify-center">
             <AvailabilityBadge />
             <p className="max-w-md text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
               {availability.note}
@@ -288,7 +282,7 @@ export function Contact() {
             })}
           </div>
 
-          <div className="mt-6 grid gap-5 lg:mt-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-6">
+          <div className="mt-5 grid gap-5 lg:mt-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-6">
             <div className="glass gradient-border scroll-mt-24 rounded-3xl p-5 sm:p-7" id="project-enquiry">
               <AnimatePresence mode="wait">
                 {sent ? (
@@ -464,13 +458,15 @@ export function Contact() {
                       />
                     </div>
 
-                    {formError && (
-                      <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300" role="alert">
-                        {formError}
-                      </p>
-                    )}
+                    <div className="min-h-[3.25rem]">
+                      {formError && (
+                        <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300" role="alert">
+                          {formError}
+                        </p>
+                      )}
+                    </div>
 
-                    <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 pb-16 pt-1 sm:flex-row sm:items-center sm:justify-between sm:pb-2 xl:pb-4">
                       <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground sm:max-w-sm">
                         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-500" />
                         {t.contact.privacy}
@@ -508,28 +504,7 @@ export function Contact() {
                   </div>
                 </div>
 
-                <p className="text-sm font-medium text-muted-foreground">{t.contact.emailDirect}</p>
-                <p className="mt-1 break-all font-display text-sm font-semibold sm:text-base">{profile.email}</p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <Button asChild className="flex-1">
-                    <a href={`mailto:${profile.email}`}>
-                      <Mail className="h-4 w-4" />
-                      {t.contact.emailCta}
-                    </a>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="sm:w-auto"
-                    onClick={copyEmail}
-                    aria-label={t.contact.copyEmail}
-                  >
-                    {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? t.contact.copied : t.contact.copyEmail}
-                  </Button>
-                </div>
-
-                <p className="mt-6 text-sm font-medium text-muted-foreground">{t.contact.channels}</p>
+                <p className="text-sm font-medium text-muted-foreground">{t.contact.channels}</p>
                 <div className="mt-3 grid gap-3">
                   {socials.map((social) => {
                     const Icon = iconMap[social.id] ?? Globe;

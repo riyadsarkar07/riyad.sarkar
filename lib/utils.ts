@@ -48,3 +48,20 @@ export function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
+
+export class ClientTimeoutError extends Error {
+  constructor(message = "Request timed out") {
+    super(message);
+    this.name = "ClientTimeoutError";
+  }
+}
+
+export function withClientTimeout<T>(promise: Promise<T>, ms = 20_000, label = "request"): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new ClientTimeoutError(`${label} timed out`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}

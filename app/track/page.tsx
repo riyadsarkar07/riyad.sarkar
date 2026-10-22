@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { ClientTimeoutError, cn, withClientTimeout } from "@/lib/utils";
 
 export default function TrackEnquiryPage() {
   const [email, setEmail] = useState("");
@@ -22,42 +22,63 @@ export default function TrackEnquiryPage() {
 
   const onLookup = async (ev: React.FormEvent) => {
     ev.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
-    const result = await lookupEmailTicketAction({ email, referenceId });
-    setLoading(false);
-    if (!result.ok) {
+    try {
+      const result = await withClientTimeout(
+        lookupEmailTicketAction({ email, referenceId }),
+        20_000,
+        "ticket lookup",
+      );
+      if (!result.ok) {
+        setTicket(null);
+        setError(result.error);
+        return;
+      }
+      setTicket(result.ticket);
+    } catch (error) {
       setTicket(null);
-      setError(result.error);
-      return;
+      setError(error instanceof ClientTimeoutError ? "The lookup timed out. Please try again." : "Unable to look up this ticket right now.");
+    } finally {
+      setLoading(false);
     }
-    setTicket(result.ticket);
   };
 
   const onReply = async (ev: React.FormEvent) => {
     ev.preventDefault();
     if (!ticket || replying) return;
     setReplying(true);
-    const result = await replyEmailTicketAction({ email, referenceId: ticket.reference_id, message: reply });
-    setReplying(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    setError(null);
+    try {
+      const result = await withClientTimeout(
+        replyEmailTicketAction({ email, referenceId: ticket.reference_id, message: reply }),
+        20_000,
+        "ticket reply",
+      );
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setTicket((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: prev.status === "resolved" ? prev.status : "in_progress",
+              replies: [...prev.replies, result.reply],
+            }
+          : prev,
+      );
+      setReply("");
+    } catch (error) {
+      setError(error instanceof ClientTimeoutError ? "The reply timed out. Please try again." : "Unable to send that reply right now.");
+    } finally {
+      setReplying(false);
     }
-    setTicket((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: prev.status === "resolved" ? prev.status : "in_progress",
-            replies: [...prev.replies, result.reply],
-          }
-        : prev,
-    );
-    setReply("");
   };
 
   return (
-    <main className="section relative min-h-screen pb-12 pt-24 sm:pt-28">
+    <main className="section relative min-h-screen pb-24 pt-24 sm:pb-16 sm:pt-28">
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <div className="container relative max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyber-500">Project Enquiry</p>

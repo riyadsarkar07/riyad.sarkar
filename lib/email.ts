@@ -135,6 +135,8 @@ async function postResend(opts: {
   replyTo?: string;
 }): Promise<SendEmailResult> {
   let res: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
     res = await fetch(RESEND_ENDPOINT, {
       method: "POST",
@@ -142,6 +144,7 @@ async function postResend(opts: {
         Authorization: `Bearer ${opts.apiKey}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         from: opts.from,
         to: [opts.to],
@@ -152,12 +155,17 @@ async function postResend(opts: {
       }),
     });
   } catch (err) {
+    const aborted =
+      (err instanceof Error && err.name === "AbortError") ||
+      (err instanceof DOMException && err.name === "AbortError");
     return {
       ok: false,
       skipped: false,
       code: "network",
-      error: err instanceof Error ? err.message : "network error",
+      error: aborted ? "email request timed out" : err instanceof Error ? err.message : "network error",
     };
+  } finally {
+    clearTimeout(timer);
   }
 
   const payload = (await res.json().catch(() => null)) as
