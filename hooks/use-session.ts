@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 /**
  * Lightweight auth session hook for the marketing site (navbar etc.)
@@ -13,26 +14,36 @@ export function useSession() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
+    if (!isSupabaseConfigured()) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
+    let subscription: { unsubscribe: () => void } | undefined;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    try {
+      const supabase = createClient();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-      setUser(session?.user ?? null);
+      supabase.auth.getSession().then(({ data }) => {
+        if (!active) return;
+        setUser(data.session?.user ?? null);
+        setLoading(false);
+      });
+
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!active) return;
+        setUser(session?.user ?? null);
+        setLoading(false);
+      });
+      subscription = data.subscription;
+    } catch {
       setLoading(false);
-    });
+    }
 
     return () => {
       active = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 

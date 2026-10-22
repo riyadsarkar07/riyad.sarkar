@@ -1,16 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Points, PointMaterial, Sphere } from "@react-three/drei";
+import { Points, PointMaterial, Sphere } from "@react-three/drei";
 import * as THREE from "three";
 
-/**
- * Animated cyber globe — a glowing wireframe sphere wrapped in
- * a field of drifting points, rotating slowly in 3D space.
- */
-
-function PointField({ count = 500 }: { count?: number }) {
+function PointField({ count = 180 }: { count?: number }) {
   const pointsRef = useRef<THREE.Points>(null);
   const positions = useRef<Float32Array | null>(null);
 
@@ -29,20 +24,19 @@ function PointField({ count = 500 }: { count?: number }) {
 
   useFrame((state) => {
     if (pointsRef.current) {
-      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-      pointsRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.1) * 0.1;
+      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.04;
     }
   });
 
   return (
-    <Points ref={pointsRef} positions={positions.current} stride={3} frustumCulled={false}>
+    <Points ref={pointsRef} positions={positions.current} stride={3} frustumCulled>
       <PointMaterial
         transparent
         color="#38bdf8"
-        size={0.015}
+        size={0.018}
         sizeAttenuation
         depthWrite={false}
-        opacity={0.75}
+        opacity={0.7}
       />
     </Points>
   );
@@ -53,52 +47,49 @@ function CoreGlobe() {
 
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.12;
-      groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.15) * 0.15;
+      groupRef.current.rotation.y = state.clock.elapsedTime * 0.1;
     }
   });
 
   return (
     <group ref={groupRef}>
-      <Sphere args={[1, 48, 48]}>
+      <Sphere args={[1, 24, 24]}>
         <meshBasicMaterial wireframe color="#0ea5e9" transparent opacity={0.28} />
-      </Sphere>
-      <Sphere args={[0.98, 32, 32]}>
-        <meshBasicMaterial color="#0b4a7a" transparent opacity={0.25} side={THREE.DoubleSide} />
       </Sphere>
     </group>
   );
 }
 
-function OrbitingRing() {
-  const ringRef = useRef<THREE.Mesh>(null);
-  useFrame((state) => {
-    if (ringRef.current) {
-      ringRef.current.rotation.z = state.clock.elapsedTime * 0.15;
-    }
-  });
-  return (
-    <mesh ref={ringRef} rotation={[Math.PI / 2.6, 0, 0]}>
-      <torusGeometry args={[1.55, 0.008, 12, 120]} />
-      <meshBasicMaterial color="#38bdf8" transparent opacity={0.55} />
-    </mesh>
-  );
-}
-
 export function CyberGlobeCanvas() {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { threshold: 0.15, rootMargin: "80px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <Canvas
-      dpr={[1, 1.5]}
-      camera={{ position: [0, 0, 4.2], fov: 45 }}
-      gl={{ antialias: true, alpha: true }}
-      style={{ background: "transparent" }}
-    >
-      <ambientLight intensity={0.6} />
-      <Float speed={1.4} rotationIntensity={0.4} floatIntensity={0.8}>
-        <CoreGlobe />
-        <OrbitingRing />
-        <PointField />
-      </Float>
-    </Canvas>
+    <div ref={hostRef} className="h-full w-full">
+      {visible ? (
+        <Canvas
+          dpr={[1, 1.15]}
+          camera={{ position: [0, 0, 4.2], fov: 45 }}
+          gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
+          style={{ background: "transparent" }}
+        >
+          <ambientLight intensity={0.6} />
+          <CoreGlobe />
+          <PointField />
+        </Canvas>
+      ) : null}
+    </div>
   );
 }

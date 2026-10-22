@@ -1,75 +1,66 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float } from "@react-three/drei";
 import * as THREE from "three";
-
-/**
- * 3D glowing shield built from layered shapes — used in the
- * cyber security section. Purely decorative (client-side).
- */
 
 function ShieldShape() {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.25;
-      groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2) * 0.2;
+      groupRef.current.rotation.y = state.clock.elapsedTime * 0.18;
     }
   });
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
-      {/* Outer shell */}
-      <mesh position={[0, 0, 0]}>
-        <icosahedronGeometry args={[1.35, 1]} />
-        <meshStandardMaterial
-          color="#0ea5e9"
-          metalness={0.85}
-          roughness={0.25}
-          wireframe
-          transparent
-          opacity={0.55}
-        />
+    <group ref={groupRef}>
+      <mesh>
+        <icosahedronGeometry args={[1.35, 0]} />
+        <meshBasicMaterial color="#0ea5e9" wireframe transparent opacity={0.5} />
       </mesh>
-      {/* Core shield */}
-      <mesh position={[0, 0.15, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <octahedronGeometry args={[0.85, 0]} />
-        <meshStandardMaterial
-          color="#2563eb"
-          emissive="#0ea5e9"
-          emissiveIntensity={0.55}
-          metalness={0.4}
-          roughness={0.2}
-          transparent
-          opacity={0.85}
-        />
-      </mesh>
-      {/* Orbiting dot */}
-      <mesh position={[1.1, 0.4, 0.6]}>
-        <sphereGeometry args={[0.05, 16, 16]} />
-        <meshBasicMaterial color="#38bdf8" />
+      <mesh position={[0, 0.12, 0]}>
+        <octahedronGeometry args={[0.82, 0]} />
+        <meshBasicMaterial color="#2563eb" transparent opacity={0.82} />
       </mesh>
     </group>
   );
 }
 
 export function ShieldCanvas() {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { threshold: 0.15, rootMargin: "80px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <Canvas
-      dpr={[1, 1.5]}
-      camera={{ position: [0, 0, 4.4], fov: 45 }}
-      gl={{ antialias: true, alpha: true }}
-      style={{ background: "transparent" }}
-    >
-      <ambientLight intensity={0.5} />
-      <pointLight position={[4, 4, 4]} intensity={40} color="#38bdf8" />
-      <pointLight position={[-4, -2, 2]} intensity={25} color="#2563eb" />
-      <Float speed={1.6} rotationIntensity={0.6} floatIntensity={1}>
-        <ShieldShape />
-      </Float>
-    </Canvas>
+    <div ref={hostRef} className="h-full w-full">
+      {visible ? (
+        <Canvas
+          dpr={[1, 1.15]}
+          frameloop="always"
+          camera={{ position: [0, 0, 4.4], fov: 45 }}
+          gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
+          style={{ background: "transparent" }}
+        >
+          <ambientLight intensity={0.7} />
+          <ShieldShape />
+        </Canvas>
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <div className="h-40 w-40 rounded-full border border-cyan-300/30 bg-gradient-to-br from-sky-400/20 to-blue-600/20" />
+        </div>
+      )}
+    </div>
   );
 }

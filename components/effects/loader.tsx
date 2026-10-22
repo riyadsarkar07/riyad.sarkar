@@ -14,17 +14,17 @@ export function Loader({ onComplete }: { onComplete?: () => void }) {
   useEffect(() => {
     let value = 0;
     const interval = window.setInterval(() => {
-      value += Math.floor(Math.random() * 14) + 6;
+      value += Math.floor(Math.random() * 22) + 14;
       if (value >= 100) {
         value = 100;
         window.clearInterval(interval);
         window.setTimeout(() => {
           setVisible(false);
           onComplete?.();
-        }, 450);
+        }, 180);
       }
       setProgress(value);
-    }, 120);
+    }, 70);
     return () => window.clearInterval(interval);
   }, [onComplete]);
 

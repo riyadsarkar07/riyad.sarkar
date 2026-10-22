@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import type { Profile } from "@/types/dashboard";
 
 interface AuthContextValue {
@@ -37,8 +38,10 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const UNAVAILABLE = { error: "Authentication is temporarily unavailable." as string };
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(() => (isSupabaseConfigured() ? createClient() : null), []);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -47,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mounted = useRef(true);
 
   const loadProfile = useCallback(async (uid: string) => {
+    if (!supabase) return;
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -61,6 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     mounted.current = true;
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted.current) return;
       setUser(session?.user ?? null);
@@ -97,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async (data: { fullName: string; email: string; phone: string; password: string }) => {
+      if (!supabase) return { needsEmailConfirmation: false, ...UNAVAILABLE };
       const { data: res, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -115,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
+      if (!supabase) return UNAVAILABLE;
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return { error: error?.message ?? null };
     },
@@ -122,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    if (!supabase) return;
     await supabase.auth.signOut();
   }, [supabase]);
 
@@ -132,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const sendRecoveryCode = useCallback(
     async (email: string) => {
+      if (!supabase) return UNAVAILABLE;
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { shouldCreateUser: false },
@@ -147,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const verifyRecoveryCode = useCallback(
     async (email: string, token: string) => {
+      if (!supabase) return UNAVAILABLE;
       const { error } = await supabase.auth.verifyOtp({
         email,
         token,
@@ -164,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const updatePassword = useCallback(
     async (password: string, currentPassword?: string) => {
+      if (!supabase) return UNAVAILABLE;
       const { error } = await supabase.auth.updateUser({
         password,
         ...(currentPassword ? { current_password: currentPassword } : {}),
@@ -175,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     async (data: Partial<Profile>) => {
+      if (!supabase) return UNAVAILABLE;
       if (!user) return { error: "Not signed in" };
       const { error } = await supabase
         .from("profiles")

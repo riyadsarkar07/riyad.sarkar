@@ -25,9 +25,9 @@ export function SmoothScrollProvider() {
     if (prefersReducedMotion()) return;
 
     const lenis = new Lenis({
-      lerp: 0.1,
+      lerp: 0.14,
       smoothWheel: true,
-      wheelMultiplier: 1,
+      wheelMultiplier: 0.9,
       touchMultiplier: 1,
       syncTouch: false,
     });

@@ -36,6 +36,7 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    cursor: auto;
   }
 
   body {
@@ -88,8 +89,8 @@
   /* ---------- Luxury glass surfaces ---------- */
   .glass {
     background: rgba(255, 255, 255, 0.65);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
     border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow:
       0 8px 32px rgba(2, 71, 132, 0.08),
@@ -106,8 +107,8 @@
 
   .glass-strong {
     background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
     border: 1px solid rgba(255, 255, 255, 0.7);
   }
 
@@ -292,10 +293,8 @@
     @apply text-3xl font-bold sm:text-4xl md:text-5xl;
   }
 
-  /* Hide custom cursor on coarse pointers */
-  .custom-cursor-active,
-  .custom-cursor-active * {
-    cursor: none !important;
+  a, button, [role="button"], summary, label, select {
+    cursor: pointer;
   }
 
   .premium-card {
@@ -380,10 +379,4 @@
   }
 }
 
-/* ---------- Custom cursor fallback ---------- */
-@media (pointer: coarse) {
-  .custom-cursor-active,
-  .custom-cursor-active * {
-    cursor: auto !important;
-  }
-}
+

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
   notifyAppointmentCreated,
   notifyAppointmentStatus,
@@ -23,6 +24,9 @@ type ActionResult = { ok: boolean; error?: string; referenceId?: string };
 /* ------------------------------------------------------------------ */
 
 async function requireUser() {
+  if (!isSupabaseConfigured()) {
+    return { supabase: null, user: null, error: "Not signed in" as string };
+  }
   const supabase = await createClient();
   const {
     data: { user },
@@ -376,6 +380,7 @@ export async function closeTicketAction(id: string): Promise<ActionResult> {
 /* ------------------------------------------------------------------ */
 
 async function isAdminUser() {
+  if (!isSupabaseConfigured()) return false;
   const supabase = await createClient();
   const { data } = await supabase.rpc("is_admin");
   return !!data;
@@ -389,6 +394,7 @@ export async function adminUpdateAppointmentAction(input: {
   date?: string;
   time?: string;
 }): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) return { ok: false, error: "Not authorized" };
   const supabase = await createClient();
   if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
 
@@ -434,6 +440,7 @@ export async function adminUpdateTicketAction(input: {
   status?: string;
   priority?: string;
 }): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) return { ok: false, error: "Not authorized" };
   const supabase = await createClient();
   if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
 
@@ -457,6 +464,7 @@ export async function markNotificationsReadAction(): Promise<ActionResult> {
 }
 
 export async function updateSettingsAction(key: string, value: string): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) return { ok: false, error: "Not authorized" };
   const supabase = await createClient();
   if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
   const { error } = await supabase.from("settings").upsert({ key, value });

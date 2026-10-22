@@ -147,25 +147,17 @@ export function CyberSecurity() {
               <div className="pointer-events-none absolute inset-0 bg-mesh-blue" />
               <div className="absolute inset-10 rounded-full border border-cyan-300/20" />
               <ShieldCanvas />
-              <motion.div
-                className="glass-strong absolute left-2 top-8 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glow sm:left-0"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              >
+              <div className="glass-strong absolute left-2 top-8 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glow sm:left-0">
                 <Activity className="h-4 w-4 text-cyan-500" />
                 Shield Active
-              </motion.div>
-              <motion.div
-                className="glass-strong absolute bottom-8 right-2 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glow sm:right-0"
-                animate={{ y: [0, 10, 0] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              >
+              </div>
+              <div className="glass-strong absolute bottom-8 right-2 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glow sm:right-0">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
                 Monitored
-              </motion.div>
+              </div>
             </div>
           </Reveal>
 

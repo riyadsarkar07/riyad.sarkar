@@ -16,7 +16,7 @@ export function SoundToggle() {
         toggle();
         playClick();
       }}
-      className="glass-strong fixed bottom-[5.5rem] right-4 z-[90] flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-all duration-300 hover:scale-110 hover:text-primary md:bottom-6 md:right-24"
+      className="glass-strong fixed bottom-[5.75rem] right-4 z-[90] flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-colors duration-200 hover:text-primary md:bottom-6 md:right-24"
       aria-label={enabled ? "Disable sound effects" : "Enable sound effects"}
       title={enabled ? "Sound: on" : "Sound: off"}
     >

@@ -226,11 +226,10 @@ export function AIAssistant() {
       <motion.button
         onClick={() => setOpen((v) => !v)}
         className="fixed bottom-5 right-4 z-[95] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow-lg md:bottom-6 md:right-6"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.92 }}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.94 }}
         aria-label={t.ai.title}
       >
-        <span className="absolute inset-0 rounded-full animate-pulse-ring bg-cyan-400/40" />
         <AnimatePresence mode="wait">
           {open ? (
             <motion.span key="x" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>

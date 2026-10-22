@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { AdminDashboardShell } from "@/components/portal/admin-shell";
 
 /**
@@ -11,6 +12,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  if (!isSupabaseConfigured()) redirect("/login");
   const supabase = await createClient();
   const {
     data: { user },
