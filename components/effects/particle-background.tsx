@@ -13,10 +13,11 @@ interface Particle {
 }
 
 /**
- * Lightweight canvas particle field. Pauses off-screen, when the tab
- * is hidden, and under prefers-reduced-motion. No mouse tracking.
+ * Lightweight canvas particle field with faint connecting lines.
+ * Pauses off-screen, when the tab is hidden, and under
+ * prefers-reduced-motion. No mouse tracking.
  */
-export function ParticleBackground({ density = 18 }: { density?: number }) {
+export function ParticleBackground({ density = 28 }: { density?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export function ParticleBackground({ density = 18 }: { density?: number }) {
     let running = true;
     let inView = true;
     let last = 0;
+    let linkDistance = 110;
 
     const hueRange = [199, 210, 222];
 
@@ -46,15 +48,18 @@ export function ParticleBackground({ density = 18 }: { density?: number }) {
       canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const count = Math.min(Math.floor((width * height) / 28000), density);
+      const isMobile = width < 768;
+      const cap = isMobile ? Math.min(density, 16) : density;
+      const count = Math.min(Math.floor((width * height) / 22000), cap);
+      linkDistance = isMobile ? 80 : 110;
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,
-        size: Math.random() * 1.4 + 0.6,
-        speedX: (Math.random() - 0.5) * 0.18,
-        speedY: (Math.random() - 0.5) * 0.18,
+        size: Math.random() * 1.5 + 0.6,
+        speedX: (Math.random() - 0.5) * 0.22,
+        speedY: (Math.random() - 0.5) * 0.22,
         hue: hueRange[Math.floor(Math.random() * hueRange.length)],
-        alpha: Math.random() * 0.35 + 0.18,
+        alpha: Math.random() * 0.38 + 0.18,
       }));
     };
 
@@ -67,17 +72,36 @@ export function ParticleBackground({ density = 18 }: { density?: number }) {
       last = now;
       ctx.clearRect(0, 0, width, height);
 
-      for (const p of particles) {
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
         p.x += p.speedX;
         p.y += p.speedY;
         if (p.x < 0) p.x = width;
         if (p.x > width) p.x = 0;
         if (p.y < 0) p.y = height;
         if (p.y > height) p.y = 0;
+
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fillStyle = `hsla(${p.hue}, 90%, 60%, ${p.alpha})`;
         ctx.fill();
+
+        for (let j = i + 1; j < particles.length; j++) {
+          const q = particles[j];
+          const dx = p.x - q.x;
+          const dy = p.y - q.y;
+          const dist = dx * dx + dy * dy;
+          const max = linkDistance * linkDistance;
+          if (dist < max) {
+            const opacity = (1 - dist / max) * 0.18;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(q.x, q.y);
+            ctx.strokeStyle = `rgba(56, 189, 248, ${opacity})`;
+            ctx.lineWidth = 0.7;
+            ctx.stroke();
+          }
+        }
       }
 
       raf = requestAnimationFrame(draw);

@@ -20,15 +20,20 @@ import {
 
 function ServiceCard({ id }: { id: string }) {
   const { t } = useI18n();
-  const { ref, transform } = useTilt(8);
+  const { ref, onPointerMove, onPointerLeave } = useTilt(8);
   const [open, setOpen] = useState(false);
   const service = services.find((s) => s.id === id);
   if (!service) return null;
 
   return (
     <>
-      <div ref={ref} style={{ transform }} className="transition-transform duration-200 will-change-transform">
-        <div className="group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-7 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow-lg">
+      <div
+        ref={ref}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+        className="tilt-card group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-7 hover:shadow-glow-lg"
+        style={{ transition: "transform 0.18s ease-out, box-shadow 0.5s ease" }}
+      >
           <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${service.gradient} blur-2xl transition-opacity duration-500 opacity-40 group-hover:opacity-90`} />
 
           <div className="mb-5 flex items-center justify-between">
@@ -62,7 +67,6 @@ function ServiceCard({ id }: { id: string }) {
             {t.common.learnMore}
             <span className="h-px w-0 bg-current transition-all duration-300 group-hover:w-6" />
           </button>
-        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

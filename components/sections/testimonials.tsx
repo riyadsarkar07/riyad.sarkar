@@ -24,8 +24,22 @@ export function Testimonials() {
     setIndex((next + count) % count);
   };
 
+  const sectionRef = useRef<HTMLElement>(null);
+  const [inView, setInView] = useState(true);
+
   useEffect(() => {
-    if (paused) return;
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting),
+      { threshold: 0.2 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (paused || !inView) return;
     timerRef.current = setInterval(() => {
       setDirection(1);
       setIndex((prev) => (prev + 1) % count);
@@ -33,12 +47,12 @@ export function Testimonials() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [paused, count]);
+  }, [paused, inView, count]);
 
   const current = testimonials[index];
 
   return (
-    <section id="testimonials" className="section relative overflow-hidden">
+    <section id="testimonials" ref={sectionRef} className="section relative overflow-hidden">
       <div className="container">
         <SectionHeading
           eyebrow="Testimonials"

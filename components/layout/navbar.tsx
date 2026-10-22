@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { useLenis } from "@/hooks/use-lenis";
 import { useScrollSpy } from "@/hooks/use-scroll-spy";
 import { navItems, sectionIds } from "@/data/content";
@@ -86,12 +87,18 @@ export function Navbar() {
                     scrollTo(item.href);
                   }}
                   className={cn(
-                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors xl:px-3",
+                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors duration-300 xl:px-3",
                     isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {label}
-                  {isActive && <span className="nav-link-underline" />}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-underline"
+                      className="nav-link-underline"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
                 </a>
               </li>
             );

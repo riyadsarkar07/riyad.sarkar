@@ -127,6 +127,12 @@ const config: Config = {
           "0%": { top: "-10%" },
           "100%": { top: "110%" },
         },
+        "scan-sweep": {
+          "0%": { transform: "translateY(0)", opacity: "0" },
+          "8%": { opacity: "1" },
+          "92%": { opacity: "1" },
+          "100%": { transform: "translateY(100vh)", opacity: "0" },
+        },
         ticker: {
           "0%": { transform: "translateY(0)" },
           "100%": { transform: "translateY(-50%)" },
@@ -203,6 +209,7 @@ const config: Config = {
         "orbit-dot": "orbit-dot 12s linear infinite",
         "grid-drift": "grid-drift 4s linear infinite",
         "shield-pulse": "shield-pulse 3.4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "scan-sweep": "scan-sweep 9s ease-in-out infinite",
       },
       backdropBlur: {
         xs: "2px",

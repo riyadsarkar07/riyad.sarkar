@@ -63,6 +63,7 @@ function CoreGlobe() {
 export function CyberGlobeCanvas() {
   const hostRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+  const [tabVisible, setTabVisible] = useState(true);
 
   useEffect(() => {
     const el = hostRef.current;
@@ -73,7 +74,12 @@ export function CyberGlobeCanvas() {
       { threshold: 0.15, rootMargin: "80px" },
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    const onVis = () => setTabVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   return (
@@ -81,6 +87,7 @@ export function CyberGlobeCanvas() {
       {visible ? (
         <Canvas
           dpr={[1, 1.15]}
+          frameloop={tabVisible ? "always" : "never"}
           camera={{ position: [0, 0, 4.2], fov: 45 }}
           gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
           style={{ background: "transparent" }}

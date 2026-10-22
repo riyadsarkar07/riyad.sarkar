@@ -206,6 +206,7 @@
   /* 3D tilt cards (managed by TiltController) */
   .tilt-card {
     transform-style: preserve-3d;
+    transform: perspective(920px) rotateX(0deg) rotateY(0deg) translateZ(0);
   }
   .tilt-card.tilt-active {
     border-color: rgba(14, 165, 233, 0.4);

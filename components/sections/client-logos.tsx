@@ -16,8 +16,8 @@ export function ClientLogos() {
         </p>
       </Reveal>
 
-      <div className="mask-fade-x relative overflow-hidden">
-        <div className="animate-marquee flex w-max gap-14">
+      <div className="mask-fade-x group relative overflow-hidden">
+        <div className="animate-marquee flex w-max gap-14 motion-reduce:animate-none group-hover:[animation-play-state:paused]">
           {doubled.map((logo, index) => (
             <div
               key={`${logo}-${index}`}

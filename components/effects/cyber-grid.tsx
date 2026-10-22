@@ -1,11 +1,12 @@
 /**
- * Static cyber grid overlay. Animated streaks and panning were
- * removed to cut GPU work on the first screen.
+ * Cyber grid overlay with a slow pan and a single sweeping scan line.
+ * CSS-only — no JS loops.
  */
 export function CyberGrid() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      <div className="bg-grid absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_15%,transparent_70%)]" />
+      <div className="bg-grid absolute inset-0 opacity-40 motion-reduce:animate-none animate-grid-pan [mask-image:radial-gradient(ellipse_at_center,black_15%,transparent_70%)]" />
+      <span className="absolute inset-x-[12%] top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent motion-reduce:animate-none animate-scan-sweep" />
     </div>
   );
 }
