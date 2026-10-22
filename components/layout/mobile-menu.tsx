@@ -3,27 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { LayoutDashboard, Menu, MessagesSquare, UserRound, X } from "lucide-react";
+import { CalendarDays, LayoutDashboard, Menu, MessagesSquare, UserRound, X } from "lucide-react";
 import { navItems } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
-import { useLenis } from "@/hooks/use-lenis";
 import { useSession } from "@/hooks/use-session";
+import { useSectionNav } from "@/hooks/use-section-nav";
 import { Button } from "@/components/ui/button";
 
 /** Slide-in glass drawer for small screens. */
 export function MobileMenu() {
   const { t } = useI18n();
-  const { lenis } = useLenis();
   const { user } = useSession();
+  const { go, hrefFor } = useSectionNav();
   const [open, setOpen] = useState(false);
 
-  const scrollTo = (href: string) => {
-    const id = href.replace("#", "");
+  const closeAndGo = (target: string) => {
     setOpen(false);
-    window.setTimeout(() => {
-      if (lenis) lenis.scrollTo(`#${id}`, { offset: -88, duration: 1.2 });
-      else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    }, 150);
+    window.setTimeout(() => go(target), 150);
   };
 
   return (
@@ -73,10 +69,10 @@ export function MobileMenu() {
                       transition={{ delay: 0.05 * index }}
                     >
                       <a
-                        href={item.href}
+                        href={hrefFor(item.href)}
                         onClick={(e) => {
                           e.preventDefault();
-                          scrollTo(item.href);
+                          closeAndGo(item.href);
                         }}
                         className="group flex items-center justify-between rounded-xl px-4 py-3 text-base font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                       >
@@ -89,7 +85,7 @@ export function MobileMenu() {
               </nav>
 
               <div className="mt-auto space-y-3">
-                <Button className="w-full" onClick={() => scrollTo("#contact")}>
+                <Button className="w-full" onClick={() => closeAndGo("#contact")}>
                   {t.common.startProject}
                 </Button>
                 <Button
@@ -126,8 +122,10 @@ export function MobileMenu() {
                       </Link>
                     </Button>
                   )}
-                  <Button variant="outline" className="w-full" onClick={() => scrollTo("#consultation")}>
-                    {t.common.bookConsultation}
+                  <Button asChild variant="outline" className="w-full" onClick={() => setOpen(false)}>
+                    <Link href="/consultation">
+                      <CalendarDays className="h-4 w-4" /> {t.common.bookConsultation}
+                    </Link>
                   </Button>
                 </div>
               </div>

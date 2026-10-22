@@ -13,12 +13,13 @@ import { Testimonials } from "@/components/sections/testimonials";
 import { Faq } from "@/components/sections/faq";
 import { Blog } from "@/components/sections/blog";
 import { Gallery } from "@/components/sections/gallery";
-import { Consultation } from "@/components/sections/consultation";
 import { Contact } from "@/components/sections/contact";
+import { HashScroll } from "@/components/effects/hash-scroll";
 
 export default function HomePage() {
   return (
     <>
+      <HashScroll />
       <Hero />
       <Stats />
       <About />
@@ -34,7 +35,6 @@ export default function HomePage() {
       <Blog />
       <Gallery />
       <LiveStatus />
-      <Consultation />
       <Contact />
     </>
   );

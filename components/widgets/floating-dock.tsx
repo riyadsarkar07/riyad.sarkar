@@ -3,22 +3,21 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
+  CalendarDays,
   Command,
   Home,
   MessageCircle,
   MessagesSquare,
-  Star,
   Briefcase,
 } from "lucide-react";
-import { useLenis } from "@/hooks/use-lenis";
 import { useSession } from "@/hooks/use-session";
 import { useToast } from "@/lib/toast";
 import { useI18n } from "@/lib/i18n";
+import { useSectionNav } from "@/hooks/use-section-nav";
 
 const dockItems = [
   { id: "home", icon: Home, label: "Home", action: "#home" },
   { id: "services", icon: Briefcase, label: "Services", action: "#services" },
-  { id: "achievements", icon: Star, label: "Achievements", action: "#achievements" },
   { id: "contact", icon: MessageCircle, label: "Start a Project", action: "#contact" },
 ];
 
@@ -27,17 +26,15 @@ const dockItems = [
  * Activates after scrolling past the hero.
  */
 export function FloatingDock() {
-  const { lenis } = useLenis();
   const { toast } = useToast();
   const { user } = useSession();
   const { t } = useI18n();
+  const { go } = useSectionNav();
   const supportHref = user ? "/dashboard/support" : "/login?next=/dashboard/support";
 
   const run = (item: (typeof dockItems)[number]) => {
     if (item.action.startsWith("#")) {
-      const id = item.action.slice(1);
-      if (lenis) lenis.scrollTo(`#${id}`, { offset: -72, duration: 1.1 });
-      else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      go(item.action, -72);
     } else {
       toast("info", item.label);
     }
@@ -68,22 +65,35 @@ export function FloatingDock() {
             </span>
           </motion.button>
         ))}
-          <span className="mx-1 h-5 w-px bg-border" />
-          <Link href={supportHref} aria-label={t.common.supportInbox}>
-            <motion.span
-              whileHover={{ y: -8, scale: 1.12 }}
-              whileTap={{ scale: 0.94 }}
-              transition={{ type: "spring", stiffness: 320, damping: 18 }}
-              className="group relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
-            >
-              <MessagesSquare className="icon-glow h-5 w-5" />
-              <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">
-                {t.common.supportInbox}
-              </span>
-            </motion.span>
-          </Link>
-          <span className="mx-1 h-5 w-px bg-border" />
-          <motion.button
+        <span className="mx-1 h-5 w-px bg-border" />
+        <Link href={supportHref} aria-label={t.common.supportInbox}>
+          <motion.span
+            whileHover={{ y: -8, scale: 1.12 }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: "spring", stiffness: 320, damping: 18 }}
+            className="group relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
+          >
+            <MessagesSquare className="icon-glow h-5 w-5" />
+            <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">
+              {t.common.supportInbox}
+            </span>
+          </motion.span>
+        </Link>
+        <Link href="/consultation" aria-label={t.common.bookConsultation}>
+          <motion.span
+            whileHover={{ y: -8, scale: 1.12 }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: "spring", stiffness: 320, damping: 18 }}
+            className="group relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
+          >
+            <CalendarDays className="icon-glow h-5 w-5" />
+            <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">
+              {t.common.bookConsultation}
+            </span>
+          </motion.span>
+        </Link>
+        <span className="mx-1 h-5 w-px bg-border" />
+        <motion.button
           onClick={() => {
             toast("info", "Press Cmd/Ctrl + K for the command palette");
           }}

@@ -76,6 +76,17 @@ type Dictionary = {
   consultation: {
     title: string;
     subtitle: string;
+    pageIntro: string;
+    privateNote: string;
+    formTitle: string;
+    formSubtitle: string;
+    selectDate: string;
+    selectDateHint: string;
+    selectTime: string;
+    weekendUnavailable: string;
+    at: string;
+    confidential: string;
+    preferOther: string;
     fullName: string;
     email: string;
     phone: string;
@@ -128,6 +139,19 @@ type Dictionary = {
     supportInboxTitle: string;
     supportInboxBody: string;
     supportInboxCta: string;
+    emailTitle: string;
+    emailBody: string;
+    emailCta: string;
+    emailDirect: string;
+    copyEmail: string;
+    copied: string;
+    projectTitle: string;
+    projectBody: string;
+    projectCta: string;
+    consultationTitle: string;
+    consultationBody: string;
+    consultationCta: string;
+    contactByEmail: string;
   };
   footer: {
     tagline: string;
@@ -226,6 +250,19 @@ const en: Dictionary = {
     title: "Book a Consultation",
     subtitle:
       "Schedule a private session for account recovery, cyber security audit or business protection strategy.",
+    pageIntro:
+      "This page is for scheduling a private one-to-one session. Choose an available date and time — it is not a general inbox or project enquiry.",
+    privateNote:
+      "Private sessions are for users who want a dedicated appointment with a selected date and time. Support conversations and project enquiries live on the Contact page.",
+    formTitle: "Your session details",
+    formSubtitle: "Confirm the service and a short brief after selecting a date and time.",
+    selectDate: "Select a date",
+    selectDateHint: "Pick an available weekday for your private session.",
+    selectTime: "Select a time",
+    weekendUnavailable: "Weekend unavailable",
+    at: "at",
+    confidential: "All consultations are handled with strict confidentiality.",
+    preferOther: "Prefer messaging or a project enquiry?",
     fullName: "Full name",
     email: "Email address",
     phone: "Phone / WhatsApp",
@@ -247,7 +284,7 @@ const en: Dictionary = {
   contact: {
     title: "Let's Work Together",
     subtitle:
-      "Tell me about your website, web app or security project — or reach me on a professional channel below.",
+      "Choose the path that fits: Support Inbox, email, a project enquiry, or a scheduled private consultation.",
     location: "Bangladesh",
     response: "Average response time",
     responseValue: "Under 24 hours",
@@ -281,8 +318,24 @@ const en: Dictionary = {
     sendAnother: "Send another message",
     supportInboxTitle: "Support Inbox",
     supportInboxBody:
-      "Already a client? Open the Support Inbox for private live conversations. Project enquiry is for new work only.",
+      "Private, ongoing conversations with the support team. Sign in or register to start or continue a thread.",
     supportInboxCta: "Open Support Inbox",
+    emailTitle: "Contact by Email",
+    emailBody:
+      "Write directly to my inbox, or use the project form below if you prefer a structured enquiry.",
+    emailCta: "Email me",
+    emailDirect: "Direct email",
+    copyEmail: "Copy",
+    copied: "Copied",
+    projectTitle: "Start a Project",
+    projectBody:
+      "Website development, web apps, cybersecurity services and other new client work. Use the enquiry form below.",
+    projectCta: "Open project form",
+    consultationTitle: "Book a Consultation",
+    consultationBody:
+      "Schedule a private session. You will pick an available date and time on a dedicated booking page.",
+    consultationCta: "Choose date & time",
+    contactByEmail: "Contact by Email",
   },
   footer: {
     tagline:
@@ -391,6 +444,19 @@ const bn: Dictionary = {
     title: "পরামর্শ বুক করুন",
     subtitle:
       "অ্যাকাউন্ট রিকভারি, সাইবার সিকিউরিটি অডিট বা ব্যবসায়িক সুরক্ষা কৌশলের জন্য ব্যক্তিগত সেশন বুক করুন।",
+    pageIntro:
+      "এই পেজটি ব্যক্তিগত ওয়ান-টু-ওয়ান সেশন নির্ধারণের জন্য। একটি উপলব্ধ তারিখ ও সময় বেছে নিন — এটি সাধারণ ইনবক্স বা প্রজেক্ট এনকোয়ারি নয়।",
+    privateNote:
+      "প্রাইভেট সেশন তাদের জন্য যারা নির্দিষ্ট তারিখ ও সময়সহ একটি নিবেদিত অ্যাপয়েন্টমেন্ট চান। সাপোর্ট কথোপকথন ও প্রজেক্ট এনকোয়ারি কন্টাক্ট পেজে আছে।",
+    formTitle: "আপনার সেশনের তথ্য",
+    formSubtitle: "তারিখ ও সময় বেছে নেওয়ার পর সেবা এবং সংক্ষিপ্ত বিবরণ নিশ্চিত করুন।",
+    selectDate: "তারিখ নির্বাচন করুন",
+    selectDateHint: "আপনার প্রাইভেট সেশনের জন্য একটি উপলব্ধ কার্যদিবস বেছে নিন।",
+    selectTime: "সময় নির্বাচন করুন",
+    weekendUnavailable: "সপ্তাহান্তে উপলব্ধ নয়",
+    at: "সময়ে",
+    confidential: "সব পরামর্শ কঠোর গোপনীয়তার সাথে পরিচালিত হয়।",
+    preferOther: "মেসেজিং বা প্রজেক্ট এনকোয়ারি পছন্দ করবেন?",
     fullName: "পূর্ণ নাম",
     email: "ইমেইল ঠিকানা",
     phone: "ফোন / হোয়াটসঅ্যাপ",
@@ -411,7 +477,7 @@ const bn: Dictionary = {
   contact: {
     title: "আসুন একসাথে কাজ করি",
     subtitle:
-      "আপনার ওয়েবসাইট, ওয়েব অ্যাপ বা সিকিউরিটি প্রজেক্ট সম্পর্কে লিখুন — অথবা নিচের পেশাদার মাধ্যমে যোগাযোগ করুন।",
+      "যে পথটি মানানসই সেটি বেছে নিন: সাপোর্ট ইনবক্স, ইমেইল, প্রজেক্ট এনকোয়ারি, অথবা নির্ধারিত প্রাইভেট পরামর্শ।",
     location: "বাংলাদেশ",
     response: "গড় প্রতিক্রিয়া সময়",
     responseValue: "২৪ ঘণ্টার মধ্যে",
@@ -445,8 +511,24 @@ const bn: Dictionary = {
     sendAnother: "আরেকটি বার্তা পাঠান",
     supportInboxTitle: "সাপোর্ট ইনবক্স",
     supportInboxBody:
-      "আগে থেকে ক্লায়েন্ট? প্রাইভেট লাইভ কথোপকথনের জন্য সাপোর্ট ইনবক্স খুলুন। প্রজেক্ট এনকোয়ারি শুধু নতুন কাজের জন্য।",
+      "সাপোর্ট টিমের সাথে প্রাইভেট, চলমান কথোপকথন। থ্রেড শুরু বা চালিয়ে যেতে লগইন বা রেজিস্টার করুন।",
     supportInboxCta: "সাপোর্ট ইনবক্স খুলুন",
+    emailTitle: "ইমেইলে যোগাযোগ",
+    emailBody:
+      "সরাসরি আমার ইনবক্সে লিখুন, অথবা গঠনমূলক এনকোয়ারির জন্য নিচের প্রজেক্ট ফর্ম ব্যবহার করুন।",
+    emailCta: "ইমেইল করুন",
+    emailDirect: "সরাসরি ইমেইল",
+    copyEmail: "কপি",
+    copied: "কপি হয়েছে",
+    projectTitle: "প্রজেক্ট শুরু করুন",
+    projectBody:
+      "ওয়েবসাইট ডেভেলপমেন্ট, ওয়েব অ্যাপ, সাইবারসিকিউরিটি সেবা এবং অন্যান্য নতুন ক্লায়েন্ট কাজ। নিচের এনকোয়ারি ফর্ম ব্যবহার করুন।",
+    projectCta: "প্রজেক্ট ফর্ম খুলুন",
+    consultationTitle: "পরামর্শ বুক করুন",
+    consultationBody:
+      "একটি প্রাইভেট সেশন নির্ধারণ করুন। নিবেদিত বুকিং পেজে উপলব্ধ তারিখ ও সময় বেছে নেবেন।",
+    consultationCta: "তারিখ ও সময় বেছে নিন",
+    contactByEmail: "ইমেইলে যোগাযোগ",
   },
   footer: {
     tagline:

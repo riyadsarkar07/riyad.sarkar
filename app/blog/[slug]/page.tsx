@@ -98,7 +98,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-500" />
           <p className="text-muted-foreground">
             Dealing with a hacked or lost account right now?{" "}
-            <Link href="/#consultation" className="font-semibold text-primary hover:underline">
+            <Link href="/consultation" className="font-semibold text-primary hover:underline">
               Book a private consultation
             </Link>{" "}
             — most recoveries are resolved within 72 hours.

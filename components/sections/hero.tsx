@@ -17,6 +17,7 @@ import {
   Phone,
   ShieldCheck,
 } from "lucide-react";
+import Link from "next/link";
 import { profile, socials, typingWords } from "@/data/content";
 import { useTyping } from "@/hooks/use-typing";
 import { useI18n } from "@/lib/i18n";
@@ -225,10 +226,12 @@ export function Hero() {
                 size="lg"
                 variant="outline"
                 className="h-11 w-full px-5 text-sm sm:h-12 sm:w-auto sm:px-8 sm:text-base"
-                onClick={() => scrollTo("consultation")}
+                asChild
               >
-                <ShieldCheck className="mr-1 h-5 w-5" />
-                {t.hero.primaryCta}
+                <Link href="/consultation">
+                  <ShieldCheck className="mr-1 h-5 w-5" />
+                  {t.hero.primaryCta}
+                </Link>
               </Button>
             </Magnetic>
             <Magnetic strength={0.18} className="block w-full sm:inline-block sm:w-auto">

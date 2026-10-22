@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Command, FileText, Home, MessagesSquare, Search, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Command, FileText, Home, Mail, MessagesSquare, Search, Send, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { services, navItems, blogPosts } from "@/data/content";
+import { profile, services, navItems, blogPosts } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
-import { useLenis } from "@/hooks/use-lenis";
 import { useSession } from "@/hooks/use-session";
+import { useSectionNav } from "@/hooks/use-section-nav";
 import { cn } from "@/lib/utils";
 
 interface CommandItem {
@@ -22,19 +22,15 @@ interface CommandItem {
 export function CommandPalette() {
   const { t } = useI18n();
   const router = useRouter();
-  const { lenis } = useLenis();
   const { user } = useSession();
+  const { go } = useSectionNav();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
 
   const scrollTo = (href: string) => {
-    const id = href.replace("#", "");
     setOpen(false);
-    window.setTimeout(() => {
-      if (lenis) lenis.scrollTo(`#${id}`, { offset: -72, duration: 1.1 });
-      else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    }, 120);
+    window.setTimeout(() => go(href, -72), 120);
   };
 
   const items = useMemo<CommandItem[]>(() => {
@@ -69,11 +65,38 @@ export function CommandPalette() {
       {
         id: "portal-support",
         label: t.common.supportInbox,
-        hint: "Portal",
+        hint: "Support",
         icon: MessagesSquare,
         action: () => {
           setOpen(false);
           router.push(user ? "/dashboard/support" : "/login?next=/dashboard/support");
+        },
+      },
+      {
+        id: "contact-email",
+        label: t.contact.contactByEmail,
+        hint: "Email",
+        icon: Mail,
+        action: () => {
+          setOpen(false);
+          window.location.href = `mailto:${profile.email}`;
+        },
+      },
+      {
+        id: "start-project",
+        label: t.common.startProject,
+        hint: "Contact",
+        icon: Send,
+        action: () => scrollTo("#contact"),
+      },
+      {
+        id: "book-consultation",
+        label: t.common.bookConsultation,
+        hint: "Booking",
+        icon: CalendarDays,
+        action: () => {
+          setOpen(false);
+          router.push("/consultation");
         },
       },
     ];

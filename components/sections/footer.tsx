@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUp, Globe, Heart, MessagesSquare, ShieldCheck } from "lucide-react";
+import { ArrowUp, CalendarDays, Globe, Heart, Mail, MessagesSquare, ShieldCheck } from "lucide-react";
 import { navItems, profile, services, socials } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
-import { useLenis } from "@/hooks/use-lenis";
 import { useSession } from "@/hooks/use-session";
+import { useSectionNav } from "@/hooks/use-section-nav";
 import { Logo } from "@/components/ui/logo";
 import { SocialLinks } from "@/components/widgets/social-links";
 import { AvailabilityBadge } from "@/components/widgets/availability-badge";
@@ -14,14 +14,8 @@ import { Button } from "@/components/ui/button";
 /** Premium footer with quick links, services and back-to-top. */
 export function Footer() {
   const { t } = useI18n();
-  const { lenis } = useLenis();
   const { user } = useSession();
-
-  const scrollTo = (href: string) => {
-    const id = href.replace("#", "");
-    if (lenis) lenis.scrollTo(`#${id}`, { offset: -72, duration: 1.2 });
-    else document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-  };
+  const { go, hrefFor } = useSectionNav();
 
   const year = new Date().getFullYear();
 
@@ -33,10 +27,10 @@ export function Footer() {
           {/* Brand */}
           <div>
             <a
-              href="#home"
+              href={hrefFor("#home")}
               onClick={(e) => {
                 e.preventDefault();
-                scrollTo("#home");
+                go("#home");
               }}
               className="flex items-center gap-3"
             >
@@ -53,7 +47,7 @@ export function Footer() {
             </div>
             <div className="mt-5 flex flex-col items-start gap-3">
               <AvailabilityBadge compact />
-              <Button size="sm" onClick={() => scrollTo("#contact")}>
+              <Button size="sm" onClick={() => go("#contact")}>
                 {t.common.startProject}
               </Button>
             </div>
@@ -68,10 +62,10 @@ export function Footer() {
               {navItems.slice(0, 8).map((item) => (
                 <li key={item.id}>
                   <a
-                    href={item.href}
+                    href={hrefFor(item.href)}
                     onClick={(e) => {
                       e.preventDefault();
-                      scrollTo(item.href);
+                      go(item.href);
                     }}
                     className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary"
                   >
@@ -92,10 +86,10 @@ export function Footer() {
               {services.slice(0, 6).map((service) => (
                 <li key={service.id}>
                   <a
-                    href="#services"
+                    href={hrefFor("#services")}
                     onClick={(e) => {
                       e.preventDefault();
-                      scrollTo("#services");
+                      go("#services");
                     }}
                     className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary"
                   >
@@ -136,13 +130,27 @@ export function Footer() {
                 </a>
               </li>
             </ul>
-            <div className="mt-5">
+            <div className="mt-5 flex flex-col gap-2.5">
               <Link
                 href={user ? "/dashboard/support" : "/login?next=/dashboard/support"}
                 className="group inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:underline"
               >
                 <MessagesSquare className="h-4 w-4" />
                 {t.common.supportInbox}
+              </Link>
+              <a
+                href={`mailto:${profile.email}`}
+                className="group inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:underline"
+              >
+                <Mail className="h-4 w-4" />
+                {t.contact.contactByEmail}
+              </a>
+              <Link
+                href="/consultation"
+                className="group inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:underline"
+              >
+                <CalendarDays className="h-4 w-4" />
+                {t.common.bookConsultation}
               </Link>
             </div>
             <div className="mt-5 flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
@@ -159,20 +167,20 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-5 text-xs text-muted-foreground">
             <a
-              href="#home"
+              href={hrefFor("#home")}
               onClick={(e) => {
                 e.preventDefault();
-                scrollTo("#home");
+                go("#home");
               }}
               className="transition-colors hover:text-primary"
             >
               {t.footer.privacy}
             </a>
             <a
-              href="#home"
+              href={hrefFor("#home")}
               onClick={(e) => {
                 e.preventDefault();
-                scrollTo("#home");
+                go("#home");
               }}
               className="transition-colors hover:text-primary"
             >
@@ -187,10 +195,7 @@ export function Footer() {
 
       {/* Back to top */}
       <button
-        onClick={() => {
-          if (lenis) lenis.scrollTo(0, { duration: 1.4 });
-          else window.scrollTo({ top: 0, behavior: "smooth" });
-        }}
+        onClick={() => go("#home")}
         className="group glass fixed bottom-5 left-4 z-[90] flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-all duration-300 hover:scale-110 hover:text-primary sm:h-11 sm:w-11 md:bottom-6 md:left-6"
         aria-label={t.common.backToTop}
       >

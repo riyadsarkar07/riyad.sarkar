@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useLenis } from "@/hooks/use-lenis";
 import { useScrollSpy } from "@/hooks/use-scroll-spy";
 import { navItems, sectionIds } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useSession } from "@/hooks/use-session";
+import { useSectionNav } from "@/hooks/use-section-nav";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LanguageToggle } from "@/components/layout/language-toggle";
@@ -21,10 +21,11 @@ import { Logo } from "@/components/ui/logo";
  */
 export function Navbar() {
   const { t } = useI18n();
-  const { lenis } = useLenis();
   const { user, loading: sessionLoading } = useSession();
+  const { go, hrefFor, pathname } = useSectionNav();
   const [scrolled, setScrolled] = useState(false);
   const active = useScrollSpy(sectionIds);
+  const onHome = pathname === "/";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -32,15 +33,6 @@ export function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const scrollTo = (href: string) => {
-    const id = href.replace("#", "");
-    if (lenis) {
-      lenis.scrollTo(`#${id}`, { offset: -88, duration: 1.2 });
-    } else {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    }
-  };
 
   return (
     <header
@@ -58,11 +50,13 @@ export function Navbar() {
         )}
         aria-label="Main navigation"
       >
-        <a
-          href="#home"
+        <Link
+          href="/"
           onClick={(e) => {
-            e.preventDefault();
-            scrollTo("#home");
+            if (onHome) {
+              e.preventDefault();
+              go("#home");
+            }
           }}
           className="flex min-w-0 shrink items-center gap-2 sm:gap-3"
           aria-label="Go to home"
@@ -71,20 +65,20 @@ export function Navbar() {
           <span className="truncate font-display text-[0.95rem] font-bold tracking-tight sm:text-lg">
             Riyad <span className="text-gradient">Sarkar</span>
           </span>
-        </a>
+        </Link>
 
         <ul className="hidden items-center lg:flex">
           {navItems.map((item) => {
-            const isActive = active === item.id;
+            const isActive = onHome && active === item.id;
             const label = t.nav[item.labelKey as keyof typeof t.nav];
             const compactHidden = ["certificates", "gallery", "faq"].includes(item.id);
             return (
               <li key={item.id} className={compactHidden ? "hidden 2xl:block" : undefined}>
                 <a
-                  href={item.href}
+                  href={hrefFor(item.href)}
                   onClick={(e) => {
                     e.preventDefault();
-                    scrollTo(item.href);
+                    go(item.href);
                   }}
                   className={cn(
                     "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors duration-300 xl:px-3",
@@ -129,7 +123,7 @@ export function Navbar() {
               </Button>
             </>
           )}
-          <Button size="sm" className="hidden md:inline-flex" onClick={() => scrollTo("#contact")}>
+          <Button size="sm" className="hidden md:inline-flex" onClick={() => go("#contact")}>
             {t.common.startProject}
           </Button>
           <MobileMenu />

@@ -6,7 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
+  ArrowRight,
+  CalendarDays,
   CheckCircle2,
+  Copy,
   Facebook,
   Github,
   Globe,
@@ -25,6 +28,7 @@ import { availability, profile, socials } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useSession } from "@/hooks/use-session";
 import { useToast } from "@/lib/toast";
+import { useLenis } from "@/hooks/use-lenis";
 import { Reveal } from "@/components/effects/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Magnetic } from "@/components/effects/magnetic";
@@ -41,6 +45,7 @@ import {
   contactFormSchema,
   type ContactFormValues,
 } from "@/lib/contact-schema";
+import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   whatsapp: Phone,
@@ -87,11 +92,15 @@ export function Contact() {
   const { t } = useI18n();
   const { user } = useSession();
   const { toast } = useToast();
+  const { lenis } = useLenis();
   const reduceMotion = useReducedMotion();
   const startedAt = useRef(Date.now());
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const supportHref = user ? "/dashboard/support" : "/login?next=/dashboard/support";
 
   const {
     register,
@@ -141,6 +150,60 @@ export function Contact() {
     startedAt.current = Date.now();
   };
 
+  const scrollToForm = () => {
+    if (lenis) lenis.scrollTo("#contact-form", { offset: -96, duration: 1.1 });
+    else document.getElementById("contact-form")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(profile.email);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast("error", t.contact.error);
+    }
+  };
+
+  const paths = [
+    {
+      id: "support",
+      icon: MessagesSquare,
+      gradient: "from-indigo-500 to-cyan-400",
+      title: t.contact.supportInboxTitle,
+      body: t.contact.supportInboxBody,
+      cta: t.contact.supportInboxCta,
+      href: supportHref,
+    },
+    {
+      id: "email",
+      icon: Mail,
+      gradient: "from-sky-500 to-blue-600",
+      title: t.contact.emailTitle,
+      body: t.contact.emailBody,
+      cta: t.contact.emailCta,
+      href: `mailto:${profile.email}`,
+    },
+    {
+      id: "project",
+      icon: Send,
+      gradient: "from-blue-600 to-cyan-400",
+      title: t.contact.projectTitle,
+      body: t.contact.projectBody,
+      cta: t.contact.projectCta,
+      onClick: scrollToForm,
+    },
+    {
+      id: "consultation",
+      icon: CalendarDays,
+      gradient: "from-cyan-500 to-sky-600",
+      title: t.contact.consultationTitle,
+      body: t.contact.consultationBody,
+      cta: t.contact.consultationCta,
+      href: "/consultation",
+    },
+  ];
+
   return (
     <section id="contact" className="section relative scroll-mt-20 overflow-hidden">
       <div className="bg-grid pointer-events-none absolute inset-0 opacity-30 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
@@ -159,8 +222,64 @@ export function Contact() {
             </p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-8">
-            <div className="glass gradient-border rounded-3xl p-5 sm:p-8 md:p-10">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {paths.map((path) => {
+              const Icon = path.icon;
+              const actionClass =
+                "mt-auto inline-flex items-center gap-1.5 text-sm font-semibold text-primary";
+              const cardClass =
+                "group glass gradient-border flex h-full flex-col rounded-3xl p-5 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow sm:p-6";
+
+              const inner = (
+                <>
+                  <div
+                    className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${path.gradient} text-white shadow-glow sm:h-12 sm:w-12`}
+                  >
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                  </div>
+                  <h3 className="font-display text-base font-bold sm:text-lg">{path.title}</h3>
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
+                    {path.body}
+                  </p>
+                  <span className={cn(actionClass, "mt-5")}>
+                    {path.cta}
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                  </span>
+                </>
+              );
+
+              if (path.onClick) {
+                return (
+                  <button
+                    key={path.id}
+                    type="button"
+                    onClick={path.onClick}
+                    className={cn(cardClass, "text-left")}
+                  >
+                    {inner}
+                  </button>
+                );
+              }
+
+              const isMail = path.href?.startsWith("mailto:");
+              if (isMail) {
+                return (
+                  <a key={path.id} href={path.href} className={cardClass}>
+                    {inner}
+                  </a>
+                );
+              }
+
+              return (
+                <Link key={path.id} href={path.href ?? "/"} className={cardClass}>
+                  {inner}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 grid gap-6 lg:mt-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-8">
+            <div className="glass gradient-border scroll-mt-28 rounded-3xl p-5 sm:p-8 md:p-10" id="project-enquiry">
               <AnimatePresence mode="wait">
                 {sent ? (
                   <motion.div
@@ -347,7 +466,29 @@ export function Contact() {
                     <p className="font-display text-base font-bold sm:text-lg">{t.contact.location}</p>
                   </div>
                 </div>
-                <p className="text-sm font-medium text-muted-foreground">{t.contact.channels}</p>
+
+                <p className="text-sm font-medium text-muted-foreground">{t.contact.emailDirect}</p>
+                <p className="mt-1 break-all font-display text-sm font-semibold sm:text-base">{profile.email}</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Button asChild className="flex-1">
+                    <a href={`mailto:${profile.email}`}>
+                      <Mail className="h-4 w-4" />
+                      {t.contact.emailCta}
+                    </a>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="sm:w-auto"
+                    onClick={copyEmail}
+                    aria-label={t.contact.copyEmail}
+                  >
+                    {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copied ? t.contact.copied : t.contact.copyEmail}
+                  </Button>
+                </div>
+
+                <p className="mt-6 text-sm font-medium text-muted-foreground">{t.contact.channels}</p>
                 <div className="mt-3 grid gap-3">
                   {socials.map((social) => {
                     const Icon = iconMap[social.id] ?? Globe;
@@ -374,24 +515,6 @@ export function Contact() {
                       </Magnetic>
                     );
                   })}
-                </div>
-              </div>
-
-              <div className="glass gradient-border rounded-3xl p-5 sm:p-6">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 text-white shadow-glow">
-                    <MessagesSquare className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-display text-base font-bold">{t.contact.supportInboxTitle}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{t.contact.supportInboxBody}</p>
-                    <Button asChild size="sm" variant="outline" className="mt-4">
-                      <Link href={user ? "/dashboard/support" : "/login?next=/dashboard/support"}>
-                        <MessagesSquare className="h-4 w-4" />
-                        {t.contact.supportInboxCta}
-                      </Link>
-                    </Button>
-                  </div>
                 </div>
               </div>
 

@@ -1,23 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import emailjs from "@emailjs/browser";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CalendarDays,
   CalendarOff,
   CheckCircle2,
   Clock,
   Loader2,
+  Lock,
   Send,
+  ShieldCheck,
 } from "lucide-react";
 import { services, consultationTimes } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/lib/toast";
-import { useLenis } from "@/hooks/use-lenis";
 import { Reveal } from "@/components/effects/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Button } from "@/components/ui/button";
@@ -40,11 +42,15 @@ function nextDays(count: number): Date[] {
   return dates;
 }
 
+interface ConsultationProps {
+  variant?: "page" | "section";
+}
+
 /** Book a consultation — premium calendar picker + animated form. */
-export function Consultation() {
+export function Consultation({ variant = "section" }: ConsultationProps) {
   const { t } = useI18n();
   const { toast } = useToast();
-  const { lenis } = useLenis();
+  const reduceMotion = useReducedMotion();
   const [dates] = useState(() => nextDays(14));
   const [selectedDate, setSelectedDate] = useState<Date>(dates[0]);
   const [selectedTime, setSelectedTime] = useState<string>(consultationTimes[0]);
@@ -112,34 +118,42 @@ export function Consultation() {
     }
   };
 
-  const scrollToContact = () => {
-    if (lenis) lenis.scrollTo("#contact", { offset: -72, duration: 1.2 });
-    else document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
-  };
-
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const isPage = variant === "page";
 
   return (
-    <section id="consultation" className="section relative overflow-hidden">
+    <section
+      id="consultation"
+      className={cn(
+        "section relative overflow-hidden",
+        isPage && "min-h-screen pb-20 pt-28 sm:pt-32",
+      )}
+    >
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <div className="container relative">
         <SectionHeading
           eyebrow="Consultation"
           title={t.consultation.title}
-          description={t.consultation.subtitle}
+          description={t.consultation.pageIntro}
         />
 
-        <Reveal className="mx-auto mt-14 max-w-5xl">
+        <Reveal className="mx-auto mt-8 max-w-5xl sm:mt-12 md:mt-14">
+          <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4 text-sm text-muted-foreground sm:px-5">
+            <p className="flex items-start gap-2.5">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
+              <span>{t.consultation.privateNote}</span>
+            </p>
+          </div>
+
           <div className="glass gradient-border overflow-hidden rounded-3xl">
-            <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
-              {/* Calendar side */}
-              <div className="border-b border-border bg-white/40 p-7 backdrop-blur-sm dark:bg-white/[0.03] lg:border-b-0 lg:border-r">
+            <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
+              <div className="border-b border-border bg-white/40 p-5 backdrop-blur-sm dark:bg-white/[0.03] sm:p-7 lg:border-b-0 lg:border-r">
                 <h3 className="mb-1 flex items-center gap-2 font-display text-lg font-bold">
                   <CalendarDays className="h-5 w-5 text-cyan-500" />
-                  Select a date
+                  {t.consultation.selectDate}
                 </h3>
-                <p className="mb-6 text-xs text-muted-foreground">
-                  Pick an available day for your private session.
+                <p className="mb-5 text-xs text-muted-foreground sm:mb-6">
+                  {t.consultation.selectDateHint}
                 </p>
 
                 <div className="mb-2 grid grid-cols-7 gap-1 text-[11px] font-semibold text-muted-foreground">
@@ -157,10 +171,11 @@ export function Consultation() {
                     return (
                       <button
                         key={date.toISOString()}
+                        type="button"
                         onClick={() => setSelectedDate(date)}
                         disabled={weekend}
                         className={cn(
-                          "flex h-11 flex-col items-center justify-center rounded-xl text-sm font-medium transition-all duration-300",
+                          "flex h-10 flex-col items-center justify-center rounded-xl text-sm font-medium transition-all duration-300 sm:h-11",
                           active
                             ? "btn-primary-glow text-white shadow-glow scale-105"
                             : weekend
@@ -183,20 +198,21 @@ export function Consultation() {
                   })}
                 </div>
 
-                <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
+                <div className="mt-3 flex items-center gap-3 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <CalendarOff className="h-3.5 w-3.5" /> Weekend unavailable
+                    <CalendarOff className="h-3.5 w-3.5" /> {t.consultation.weekendUnavailable}
                   </span>
                 </div>
 
-                <h3 className="mb-3 mt-8 flex items-center gap-2 font-display text-lg font-bold">
+                <h3 className="mb-3 mt-7 flex items-center gap-2 font-display text-lg font-bold sm:mt-8">
                   <Clock className="h-5 w-5 text-cyan-500" />
-                  Select a time
+                  {t.consultation.selectTime}
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {consultationTimes.map((time) => (
                     <button
                       key={time}
+                      type="button"
                       onClick={() => setSelectedTime(time)}
                       className={cn(
                         "min-h-10 rounded-full px-3.5 py-2 text-xs font-semibold transition-all duration-300",
@@ -212,28 +228,24 @@ export function Consultation() {
                 </div>
               </div>
 
-              {/* Form side */}
-              <div className="relative p-7">
+              <div className="relative p-5 sm:p-7">
                 <AnimatePresence mode="wait">
                   {sent ? (
                     <motion.div
                       key="success"
-                      initial={{ opacity: 0, scale: 0.9 }}
+                      initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex h-full min-h-[380px] flex-col items-center justify-center text-center"
+                      exit={reduceMotion ? undefined : { opacity: 0 }}
+                      className="flex h-full min-h-[320px] flex-col items-center justify-center text-center sm:min-h-[380px]"
                     >
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                        className="relative mb-6"
-                      >
-                        <span className="absolute -inset-4 rounded-full bg-emerald-400/30 animate-pulse-ring" />
-                        <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-glow-lg">
-                          <CheckCircle2 className="h-10 w-10" />
+                      <div className="relative mb-6">
+                        {!reduceMotion && (
+                          <span className="absolute -inset-4 rounded-full bg-emerald-400/30 animate-pulse-ring" />
+                        )}
+                        <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-glow-lg sm:h-20 sm:w-20">
+                          <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10" />
                         </div>
-                      </motion.div>
+                      </div>
                       <h3 className="font-display text-2xl font-bold">{t.consultation.success}</h3>
                       <p className="mt-3 max-w-sm text-sm text-muted-foreground">
                         {t.consultation.successSub}
@@ -243,17 +255,27 @@ export function Consultation() {
                     <motion.form
                       key="form"
                       onSubmit={handleSubmit(onSubmit)}
-                      initial={{ opacity: 0 }}
+                      initial={reduceMotion ? false : { opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="space-y-5"
+                      exit={reduceMotion ? undefined : { opacity: 0 }}
+                      className="space-y-4 sm:space-y-5"
                       noValidate
                     >
-                      <div className="grid gap-5 sm:grid-cols-2">
+                      <div>
+                        <p className="font-display text-lg font-bold sm:text-xl">
+                          {t.consultation.formTitle}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {t.consultation.formSubtitle}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
                         <div>
-                          <Label htmlFor="name">{t.consultation.fullName}</Label>
+                          <Label htmlFor="consultation-name">{t.consultation.fullName}</Label>
                           <Input
-                            id="name"
+                            id="consultation-name"
+                            autoComplete="name"
                             placeholder="John Doe"
                             {...register("name")}
                             aria-invalid={!!errors.name}
@@ -263,10 +285,11 @@ export function Consultation() {
                           )}
                         </div>
                         <div>
-                          <Label htmlFor="email">{t.consultation.email}</Label>
+                          <Label htmlFor="consultation-email">{t.consultation.email}</Label>
                           <Input
-                            id="email"
+                            id="consultation-email"
                             type="email"
+                            autoComplete="email"
                             placeholder="john@example.com"
                             {...register("email")}
                             aria-invalid={!!errors.email}
@@ -277,12 +300,13 @@ export function Consultation() {
                         </div>
                       </div>
 
-                      <div className="grid gap-5 sm:grid-cols-2">
+                      <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
                         <div>
-                          <Label htmlFor="phone">{t.consultation.phone}</Label>
+                          <Label htmlFor="consultation-phone">{t.consultation.phone}</Label>
                           <Input
-                            id="phone"
+                            id="consultation-phone"
                             type="tel"
+                            autoComplete="tel"
                             placeholder="+880 1XXX-XXXXXX"
                             {...register("phone")}
                             aria-invalid={!!errors.phone}
@@ -292,9 +316,9 @@ export function Consultation() {
                           )}
                         </div>
                         <div>
-                          <Label htmlFor="service">{t.consultation.service}</Label>
+                          <Label htmlFor="consultation-service">{t.consultation.service}</Label>
                           <select
-                            id="service"
+                            id="consultation-service"
                             {...register("service")}
                             className="form-control"
                             aria-invalid={!!errors.service}
@@ -313,9 +337,9 @@ export function Consultation() {
                       </div>
 
                       <div>
-                        <Label htmlFor="message">{t.consultation.message}</Label>
+                        <Label htmlFor="consultation-message">{t.consultation.message}</Label>
                         <Textarea
-                          id="message"
+                          id="consultation-message"
                           placeholder={t.consultation.messagePlaceholder}
                           rows={4}
                           {...register("message")}
@@ -326,7 +350,7 @@ export function Consultation() {
                         )}
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                         <p className="text-xs text-muted-foreground">
                           <span className="font-semibold text-primary">
                             {selectedDate.toLocaleDateString("en-US", {
@@ -335,9 +359,10 @@ export function Consultation() {
                               day: "numeric",
                             })}
                           </span>{" "}
-                          at <span className="font-semibold text-primary">{selectedTime}</span>
+                          {t.consultation.at}{" "}
+                          <span className="font-semibold text-primary">{selectedTime}</span>
                         </p>
-                        <Button type="submit" size="lg" disabled={sending}>
+                        <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={sending}>
                           {sending ? (
                             <>
                               <Loader2 className="h-5 w-5 animate-spin" />
@@ -351,6 +376,11 @@ export function Consultation() {
                           )}
                         </Button>
                       </div>
+
+                      <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+                        <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-500" />
+                        {t.consultation.confidential}
+                      </p>
                     </motion.form>
                   )}
                 </AnimatePresence>
@@ -359,13 +389,10 @@ export function Consultation() {
           </div>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Prefer messaging directly?{" "}
-            <button
-              onClick={scrollToContact}
-              className="font-semibold text-primary hover:underline"
-            >
+            {t.consultation.preferOther}{" "}
+            <Link href="/#contact" className="font-semibold text-primary hover:underline">
               {t.common.contactMe}
-            </button>
+            </Link>
           </p>
         </Reveal>
       </div>
