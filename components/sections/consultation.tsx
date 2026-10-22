@@ -81,25 +81,26 @@ export function Consultation() {
       const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
       const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
 
-      if (serviceId && templateId && process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY) {
-        await emailjs.send(
-          serviceId,
-          templateId,
-          {
-            from_name: data.name,
-            from_email: data.email,
-            phone: data.phone,
-            service: data.service,
-            date: selectedDate.toDateString(),
-            time: selectedTime,
-            message: data.message,
-            to_name: "Riyad Sarkar",
-          },
-          process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY,
-        );
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 900));
+      if (!serviceId || !templateId || !process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY) {
+        toast("error", t.consultation.error);
+        return;
       }
+
+      await emailjs.send(
+        serviceId,
+        templateId,
+        {
+          from_name: data.name,
+          from_email: data.email,
+          phone: data.phone,
+          service: data.service,
+          date: selectedDate.toDateString(),
+          time: selectedTime,
+          message: data.message,
+          to_name: "Riyad Sarkar",
+        },
+        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY,
+      );
 
       setSent(true);
       reset();

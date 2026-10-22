@@ -59,6 +59,7 @@ type Dictionary = {
     verify: string;
     backToTop: string;
     bookConsultation: string;
+    startProject: string;
     contactMe: string;
     readMore: string;
     close: string;
@@ -95,6 +96,32 @@ type Dictionary = {
     location: string;
     response: string;
     responseValue: string;
+    startProject: string;
+    formTitle: string;
+    formSubtitle: string;
+    fullName: string;
+    fullNamePlaceholder: string;
+    email: string;
+    emailPlaceholder: string;
+    projectType: string;
+    projectTypePlaceholder: string;
+    budget: string;
+    budgetPlaceholder: string;
+    timeline: string;
+    timelinePlaceholder: string;
+    message: string;
+    messagePlaceholder: string;
+    optional: string;
+    submit: string;
+    submitting: string;
+    success: string;
+    successSub: string;
+    error: string;
+    required: string;
+    privacy: string;
+    channels: string;
+    availabilityNote: string;
+    sendAnother: string;
   };
   footer: {
     tagline: string;
@@ -175,6 +202,7 @@ const en: Dictionary = {
     verify: "Verify",
     backToTop: "Back to top",
     bookConsultation: "Book Consultation",
+    startProject: "Start a Project",
     contactMe: "Contact Me",
     readMore: "Read More",
     close: "Close",
@@ -210,10 +238,38 @@ const en: Dictionary = {
   contact: {
     title: "Let's Work Together",
     subtitle:
-      "Have a security concern or a recovery case? Reach out on any platform — I respond quickly.",
+      "Tell me about your website, web app or security project — or reach me on a professional channel below.",
     location: "Bangladesh",
     response: "Average response time",
     responseValue: "Under 24 hours",
+    startProject: "Start a Project",
+    formTitle: "Project enquiry",
+    formSubtitle: "Share a few details and I will follow up by email.",
+    fullName: "Full name",
+    fullNamePlaceholder: "Your name",
+    email: "Email address",
+    emailPlaceholder: "you@example.com",
+    projectType: "Project type",
+    projectTypePlaceholder: "Select a project type",
+    budget: "Budget range",
+    budgetPlaceholder: "Optional",
+    timeline: "Project timeline",
+    timelinePlaceholder: "Optional",
+    message: "Message / project details",
+    messagePlaceholder:
+      "What are you building, what do you need help with, and any constraints I should know?",
+    optional: "Optional",
+    submit: "Send enquiry",
+    submitting: "Sending…",
+    success: "Message sent",
+    successSub: "Thanks — your enquiry was delivered. I will reply by email.",
+    error: "Something went wrong. Please try again or email me directly.",
+    required: "This field is required",
+    privacy:
+      "Your details are used only to reply to this enquiry. Nothing is stored in a public database.",
+    channels: "Professional channels",
+    availabilityNote: "Open to website, web app and security consultation work.",
+    sendAnother: "Send another message",
   },
   footer: {
     tagline:
@@ -304,6 +360,7 @@ const bn: Dictionary = {
     verify: "যাচাই করুন",
     backToTop: "উপরে যান",
     bookConsultation: "পরামর্শ বুক করুন",
+    startProject: "প্রজেক্ট শুরু করুন",
     contactMe: "যোগাযোগ করুন",
     readMore: "আরও পড়ুন",
     close: "বন্ধ করুন",
@@ -337,10 +394,39 @@ const bn: Dictionary = {
   },
   contact: {
     title: "আসুন একসাথে কাজ করি",
-    subtitle: "নিরাপত্তা সংক্রান্ত উদ্বেগ বা রিকভারি কেস? যেকোনো মাধ্যমে যোগাযোগ করুন।",
+    subtitle:
+      "আপনার ওয়েবসাইট, ওয়েব অ্যাপ বা সিকিউরিটি প্রজেক্ট সম্পর্কে লিখুন — অথবা নিচের পেশাদার মাধ্যমে যোগাযোগ করুন।",
     location: "বাংলাদেশ",
     response: "গড় প্রতিক্রিয়া সময়",
     responseValue: "২৪ ঘণ্টার মধ্যে",
+    startProject: "প্রজেক্ট শুরু করুন",
+    formTitle: "প্রজেক্ট এনকোয়ারি",
+    formSubtitle: "কয়েকটি তথ্য শেয়ার করুন, আমি ইমেইলে উত্তর দেব।",
+    fullName: "পূর্ণ নাম",
+    fullNamePlaceholder: "আপনার নাম",
+    email: "ইমেইল ঠিকানা",
+    emailPlaceholder: "you@example.com",
+    projectType: "প্রজেক্টের ধরন",
+    projectTypePlaceholder: "প্রজেক্টের ধরন বেছে নিন",
+    budget: "বাজেট রেঞ্জ",
+    budgetPlaceholder: "ঐচ্ছিক",
+    timeline: "প্রজেক্টের সময়সীমা",
+    timelinePlaceholder: "ঐচ্ছিক",
+    message: "বার্তা / প্রজেক্টের বিবরণ",
+    messagePlaceholder:
+      "আপনি কী তৈরি করছেন, কী সাহায্য প্রয়োজন, এবং যেকোনো সীমাবদ্ধতা লিখুন।",
+    optional: "ঐচ্ছিক",
+    submit: "এনকোয়ারি পাঠান",
+    submitting: "পাঠানো হচ্ছে…",
+    success: "বার্তা পাঠানো হয়েছে",
+    successSub: "ধন্যবাদ — আপনার এনকোয়ারি পৌঁছেছে। আমি ইমেইলে উত্তর দেব।",
+    error: "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন বা সরাসরি ইমেইল করুন।",
+    required: "এই ঘরটি পূরণ করা প্রয়োজন",
+    privacy:
+      "আপনার তথ্য শুধু এই এনকোয়ারির উত্তর দিতে ব্যবহার করা হয়। পাবলিক ডাটাবেসে কিছু সংরক্ষণ করা হয় না।",
+    channels: "পেশাদার মাধ্যম",
+    availabilityNote: "ওয়েবসাইট, ওয়েব অ্যাপ এবং সিকিউরিটি কনসালটেশনের জন্য উন্মুক্ত।",
+    sendAnother: "আরেকটি বার্তা পাঠান",
   },
   footer: {
     tagline:

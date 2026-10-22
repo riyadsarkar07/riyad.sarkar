@@ -89,14 +89,8 @@ export function MobileMenu() {
               </nav>
 
               <div className="mt-auto space-y-3">
-                <Button
-                  asChild
-                  className="w-full"
-                  onClick={() => setOpen(false)}
-                >
-                  <Link href={user ? "/dashboard/appointments/new" : "/login"}>
-                    Book Appointment
-                  </Link>
+                <Button className="w-full" onClick={() => scrollTo("#contact")}>
+                  {t.common.startProject}
                 </Button>
                 <div className="grid grid-cols-2 gap-3">
                   {user ? (

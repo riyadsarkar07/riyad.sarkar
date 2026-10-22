@@ -6,6 +6,8 @@ import { useI18n } from "@/lib/i18n";
 import { useLenis } from "@/hooks/use-lenis";
 import { Logo } from "@/components/ui/logo";
 import { SocialLinks } from "@/components/widgets/social-links";
+import { AvailabilityBadge } from "@/components/widgets/availability-badge";
+import { Button } from "@/components/ui/button";
 
 /** Premium footer with quick links, services and back-to-top. */
 export function Footer() {
@@ -45,6 +47,12 @@ export function Footer() {
             </p>
             <div className="mt-5">
               <SocialLinks size="sm" />
+            </div>
+            <div className="mt-5 flex flex-col items-start gap-3">
+              <AvailabilityBadge compact />
+              <Button size="sm" onClick={() => scrollTo("#contact")}>
+                {t.common.startProject}
+              </Button>
             </div>
           </div>
 

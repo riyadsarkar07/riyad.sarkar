@@ -782,6 +782,16 @@ export const radarSkills = [
 /*  Contact / availability                                               */
 /* ------------------------------------------------------------------ */
 
+const availabilityEnv = process.env.NEXT_PUBLIC_AVAILABILITY_STATUS?.toLowerCase();
+
+export const availability = {
+  status: availabilityEnv === "unavailable" ? "unavailable" : "available",
+  availableLabel: "Available for New Projects",
+  unavailableLabel: "Currently Unavailable",
+  note: "Open to website, web app and security consultation work.",
+  responseTime: null as string | null,
+} as const;
+
 export const consultationTimes = [
   "10:00 AM",
   "11:00 AM",

@@ -96,3 +96,13 @@ export interface ConsultationInputs {
   time: string;
   message: string;
 }
+
+export interface ContactFormInputs {
+  name: string;
+  email: string;
+  projectType: string;
+  budget?: string;
+  timeline?: string;
+  message: string;
+  website?: string;
+}

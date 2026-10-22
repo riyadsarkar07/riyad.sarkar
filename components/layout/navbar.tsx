@@ -119,8 +119,8 @@ export function Navbar() {
               <Link href="/login">Login</Link>
             </Button>
           )}
-          <Button size="sm" className="hidden md:inline-flex" onClick={() => scrollTo("#consultation")}>
-            {t.common.bookConsultation}
+          <Button size="sm" className="hidden md:inline-flex" onClick={() => scrollTo("#contact")}>
+            {t.common.startProject}
           </Button>
           <MobileMenu />
         </div>

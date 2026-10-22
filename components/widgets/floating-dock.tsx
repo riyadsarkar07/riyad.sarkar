@@ -15,7 +15,7 @@ const dockItems = [
   { id: "home", icon: Home, label: "Home", action: "#home" },
   { id: "services", icon: Briefcase, label: "Services", action: "#services" },
   { id: "achievements", icon: Star, label: "Achievements", action: "#achievements" },
-  { id: "consultation", icon: MessageCircle, label: "Consultation", action: "#consultation" },
+  { id: "contact", icon: MessageCircle, label: "Start a Project", action: "#contact" },
 ];
 
 /**

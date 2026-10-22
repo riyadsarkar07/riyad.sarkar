@@ -283,7 +283,7 @@
 
   /* Section shell */
   .section {
-    @apply relative py-14 sm:py-20 md:py-32;
+    @apply relative py-12 sm:py-16 md:py-32;
   }
 
   .section-heading {
@@ -307,7 +307,7 @@
   }
 
   .form-control {
-    @apply flex h-12 w-full rounded-xl border border-input bg-white/60 px-4 py-2 text-sm text-foreground shadow-sm backdrop-blur-sm transition-all placeholder:text-muted-foreground hover:border-primary/30 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5;
+    @apply flex h-12 w-full rounded-xl border border-input bg-white/60 px-4 py-2 text-base text-foreground shadow-sm backdrop-blur-sm transition-all placeholder:text-muted-foreground hover:border-primary/30 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/5 sm:text-sm;
   }
 
   .portal-canvas {

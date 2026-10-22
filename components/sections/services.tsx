@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowUpRight, Check } from "lucide-react";
 import { services } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
+import { useLenis } from "@/hooks/use-lenis";
 import { useTilt } from "@/hooks/use-tilt";
 import { RevealGroup, RevealItem } from "@/components/effects/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -20,6 +21,7 @@ import {
 
 function ServiceCard({ id }: { id: string }) {
   const { t } = useI18n();
+  const { lenis } = useLenis();
   const { ref, onPointerMove, onPointerLeave } = useTilt(8);
   const [open, setOpen] = useState(false);
   const service = services.find((s) => s.id === id);
@@ -31,7 +33,7 @@ function ServiceCard({ id }: { id: string }) {
         ref={ref}
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
-        className="tilt-card group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-7 hover:shadow-glow-lg"
+        className="tilt-card group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-5 hover:shadow-glow-lg sm:p-7"
         style={{ transition: "transform 0.18s ease-out, box-shadow 0.5s ease" }}
       >
           <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${service.gradient} blur-2xl transition-opacity duration-500 opacity-40 group-hover:opacity-90`} />
@@ -95,8 +97,17 @@ function ServiceCard({ id }: { id: string }) {
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
             <Badge variant="gradient">{service.title}</Badge>
-            <Button size="sm" onClick={() => setOpen(false)}>
-              {t.common.contactMe}
+            <Button
+              size="sm"
+              onClick={() => {
+                setOpen(false);
+                window.setTimeout(() => {
+                  if (lenis) lenis.scrollTo("#contact", { offset: -72, duration: 1.2 });
+                  else document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+                }, 150);
+              }}
+            >
+              {t.common.startProject}
             </Button>
           </div>
         </DialogContent>
@@ -117,7 +128,7 @@ export function Services() {
           description="From urgent account recovery to long-term business protection — every service is handled personally with proven, documented methods."
         />
 
-        <RevealGroup className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <RevealGroup className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-6 md:mt-16 lg:grid-cols-3">
           {services.map((service) => (
             <RevealItem key={service.id}>
               <ServiceCard id={service.id} />
