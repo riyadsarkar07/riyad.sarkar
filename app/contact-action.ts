@@ -1,17 +1,51 @@
 "use server";
 
 import { headers } from "next/headers";
-import { renderEmail, sendEmail } from "@/lib/email";
+import { renderEmail, sendEmail, type SendEmailCode } from "@/lib/email";
 import {
   contactFormSchema,
   type ContactActionResult,
   type ContactFormValues,
 } from "@/lib/contact-schema";
 
-const ADMIN_EMAIL =
-  process.env.NEXT_PUBLIC_ADMIN_EMAIL ??
-  process.env.NEXT_PUBLIC_PROFILE_EMAIL ??
-  "riyadsarkar1243@gmail.com";
+const DIRECT_EMAIL = "riyadsarkar1243@gmail.com";
+
+function readEnv(name: string): string {
+  const raw = process.env[name];
+  if (typeof raw !== "string") return "";
+  return raw.trim().replace(/^['"]+|['"]+$/g, "").trim();
+}
+
+function adminInbox(): string {
+  return (
+    readEnv("RESEND_TO_EMAIL") ||
+    readEnv("NEXT_PUBLIC_ADMIN_EMAIL") ||
+    readEnv("NEXT_PUBLIC_PROFILE_EMAIL") ||
+    DIRECT_EMAIL
+  );
+}
+
+function publicErrorFor(code?: SendEmailCode): string {
+  switch (code) {
+    case "missing_key":
+      return `Email delivery is not configured yet. Please email me directly at ${DIRECT_EMAIL}.`;
+    case "auth":
+      return `Email delivery is not authorized. Please email me directly at ${DIRECT_EMAIL}.`;
+    case "invalid_from":
+    case "unverified_domain":
+      return `The contact form sender is not verified yet. Please email me directly at ${DIRECT_EMAIL}.`;
+    case "restricted_testing":
+      return `Resend is still in test mode, so it can only deliver to the account owner's inbox. Please email me directly at ${DIRECT_EMAIL}.`;
+    case "invalid_recipient":
+      return `The contact inbox is not configured correctly. Please email me directly at ${DIRECT_EMAIL}.`;
+    case "rate_limit":
+      return "Too many messages were sent just now. Please wait a minute and try again.";
+    case "network":
+      return "The email service could not be reached. Please try again or email me directly.";
+    default:
+      return `The message could not be delivered. Please try again or email me directly at ${DIRECT_EMAIL}.`;
+  }
+}
 
 const MIN_SUBMIT_MS = 2500;
 const EMAIL_COOLDOWN_MS = 60_000;
@@ -161,7 +195,7 @@ export async function submitContactAction(
   ].join("\n");
 
   const resend = await sendEmail({
-    to: ADMIN_EMAIL,
+    to: adminInbox(),
     subject: `Project enquiry — ${data.projectType} — ${data.name}`,
     html,
     text,
@@ -183,16 +217,8 @@ export async function submitContactAction(
     /* EmailJS fallback failed */
   }
 
-  if (resend.skipped) {
-    return {
-      ok: false,
-      error:
-        "Contact delivery is not configured yet. Please email me directly at riyadsarkar1243@gmail.com.",
-    };
-  }
-
   return {
     ok: false,
-    error: "Something went wrong. Please try again or email me directly.",
+    error: publicErrorFor(resend.skipped ? "missing_key" : resend.code),
   };
 }

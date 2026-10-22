@@ -1,51 +1,280 @@
 import "server-only";
 
+export type SendEmailCode =
+  | "missing_key"
+  | "auth"
+  | "invalid_from"
+  | "unverified_domain"
+  | "restricted_testing"
+  | "invalid_recipient"
+  | "rate_limit"
+  | "provider"
+  | "network";
+
+export type SendEmailResult = {
+  ok: boolean;
+  skipped: boolean;
+  error?: string;
+  code?: SendEmailCode;
+};
+
+const RESEND_ENDPOINT = "https://api.resend.com/emails";
+const TEST_FROM = "Riyad Sarkar <onboarding@resend.dev>";
+const TEST_FROM_EMAIL = "onboarding@resend.dev";
+
+const CONSUMER_OR_PLACEHOLDER_HOSTS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "yahoo.co.uk",
+  "outlook.com",
+  "hotmail.com",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "aol.com",
+  "protonmail.com",
+  "proton.me",
+  "example.com",
+  "example.org",
+  "example.net",
+  "test.com",
+]);
+
+function readEnv(name: string): string {
+  const raw = process.env[name];
+  if (typeof raw !== "string") return "";
+  return raw.trim().replace(/^['"]+|['"]+$/g, "").trim();
+}
+
+function hostOf(email: string): string {
+  return email.split("@")[1]?.toLowerCase() ?? "";
+}
+
+function parseAddress(raw: string): { name: string; email: string } | null {
+  const cleaned = raw.trim().replace(/^['"]+|['"]+$/g, "").trim();
+  if (!cleaned) return null;
+
+  const angled = cleaned.match(/^(.*?)\s*<([^<>]+)>$/);
+  const email = (angled ? angled[2] : cleaned).trim().toLowerCase();
+  const name = (angled ? angled[1] : "").trim().replace(/^['"]+|['"]+$/g, "");
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return { name, email };
+}
+
+function formatFrom(name: string, email: string): string {
+  return name ? `${name} <${email}>` : email;
+}
+
+function isUsableFromEmail(email: string): boolean {
+  if (email === TEST_FROM_EMAIL) return true;
+  return !CONSUMER_OR_PLACEHOLDER_HOSTS.has(hostOf(email));
+}
+
+function resolveFrom(): { from: string; email: string } {
+  const configured = parseAddress(readEnv("RESEND_FROM_EMAIL"));
+  if (configured && isUsableFromEmail(configured.email)) {
+    return {
+      from: formatFrom(configured.name || "Riyad Sarkar", configured.email),
+      email: configured.email,
+    };
+  }
+
+  if (configured) {
+    console.error(
+      "[contact-email] RESEND_FROM_EMAIL is not a Resend-accepted sender (consumer or placeholder domain). Falling back to onboarding@resend.dev. Verify a domain in Resend for production delivery.",
+      { fromHost: hostOf(configured.email) },
+    );
+  }
+
+  return { from: TEST_FROM, email: TEST_FROM_EMAIL };
+}
+
+function sanitizeProviderMessage(message: string): string {
+  return message
+    .replace(/re_[A-Za-z0-9_]+/g, "[redacted]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]");
+}
+
+function classifyResendError(status: number, message: string): SendEmailCode {
+  const text = message.toLowerCase();
+
+  if (status === 401) return "auth";
+  if (status === 403 && (text.includes("api key") || text.includes("unauthorized"))) {
+    return "auth";
+  }
+  if (text.includes("testing email") || text.includes("own email address") || text.includes("only send testing")) {
+    return "restricted_testing";
+  }
+  if (text.includes("not verified") || text.includes("verify your domain") || text.includes("domain is not")) {
+    return "unverified_domain";
+  }
+  if (text.includes("from") && (text.includes("invalid") || text.includes("must be"))) {
+    return "invalid_from";
+  }
+  if (text.includes("recipient") || text.includes("invalid `to`") || text.includes("invalid to")) {
+    return "invalid_recipient";
+  }
+  if (status === 429 || text.includes("rate limit") || text.includes("too many")) {
+    return "rate_limit";
+  }
+  if (status === 403) return "restricted_testing";
+  if (status === 422) return "invalid_from";
+  return "provider";
+}
+
+async function postResend(opts: {
+  apiKey: string;
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  replyTo?: string;
+}): Promise<SendEmailResult> {
+  let res: Response;
+  try {
+    res = await fetch(RESEND_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${opts.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: opts.from,
+        to: [opts.to],
+        subject: opts.subject,
+        html: opts.html,
+        ...(opts.text ? { text: opts.text } : {}),
+        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
+      }),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: false,
+      code: "network",
+      error: err instanceof Error ? err.message : "network error",
+    };
+  }
+
+  const payload = (await res.json().catch(() => null)) as
+    | { id?: unknown; message?: unknown; name?: unknown; statusCode?: unknown }
+    | null;
+
+  if (!res.ok) {
+    const message = typeof payload?.message === "string" ? payload.message : `Resend ${res.status}`;
+    const code = classifyResendError(res.status, message);
+    return {
+      ok: false,
+      skipped: false,
+      code,
+      error: `Resend ${res.status}: ${sanitizeProviderMessage(message)}`,
+    };
+  }
+
+  if (typeof payload?.id !== "string" || payload.id.length === 0) {
+    return {
+      ok: false,
+      skipped: false,
+      code: "provider",
+      error: "Resend did not confirm acceptance",
+    };
+  }
+
+  return { ok: true, skipped: false };
+}
+
 /**
  * Secure server-side email via Resend.
  * Falls back to a no-op when RESEND_API_KEY is not configured so the rest of
  * the app works without email. The API key lives only on the server.
  */
+function envPresence() {
+  const apiKey = readEnv("RESEND_API_KEY");
+  return {
+    RESEND_API_KEY: apiKey.length > 0,
+    RESEND_API_KEY_PREFIX_OK: apiKey.startsWith("re_"),
+    RESEND_FROM_EMAIL: readEnv("RESEND_FROM_EMAIL").length > 0,
+    RESEND_TO_EMAIL: readEnv("RESEND_TO_EMAIL").length > 0,
+    NEXT_PUBLIC_ADMIN_EMAIL: readEnv("NEXT_PUBLIC_ADMIN_EMAIL").length > 0,
+    NEXT_PUBLIC_PROFILE_EMAIL: readEnv("NEXT_PUBLIC_PROFILE_EMAIL").length > 0,
+  };
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
   text?: string;
   replyTo?: string;
-}): Promise<{ ok: boolean; skipped: boolean; error?: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
+}): Promise<SendEmailResult> {
+  const apiKey = readEnv("RESEND_API_KEY");
   if (!apiKey) {
-    return { ok: true, skipped: true };
+    console.error("[contact-email] RESEND_API_KEY is missing", envPresence());
+    return { ok: false, skipped: true, code: "missing_key" };
   }
 
-  const from = process.env.RESEND_FROM_EMAIL ?? "Riyad Sarkar <onboarding@resend.dev>";
+  const toParsed = parseAddress(opts.to);
+  if (!toParsed) {
+    console.error("[contact-email] invalid recipient address");
+    return { ok: false, skipped: false, code: "invalid_recipient", error: "invalid recipient" };
+  }
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [opts.to],
-        subject: opts.subject,
-        html: opts.html,
-        text: opts.text,
-        ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
-      }),
+  const resolved = resolveFrom();
+  const replyTo = opts.replyTo ? parseAddress(opts.replyTo)?.email : undefined;
+
+  const result = await postResend({
+    apiKey,
+    from: resolved.from,
+    to: toParsed.email,
+    subject: opts.subject,
+    html: opts.html,
+    text: opts.text,
+    replyTo,
+  });
+
+  if (result.ok) return result;
+
+  const canRetryOnboarding =
+    resolved.email !== TEST_FROM_EMAIL &&
+    (result.code === "unverified_domain" || result.code === "invalid_from");
+
+  if (canRetryOnboarding) {
+    console.error(
+      "[contact-email] configured sender rejected; retrying with onboarding@resend.dev",
+      { code: result.code, fromHost: hostOf(resolved.email), toHost: hostOf(toParsed.email) },
+    );
+    const retry = await postResend({
+      apiKey,
+      from: TEST_FROM,
+      to: toParsed.email,
+      subject: opts.subject,
+      html: opts.html,
+      text: opts.text,
+      replyTo,
     });
-    if (!res.ok) {
-      return { ok: false, skipped: false, error: `Resend ${res.status}` };
-    }
-    return { ok: true, skipped: false };
-  } catch (err) {
-    return {
-      ok: false,
-      skipped: false,
-      error: err instanceof Error ? err.message : "email error",
-    };
+    if (retry.ok) return retry;
+    console.error("[contact-email] resend failed", {
+      code: retry.code,
+      error: retry.error,
+      fromHost: "resend.dev",
+      toHost: hostOf(toParsed.email),
+      env: envPresence(),
+    });
+    return retry;
   }
+
+  console.error("[contact-email] resend failed", {
+    code: result.code,
+    error: result.error,
+    fromHost: hostOf(resolved.email),
+    toHost: hostOf(toParsed.email),
+    env: envPresence(),
+  });
+  return result;
 }
 
 const layout = (body: string) => `
