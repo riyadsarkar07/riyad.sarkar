@@ -171,7 +171,7 @@ export function Footer() {
           if (lenis) lenis.scrollTo(0, { duration: 1.4 });
           else window.scrollTo({ top: 0, behavior: "smooth" });
         }}
-        className="group glass fixed bottom-[5.5rem] left-4 z-[90] flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-all duration-300 hover:scale-110 hover:text-primary md:bottom-6 md:left-6"
+        className="group glass fixed bottom-5 left-4 z-[90] flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-all duration-300 hover:scale-110 hover:text-primary sm:h-11 sm:w-11 md:bottom-6 md:left-6"
         aria-label={t.common.backToTop}
       >
         <ArrowUp className="h-5 w-5 transition-transform duration-300 group-hover:-translate-y-1" />

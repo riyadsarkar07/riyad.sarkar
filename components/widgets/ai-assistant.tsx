@@ -225,7 +225,7 @@ export function AIAssistant() {
       {/* Floating action button */}
       <motion.button
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-5 right-4 z-[95] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow-lg md:bottom-6 md:right-6"
+        className="fixed bottom-4 right-3 z-[95] flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow-lg sm:h-14 sm:w-14 md:bottom-6 md:right-6"
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
         aria-label={t.ai.title}
@@ -250,7 +250,7 @@ export function AIAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: 24, scale: 0.95, filter: "blur(6px)" }}
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="glass-strong fixed bottom-24 right-4 z-[96] flex h-[min(520px,calc(100dvh-8rem))] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-3xl shadow-glow-lg md:right-6"
+            className="glass-strong fixed bottom-[4.75rem] right-3 z-[96] flex h-[min(520px,calc(100dvh-7.5rem))] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-3xl shadow-glow-lg sm:bottom-24 sm:right-4 md:right-6"
             role="dialog"
             aria-label={t.ai.title}
           >

@@ -51,7 +51,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="pointer-events-none fixed bottom-6 right-6 z-[120] flex w-full max-w-sm flex-col gap-3 px-4 sm:px-0">
+      <div className="pointer-events-none fixed bottom-[8.75rem] right-3 z-[120] flex w-[calc(100vw-1.5rem)] max-w-sm flex-col gap-3 sm:bottom-6 sm:right-6 sm:w-full">
         <AnimatePresence>
           {toasts.map((item) => (
             <motion.div

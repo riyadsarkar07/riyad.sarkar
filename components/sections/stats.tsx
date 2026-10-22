@@ -39,12 +39,12 @@ export function Stats() {
   const { t } = useI18n();
 
   return (
-    <section id="stats" className="relative py-10 md:py-14">
+    <section id="stats" className="relative py-8 sm:py-10 md:py-14">
       <div className="container">
         <Reveal>
-          <p className="mb-8 text-center text-sm text-muted-foreground">{t.stats.title}</p>
+          <p className="mb-5 text-center text-sm text-muted-foreground sm:mb-8">{t.stats.title}</p>
         </Reveal>
-        <RevealGroup className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <RevealGroup className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           {stats.map((stat) => (
             <AnimatedStat key={stat.labelKey} {...stat} />
           ))}

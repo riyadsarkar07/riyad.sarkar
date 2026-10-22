@@ -49,9 +49,9 @@ export function ParticleBackground({ density = 28 }: { density?: number }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const isMobile = width < 768;
-      const cap = isMobile ? Math.min(density, 16) : density;
-      const count = Math.min(Math.floor((width * height) / 22000), cap);
-      linkDistance = isMobile ? 80 : 110;
+      const cap = isMobile ? Math.min(density, 10) : density;
+      const count = Math.min(Math.floor((width * height) / (isMobile ? 32000 : 22000)), cap);
+      linkDistance = isMobile ? 64 : 110;
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,

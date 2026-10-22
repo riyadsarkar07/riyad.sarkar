@@ -53,8 +53,8 @@ export function Navbar() {
     >
       <nav
         className={cn(
-          "container flex items-center justify-between gap-3 transition-[height] duration-500",
-          scrolled ? "h-16" : "h-[72px]",
+          "container flex items-center justify-between gap-1.5 transition-[height] duration-500 sm:gap-3",
+          scrolled ? "h-14 sm:h-16" : "h-16 sm:h-[72px]",
         )}
         aria-label="Main navigation"
       >
@@ -64,11 +64,11 @@ export function Navbar() {
             e.preventDefault();
             scrollTo("#home");
           }}
-          className="flex shrink-0 items-center gap-3"
+          className="flex min-w-0 shrink items-center gap-2 sm:gap-3"
           aria-label="Go to home"
         >
-          <Logo />
-          <span className="hidden font-display text-lg font-bold tracking-tight sm:block">
+          <Logo className="h-8 w-8 sm:h-10 sm:w-10" />
+          <span className="truncate font-display text-[0.95rem] font-bold tracking-tight sm:text-lg">
             Riyad <span className="text-gradient">Sarkar</span>
           </span>
         </a>
@@ -105,7 +105,7 @@ export function Navbar() {
           })}
         </ul>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <ThemeToggle />
           <LanguageToggle />
           {sessionLoading ? (

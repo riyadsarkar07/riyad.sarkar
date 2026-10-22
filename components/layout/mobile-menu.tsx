@@ -31,6 +31,7 @@ export function MobileMenu() {
       <Button
         variant="ghost"
         size="icon"
+        className="h-10 w-10 sm:h-11 sm:w-11"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
@@ -49,7 +50,7 @@ export function MobileMenu() {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-full max-w-[320px] flex-col overflow-y-auto p-6 pt-20 shadow-glow-lg"
+              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-[min(100vw,320px)] flex-col overflow-y-auto p-5 pt-16 shadow-glow-lg sm:p-6 sm:pt-20"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}

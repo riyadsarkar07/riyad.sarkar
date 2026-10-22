@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 /** Animated shield logo mark. */
-export function Logo({ size = 40 }: { size?: number }) {
+export function Logo({ size = 40, className }: { size?: number; className?: string }) {
   return (
     <motion.div
-      className="relative flex items-center justify-center"
-      style={{ width: size, height: size }}
+      className={cn("relative flex shrink-0 items-center justify-center", className)}
+      style={className ? undefined : { width: size, height: size }}
       whileHover={{ rotate: -6, scale: 1.06 }}
       transition={{ type: "spring", stiffness: 300, damping: 18 }}
       aria-hidden

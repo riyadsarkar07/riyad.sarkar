@@ -283,7 +283,7 @@
 
   /* Section shell */
   .section {
-    @apply relative py-24 md:py-32;
+    @apply relative py-14 sm:py-20 md:py-32;
   }
 
   .section-heading {
