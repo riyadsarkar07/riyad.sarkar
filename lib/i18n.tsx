@@ -60,6 +60,9 @@ type Dictionary = {
     backToTop: string;
     bookConsultation: string;
     startProject: string;
+    supportInbox: string;
+    dashboard: string;
+    login: string;
     contactMe: string;
     readMore: string;
     close: string;
@@ -122,6 +125,9 @@ type Dictionary = {
     channels: string;
     availabilityNote: string;
     sendAnother: string;
+    supportInboxTitle: string;
+    supportInboxBody: string;
+    supportInboxCta: string;
   };
   footer: {
     tagline: string;
@@ -203,6 +209,9 @@ const en: Dictionary = {
     backToTop: "Back to top",
     bookConsultation: "Book Consultation",
     startProject: "Start a Project",
+    supportInbox: "Support Inbox",
+    dashboard: "Dashboard",
+    login: "Login",
     contactMe: "Contact Me",
     readMore: "Read More",
     close: "Close",
@@ -270,6 +279,10 @@ const en: Dictionary = {
     channels: "Professional channels",
     availabilityNote: "Open to website, web app and security consultation work.",
     sendAnother: "Send another message",
+    supportInboxTitle: "Support Inbox",
+    supportInboxBody:
+      "Already a client? Open the Support Inbox for private live conversations. Project enquiry is for new work only.",
+    supportInboxCta: "Open Support Inbox",
   },
   footer: {
     tagline:
@@ -361,6 +374,9 @@ const bn: Dictionary = {
     backToTop: "উপরে যান",
     bookConsultation: "পরামর্শ বুক করুন",
     startProject: "প্রজেক্ট শুরু করুন",
+    supportInbox: "সাপোর্ট ইনবক্স",
+    dashboard: "ড্যাশবোর্ড",
+    login: "লগইন",
     contactMe: "যোগাযোগ করুন",
     readMore: "আরও পড়ুন",
     close: "বন্ধ করুন",
@@ -427,6 +443,10 @@ const bn: Dictionary = {
     channels: "পেশাদার মাধ্যম",
     availabilityNote: "ওয়েবসাইট, ওয়েব অ্যাপ এবং সিকিউরিটি কনসালটেশনের জন্য উন্মুক্ত।",
     sendAnother: "আরেকটি বার্তা পাঠান",
+    supportInboxTitle: "সাপোর্ট ইনবক্স",
+    supportInboxBody:
+      "আগে থেকে ক্লায়েন্ট? প্রাইভেট লাইভ কথোপকথনের জন্য সাপোর্ট ইনবক্স খুলুন। প্রজেক্ট এনকোয়ারি শুধু নতুন কাজের জন্য।",
+    supportInboxCta: "সাপোর্ট ইনবক্স খুলুন",
   },
   footer: {
     tagline:

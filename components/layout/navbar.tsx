@@ -111,13 +111,23 @@ export function Navbar() {
           {sessionLoading ? (
             <div className="hidden h-9 w-16 animate-pulse rounded-full bg-primary/10 md:block" />
           ) : user ? (
-            <Button asChild size="sm" variant="outline" className="hidden md:inline-flex">
-              <Link href="/dashboard">Dashboard</Link>
-            </Button>
+            <>
+              <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
+                <Link href="/dashboard/support">{t.common.supportInbox}</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline" className="hidden md:inline-flex">
+                <Link href="/dashboard">{t.common.dashboard}</Link>
+              </Button>
+            </>
           ) : (
-            <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
-              <Link href="/login">Login</Link>
-            </Button>
+            <>
+              <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
+                <Link href="/login?next=/dashboard/support">{t.common.supportInbox}</Link>
+              </Button>
+              <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
+                <Link href="/login">{t.common.login}</Link>
+              </Button>
+            </>
           )}
           <Button size="sm" className="hidden md:inline-flex" onClick={() => scrollTo("#contact")}>
             {t.common.startProject}

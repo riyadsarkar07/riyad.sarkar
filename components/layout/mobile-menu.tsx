@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { LayoutDashboard, Menu, UserRound, X } from "lucide-react";
+import { LayoutDashboard, Menu, MessagesSquare, UserRound, X } from "lucide-react";
 import { navItems } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useLenis } from "@/hooks/use-lenis";
@@ -92,6 +92,16 @@ export function MobileMenu() {
                 <Button className="w-full" onClick={() => scrollTo("#contact")}>
                   {t.common.startProject}
                 </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setOpen(false)}
+                >
+                  <Link href={user ? "/dashboard/support" : "/login?next=/dashboard/support"}>
+                    <MessagesSquare className="h-4 w-4" /> {t.common.supportInbox}
+                  </Link>
+                </Button>
                 <div className="grid grid-cols-2 gap-3">
                   {user ? (
                     <Button
@@ -101,7 +111,7 @@ export function MobileMenu() {
                       onClick={() => setOpen(false)}
                     >
                       <Link href="/dashboard">
-                        <LayoutDashboard className="h-4 w-4" /> Dashboard
+                        <LayoutDashboard className="h-4 w-4" /> {t.common.dashboard}
                       </Link>
                     </Button>
                   ) : (
@@ -112,7 +122,7 @@ export function MobileMenu() {
                       onClick={() => setOpen(false)}
                     >
                       <Link href="/login">
-                        <UserRound className="h-4 w-4" /> Login
+                        <UserRound className="h-4 w-4" /> {t.common.login}
                       </Link>
                     </Button>
                   )}

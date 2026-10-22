@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Command, FileText, Home, Search, X } from "lucide-react";
+import { ArrowRight, Command, FileText, Home, MessagesSquare, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { services, navItems, blogPosts } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useLenis } from "@/hooks/use-lenis";
+import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 
 interface CommandItem {
@@ -22,6 +23,7 @@ export function CommandPalette() {
   const { t } = useI18n();
   const router = useRouter();
   const { lenis } = useLenis();
+  const { user } = useSession();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -63,9 +65,22 @@ export function CommandPalette() {
       },
     }));
 
-    return [...sections, ...serviceItems, ...postItems];
+    const portalItems: CommandItem[] = [
+      {
+        id: "portal-support",
+        label: t.common.supportInbox,
+        hint: "Portal",
+        icon: MessagesSquare,
+        action: () => {
+          setOpen(false);
+          router.push(user ? "/dashboard/support" : "/login?next=/dashboard/support");
+        },
+      },
+    ];
+
+    return [...portalItems, ...sections, ...serviceItems, ...postItems];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t, router]);
+  }, [t, router, user]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

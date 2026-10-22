@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowUp, Globe, Heart, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowUp, Globe, Heart, MessagesSquare, ShieldCheck } from "lucide-react";
 import { navItems, profile, services, socials } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useLenis } from "@/hooks/use-lenis";
+import { useSession } from "@/hooks/use-session";
 import { Logo } from "@/components/ui/logo";
 import { SocialLinks } from "@/components/widgets/social-links";
 import { AvailabilityBadge } from "@/components/widgets/availability-badge";
@@ -13,6 +15,7 @@ import { Button } from "@/components/ui/button";
 export function Footer() {
   const { t } = useI18n();
   const { lenis } = useLenis();
+  const { user } = useSession();
 
   const scrollTo = (href: string) => {
     const id = href.replace("#", "");
@@ -133,6 +136,15 @@ export function Footer() {
                 </a>
               </li>
             </ul>
+            <div className="mt-5">
+              <Link
+                href={user ? "/dashboard/support" : "/login?next=/dashboard/support"}
+                className="group inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:underline"
+              >
+                <MessagesSquare className="h-4 w-4" />
+                {t.common.supportInbox}
+              </Link>
+            </div>
             <div className="mt-5 flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs text-muted-foreground">
               <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" />
               All consultations handled with strict confidentiality.

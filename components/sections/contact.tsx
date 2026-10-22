@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CheckCircle2,
@@ -16,11 +17,13 @@ import {
   Mail,
   MapPin,
   MessageCircle,
+  MessagesSquare,
   Phone,
   Send,
 } from "lucide-react";
 import { availability, profile, socials } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
+import { useSession } from "@/hooks/use-session";
 import { useToast } from "@/lib/toast";
 import { Reveal } from "@/components/effects/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -82,6 +85,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export function Contact() {
   const { t } = useI18n();
+  const { user } = useSession();
   const { toast } = useToast();
   const reduceMotion = useReducedMotion();
   const startedAt = useRef(Date.now());
@@ -370,6 +374,24 @@ export function Contact() {
                       </Magnetic>
                     );
                   })}
+                </div>
+              </div>
+
+              <div className="glass gradient-border rounded-3xl p-5 sm:p-6">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 text-white shadow-glow">
+                    <MessagesSquare className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-display text-base font-bold">{t.contact.supportInboxTitle}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{t.contact.supportInboxBody}</p>
+                    <Button asChild size="sm" variant="outline" className="mt-4">
+                      <Link href={user ? "/dashboard/support" : "/login?next=/dashboard/support"}>
+                        <MessagesSquare className="h-4 w-4" />
+                        {t.contact.supportInboxCta}
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
 
