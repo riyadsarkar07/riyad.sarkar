@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import emailjs from "@emailjs/browser";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import type { ConsultationInputs } from "@/types";
+import { submitConsultationAction } from "@/app/consultation-action";
 import { cn } from "@/lib/utils";
 
 const serviceOptions = ["General Security Consultation", ...services.map((s) => s.title)];
@@ -56,62 +55,75 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
   const [selectedTime, setSelectedTime] = useState<string>(consultationTimes[0]);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const startedAt = useRef(Date.now());
+  const submissionId = useRef(crypto.randomUUID());
 
-  const schema = z.object({
-    name: z.string().min(2, t.consultation.required),
-    email: z.string().email(),
-    phone: z.string().min(6, t.consultation.required),
-    service: z.string().min(1, t.consultation.required),
-    message: z.string().min(10, t.consultation.required),
-  });
+  type FormValues = {
+    name: string;
+    email: string;
+    phone: string;
+    service: string;
+    message: string;
+  };
+
+  const schema = useMemo(
+    () =>
+      z.object({
+        name: z.string().min(2, t.consultation.required),
+        email: z.string().email(),
+        phone: z.string().min(6, t.consultation.required),
+        service: z.string().min(1, t.consultation.required),
+        message: z.string().min(10, t.consultation.required),
+      }),
+    [t.consultation.required],
+  );
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ConsultationInputs>({
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { service: "" },
+    defaultValues: { service: "", name: "", email: "", phone: "", message: "" },
   });
 
-  useEffect(() => {
-    emailjs.init({
-      publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY ?? "",
-    });
-  }, []);
+  const toIsoDate = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
 
-  const onSubmit = async (data: ConsultationInputs) => {
+  const onSubmit = async (data: FormValues) => {
+    if (sending) return;
     setSending(true);
+    setFormError(null);
     try {
-      const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-      const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-
-      if (!serviceId || !templateId || !process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY) {
-        toast("error", t.consultation.error);
+      const result = await submitConsultationAction({
+        ...data,
+        date: toIsoDate(selectedDate),
+        time: selectedTime,
+        startedAt: startedAt.current,
+        submissionId: submissionId.current,
+        website: "",
+      });
+      if (result.ok) {
+        setReferenceId(result.referenceId);
+        setEmailWarning(result.emailWarning ?? null);
+        setSent(true);
+        reset();
+        startedAt.current = Date.now();
+        submissionId.current = crypto.randomUUID();
         return;
       }
-
-      await emailjs.send(
-        serviceId,
-        templateId,
-        {
-          from_name: data.name,
-          from_email: data.email,
-          phone: data.phone,
-          service: data.service,
-          date: selectedDate.toDateString(),
-          time: selectedTime,
-          message: data.message,
-          to_name: "Riyad Sarkar",
-        },
-        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY,
-      );
-
-      setSent(true);
-      reset();
-      window.setTimeout(() => setSent(false), 4000);
+      setFormError(result.error);
+      toast("error", t.consultation.error, result.error);
     } catch {
+      setFormError(t.consultation.error);
       toast("error", t.consultation.error);
     } finally {
       setSending(false);
@@ -126,7 +138,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
       id="consultation"
       className={cn(
         "section relative overflow-hidden",
-        isPage && "min-h-screen pb-20 pt-28 sm:pt-32",
+        isPage && "min-h-screen pb-12 pt-24 sm:pt-28",
       )}
     >
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
@@ -137,7 +149,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
           description={t.consultation.pageIntro}
         />
 
-        <Reveal className="mx-auto mt-8 max-w-5xl sm:mt-12 md:mt-14">
+        <Reveal className="mx-auto mt-6 max-w-5xl sm:mt-8">
           <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4 text-sm text-muted-foreground sm:px-5">
             <p className="flex items-start gap-2.5">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500" />
@@ -236,7 +248,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                       initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={reduceMotion ? undefined : { opacity: 0 }}
-                      className="flex h-full min-h-[320px] flex-col items-center justify-center text-center sm:min-h-[380px]"
+                      className="flex h-full min-h-[280px] flex-col items-center justify-center text-center sm:min-h-[320px]"
                     >
                       <div className="relative mb-6">
                         {!reduceMotion && (
@@ -247,9 +259,17 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                         </div>
                       </div>
                       <h3 className="font-display text-2xl font-bold">{t.consultation.success}</h3>
+                      {referenceId && (
+                        <p className="mt-3 font-display text-sm font-semibold text-primary">
+                          {t.consultation.referenceLabel}: {referenceId}
+                        </p>
+                      )}
                       <p className="mt-3 max-w-sm text-sm text-muted-foreground">
-                        {t.consultation.successSub}
+                        {emailWarning ? t.consultation.savedEmailFailed : t.consultation.successSub}
                       </p>
+                      {emailWarning && (
+                        <p className="mt-2 max-w-sm text-xs text-amber-600 dark:text-amber-400">{emailWarning}</p>
+                      )}
                     </motion.div>
                   ) : (
                     <motion.form
@@ -349,6 +369,12 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                           <p className="mt-1 text-xs text-red-500">{errors.message.message}</p>
                         )}
                       </div>
+
+                      {formError && (
+                        <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300" role="alert">
+                          {formError}
+                        </p>
+                      )}
 
                       <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                         <p className="text-xs text-muted-foreground">

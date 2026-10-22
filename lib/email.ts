@@ -204,6 +204,38 @@ function envPresence() {
   };
 }
 
+export function adminInbox(): string {
+  return (
+    readEnv("RESEND_TO_EMAIL") ||
+    readEnv("NEXT_PUBLIC_ADMIN_EMAIL") ||
+    readEnv("NEXT_PUBLIC_PROFILE_EMAIL") ||
+    "riyadsarkar1243@gmail.com"
+  );
+}
+
+export function publicErrorFor(code?: SendEmailCode): string {
+  const inbox = "riyadsarkar1243@gmail.com";
+  switch (code) {
+    case "missing_key":
+      return `Email delivery is not configured yet. Please email me directly at ${inbox}.`;
+    case "auth":
+      return `Email delivery is not authorized. Please email me directly at ${inbox}.`;
+    case "invalid_from":
+    case "unverified_domain":
+      return `The sender is not verified yet. Please email me directly at ${inbox}.`;
+    case "restricted_testing":
+      return `Resend is still in test mode, so it can only deliver to the account owner's inbox. Please email me directly at ${inbox}.`;
+    case "invalid_recipient":
+      return `The contact inbox is not configured correctly. Please email me directly at ${inbox}.`;
+    case "rate_limit":
+      return "Too many messages were sent just now. Please wait a minute and try again.";
+    case "network":
+      return "The email service could not be reached. Please try again or email me directly.";
+    default:
+      return `The message could not be delivered. Please try again or email me directly at ${inbox}.`;
+  }
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;

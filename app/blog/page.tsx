@@ -16,7 +16,7 @@ export const metadata: Metadata = buildMetadata({
 
 export default function BlogPage() {
   return (
-    <main className="section relative min-h-screen pt-32">
+    <main className="section relative min-h-screen pt-24 sm:pt-28">
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <div className="container relative">
         <div className="mx-auto max-w-3xl text-center">

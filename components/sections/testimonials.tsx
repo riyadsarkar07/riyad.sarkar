@@ -150,7 +150,7 @@ export function Testimonials() {
           </div>
         </div>
 
-        <Reveal delay={0.2} className="mt-10 text-center">
+        <Reveal delay={0.2} className="mt-6 text-center sm:mt-8">
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold text-primary">4.9/5</span> average rating from 100+
             clients across 25+ countries

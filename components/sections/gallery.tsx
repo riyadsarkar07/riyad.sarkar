@@ -37,7 +37,7 @@ export function Gallery() {
         />
 
         {/* Filters */}
-        <div className="mt-10 flex flex-wrap justify-center gap-2">
+        <div className="mt-6 flex flex-wrap justify-center gap-2 sm:mt-8">
           {galleryCategories.map((category) => (
             <button
               key={category}
@@ -55,7 +55,7 @@ export function Gallery() {
         </div>
 
         {/* Masonry */}
-        <RevealGroup className="mt-12 columns-1 gap-5 sm:columns-2 lg:columns-4 [&>*]:mb-5">
+        <RevealGroup className="mt-6 columns-1 gap-4 sm:mt-8 sm:columns-2 lg:columns-4 [&>*]:mb-4">
           {filtered.map((item, index) => (
             <RevealItem key={item.id} className="break-inside-avoid">
               <div

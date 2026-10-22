@@ -50,6 +50,12 @@ export type TicketCategory = (typeof TICKET_CATEGORIES)[number];
 export const TICKET_STATUSES = ["open", "pending", "in_progress", "closed"] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
+export const EMAIL_TICKET_STATUSES = ["open", "in_progress", "awaiting_reply", "resolved"] as const;
+export type EmailTicketStatus = (typeof EMAIL_TICKET_STATUSES)[number];
+
+export const PUBLIC_BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled"] as const;
+export type PublicBookingStatus = (typeof PUBLIC_BOOKING_STATUSES)[number];
+
 export const TIMEZONES = [
   "Asia/Dhaka (GMT+6)",
   "Asia/Kolkata (GMT+5:30)",
@@ -103,6 +109,8 @@ export const STATUS_LABELS: Record<string, string> = {
   reschedule_requested: "Reschedule Requested",
   open: "Open",
   closed: "Closed",
+  awaiting_reply: "Awaiting Reply",
+  resolved: "Resolved",
 };
 
 export const PRIORITY_LABELS: Record<string, string> = {

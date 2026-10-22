@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /** Page transition skeleton shown while routes load. */
 export default function Loading() {
   return (
-    <main className="min-h-screen pt-32">
+    <main className="min-h-screen pt-24 sm:pt-28">
       <div className="container space-y-10">
         <div className="mx-auto max-w-3xl space-y-5 text-center">
           <div className="flex justify-center">

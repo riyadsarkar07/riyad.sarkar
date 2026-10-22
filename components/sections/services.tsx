@@ -128,7 +128,7 @@ export function Services() {
           description="From urgent account recovery to long-term business protection — every service is handled personally with proven, documented methods."
         />
 
-        <RevealGroup className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-6 md:mt-16 lg:grid-cols-3">
+        <RevealGroup className="mt-6 grid gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-5 md:mt-10 lg:grid-cols-3">
           {services.map((service) => (
             <RevealItem key={service.id}>
               <ServiceCard id={service.id} />

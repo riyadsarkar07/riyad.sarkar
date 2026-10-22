@@ -100,6 +100,8 @@ type Dictionary = {
     submitting: string;
     success: string;
     successSub: string;
+    savedEmailFailed: string;
+    referenceLabel: string;
     error: string;
     selectService: string;
     required: string;
@@ -130,6 +132,9 @@ type Dictionary = {
     submitting: string;
     success: string;
     successSub: string;
+    savedEmailFailed: string;
+    referenceLabel: string;
+    trackCta: string;
     error: string;
     required: string;
     privacy: string;
@@ -275,8 +280,10 @@ const en: Dictionary = {
       "Briefly describe your situation — the platform, what happened, and any details you can share.",
     submit: "Request Consultation",
     submitting: "Sending…",
-    success: "Request received!",
-    successSub: "Your consultation request has been sent. I will get back to you within 24 hours.",
+    success: "Appointment booked",
+    successSub: "Your consultation has been saved. Keep the reference number — I will confirm shortly.",
+    savedEmailFailed: "Your appointment was saved, but the notification email could not be delivered.",
+    referenceLabel: "Booking reference",
     error: "Something went wrong. Please try again or contact me directly.",
     selectService: "Select a service",
     required: "This field is required",
@@ -307,12 +314,15 @@ const en: Dictionary = {
     optional: "Optional",
     submit: "Send enquiry",
     submitting: "Sending…",
-    success: "Message sent",
-    successSub: "Thanks — your enquiry was delivered. I will reply by email.",
+    success: "Enquiry received",
+    successSub: "Your ticket was created. Keep the reference number to track status and replies.",
+    savedEmailFailed: "Your ticket was saved, but the notification email could not be delivered.",
+    referenceLabel: "Ticket number",
+    trackCta: "Track my enquiry",
     error: "Something went wrong. Please try again or email me directly.",
     required: "This field is required",
     privacy:
-      "Your details are used only to reply to this enquiry. Nothing is stored in a public database.",
+      "Your details are stored securely so you can track this enquiry. They are not shown publicly.",
     channels: "Professional channels",
     availabilityNote: "Open to website, web app and security consultation work.",
     sendAnother: "Send another message",
@@ -468,8 +478,10 @@ const bn: Dictionary = {
     messagePlaceholder: "আপনার পরিস্থিতি সংক্ষেপে লিখুন — প্ল্যাটফর্ম, কী ঘটেছে এবং অন্যান্য তথ্য।",
     submit: "অনুরোধ পাঠান",
     submitting: "পাঠানো হচ্ছে…",
-    success: "অনুরোধ গৃহীত হয়েছে!",
-    successSub: "আপনার পরামর্শের অনুরোধ পাঠানো হয়েছে। ২৪ ঘণ্টার মধ্যে যোগাযোগ করা হবে।",
+    success: "অ্যাপয়েন্টমেন্ট বুক হয়েছে",
+    successSub: "আপনার পরামর্শ সংরক্ষণ করা হয়েছে। রেফারেন্স নম্বর রাখুন — শীঘ্রই নিশ্চিত করা হবে।",
+    savedEmailFailed: "আপনার অ্যাপয়েন্টমেন্ট সংরক্ষণ হয়েছে, কিন্তু নোটিফিকেশন ইমেইল পাঠানো যায়নি।",
+    referenceLabel: "বুকিং রেফারেন্স",
     error: "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন বা সরাসরি যোগাযোগ করুন।",
     selectService: "সেবা নির্বাচন করুন",
     required: "এই ঘরটি পূরণ করা প্রয়োজন",
@@ -500,12 +512,15 @@ const bn: Dictionary = {
     optional: "ঐচ্ছিক",
     submit: "এনকোয়ারি পাঠান",
     submitting: "পাঠানো হচ্ছে…",
-    success: "বার্তা পাঠানো হয়েছে",
-    successSub: "ধন্যবাদ — আপনার এনকোয়ারি পৌঁছেছে। আমি ইমেইলে উত্তর দেব।",
+    success: "এনকোয়ারি গৃহীত হয়েছে",
+    successSub: "আপনার টিকেট তৈরি হয়েছে। স্ট্যাটাস ও উত্তর দেখতে রেফারেন্স নম্বর রাখুন।",
+    savedEmailFailed: "আপনার টিকেট সংরক্ষণ হয়েছে, কিন্তু নোটিফিকেশন ইমেইল পাঠানো যায়নি।",
+    referenceLabel: "টিকেট নম্বর",
+    trackCta: "এনকোয়ারি ট্র্যাক করুন",
     error: "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন বা সরাসরি ইমেইল করুন।",
     required: "এই ঘরটি পূরণ করা প্রয়োজন",
     privacy:
-      "আপনার তথ্য শুধু এই এনকোয়ারির উত্তর দিতে ব্যবহার করা হয়। পাবলিক ডাটাবেসে কিছু সংরক্ষণ করা হয় না।",
+      "এই এনকোয়ারি ট্র্যাক করতে আপনার তথ্য নিরাপদে সংরক্ষণ করা হয়। পাবলিকভাবে দেখানো হয় না।",
     channels: "পেশাদার মাধ্যম",
     availabilityNote: "ওয়েবসাইট, ওয়েব অ্যাপ এবং সিকিউরিটি কনসালটেশনের জন্য উন্মুক্ত।",
     sendAnother: "আরেকটি বার্তা পাঠান",

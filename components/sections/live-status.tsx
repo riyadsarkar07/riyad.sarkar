@@ -9,7 +9,7 @@ import { RevealGroup, RevealItem } from "@/components/effects/reveal";
 /** Live status dashboard — clock, weather, visitors, GitHub activity. */
 export function LiveStatus() {
   return (
-    <section id="status" className="relative py-16 md:py-20" aria-label="Live status">
+    <section id="status" className="relative py-8 sm:py-10 md:py-12" aria-label="Live status">
       <div className="container">
         <RevealGroup className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <RevealItem>

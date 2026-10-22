@@ -21,7 +21,7 @@ export function Faq() {
           description="The answers clients ask most before we begin. Anything else? Reach out directly."
         />
 
-        <Reveal className="mx-auto mt-12 max-w-3xl">
+        <Reveal className="mx-auto mt-6 max-w-3xl sm:mt-8">
           <div className="glass gradient-border rounded-3xl px-6 sm:px-8">
             <Accordion type="single" collapsible defaultValue={faqs[0].id}>
               {faqs.map((faq) => (

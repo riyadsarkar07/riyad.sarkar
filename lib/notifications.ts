@@ -1,10 +1,9 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { renderEmail, sendEmail } from "@/lib/email";
+import { adminInbox, renderEmail, sendEmail } from "@/lib/email";
 import { STATUS_LABELS } from "@/lib/constants";
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "riyadsarkar1243@gmail.com";
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (typeof process.env.VERCEL_URL === "string"
@@ -56,7 +55,7 @@ export async function notifyAppointmentCreated(input: {
   });
 
   await sendEmail({
-    to: ADMIN_EMAIL,
+    to: adminInbox(),
     subject: `New appointment — ${input.referenceId}`,
     html: renderEmail({
       greeting: "New appointment request",
@@ -125,7 +124,7 @@ export async function notifyTicketCreated(input: {
     }),
   });
   await sendEmail({
-    to: ADMIN_EMAIL,
+    to: adminInbox(),
     subject: `New support ticket — ${input.referenceId}`,
     html: renderEmail({
       greeting: "New support ticket",
@@ -163,7 +162,7 @@ export async function notifySupportReply(input: {
     });
   } else {
     await sendEmail({
-      to: ADMIN_EMAIL,
+      to: adminInbox(),
       subject: `New reply on ${input.referenceId}`,
       html: renderEmail({
         greeting: "New user reply",

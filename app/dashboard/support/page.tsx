@@ -13,8 +13,8 @@ function SupportInbox() {
   return (
     <div>
       <PageHeader
-        title="Support Inbox"
-        subtitle="Private conversations with the support team — messages appear instantly."
+        title="Live Support Conversations"
+        subtitle="Private real-time inbox. Email tickets and consultation bookings are tracked separately."
       />
       <SupportMessenger
         mode="user"

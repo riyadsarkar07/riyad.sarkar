@@ -40,7 +40,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const related = blogPosts.filter((p) => p.slug !== slug).slice(0, 3);
 
   return (
-    <main className="relative min-h-screen pt-32">
+    <main className="relative min-h-screen pt-24 sm:pt-28">
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <article className="container relative max-w-4xl">
         <Link

@@ -4,14 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpDown, Eye, Search } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
-import { APPOINTMENT_STATUSES, PRIORITIES } from "@/lib/constants";
+import { APPOINTMENT_STATUSES, PRIORITIES, PUBLIC_BOOKING_STATUSES } from "@/lib/constants";
 import { adminUpdateAppointmentAction } from "@/app/actions";
+import { adminUpdatePublicBookingAction } from "@/app/ticket-actions";
 import { PageHeader } from "@/components/portal/page-header";
+import { StatusBadge } from "@/components/portal/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/toast";
-import type { Appointment } from "@/types/dashboard";
+import type { Appointment, ConsultationBooking } from "@/types/dashboard";
 
 type SortKey = "created_at" | "appointment_date" | "full_name" | "priority";
 
@@ -19,6 +21,7 @@ export default function AdminAppointmentsPage() {
   const supabase = useSupabase();
   const { toast } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [bookings, setBookings] = useState<ConsultationBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [fStatus, setFStatus] = useState("all");
@@ -29,11 +32,12 @@ export default function AdminAppointmentsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from("appointments")
-      .select("*")
-      .order(sortKey, { ascending: sortDir === "asc" });
-    setAppointments((data ?? []) as Appointment[]);
+    const [portal, publicBookings] = await Promise.all([
+      supabase.from("appointments").select("*").order(sortKey, { ascending: sortDir === "asc" }),
+      supabase.from("consultation_bookings").select("*").order("created_at", { ascending: false }),
+    ]);
+    setAppointments((portal.data ?? []) as Appointment[]);
+    setBookings((publicBookings.data ?? []) as ConsultationBooking[]);
     setLoading(false);
   }, [supabase, sortKey, sortDir]);
 
@@ -90,7 +94,7 @@ export default function AdminAppointmentsPage() {
     <div>
       <PageHeader
         title="Appointments"
-        subtitle="View, filter, sort and manage every client appointment."
+        subtitle="Portal appointments and public consultation bookings, kept separate from email tickets and live chat."
       />
 
       <div className="glass gradient-border mb-6 rounded-2xl p-4">
@@ -209,6 +213,72 @@ export default function AdminAppointmentsPage() {
                         <Eye className="h-3.5 w-3.5" /> Open
                       </Link>
                     </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h2 className="mb-3 mt-10 font-display text-lg font-bold">Public consultation bookings</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Submitted from Book a Consultation. Statuses: Pending, Confirmed, Completed, Cancelled.
+      </p>
+      {loading ? (
+        <Skeleton className="h-16" />
+      ) : bookings.length === 0 ? (
+        <div className="glass gradient-border rounded-2xl px-6 py-12 text-center text-sm text-muted-foreground">
+          No public consultation bookings yet.
+        </div>
+      ) : (
+        <div className="glass gradient-border overflow-x-auto rounded-2xl">
+          <table className="w-full min-w-[820px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-4 py-3">Client</th>
+                <th className="px-4 py-3">Reference</th>
+                <th className="px-4 py-3">Service</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((b) => (
+                <tr key={b.id} className="border-b border-border/40 last:border-0 hover:bg-primary/5">
+                  <td className="px-4 py-3">
+                    <p className="font-semibold">{b.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{b.email} · {b.phone}</p>
+                  </td>
+                  <td className="px-4 py-3 font-medium text-primary">{b.reference_id}</td>
+                  <td className="px-4 py-3">{b.service}</td>
+                  <td className="px-4 py-3">
+                    {new Date(b.appointment_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    <p className="text-xs text-muted-foreground">{b.appointment_time}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={b.status} />
+                      <select
+                        value={b.status}
+                        onChange={async (e) => {
+                          const status = e.target.value;
+                          const res = await adminUpdatePublicBookingAction({ id: b.id, status });
+                          if (res.ok) {
+                            setBookings((prev) => prev.map((row) => (row.id === b.id ? { ...row, status } : row)));
+                            toast("success", "Status updated");
+                          } else {
+                            toast("error", "Update failed", res.error);
+                          }
+                        }}
+                        className="h-8 rounded-md border border-input bg-transparent px-1.5 text-xs capitalize dark:bg-white/5"
+                        aria-label="Public booking status"
+                      >
+                        {PUBLIC_BOOKING_STATUSES.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
                   </td>
                 </tr>
               ))}

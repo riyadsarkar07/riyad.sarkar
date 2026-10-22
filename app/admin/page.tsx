@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  Mail,
   MessagesSquare,
   UserPlus,
   Users,
@@ -19,7 +20,7 @@ import { PageHeader } from "@/components/portal/page-header";
 import { StatCard } from "@/components/portal/stat-card";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Appointment, SupportTicket } from "@/types/dashboard";
+import type { Appointment, ConsultationBooking, EmailTicket, SupportTicket } from "@/types/dashboard";
 
 function fmtDate(d: string) {
   return new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleString("en-US", {
@@ -41,9 +42,13 @@ export default function AdminOverviewPage() {
     inProgress: 0,
     completed: 0,
     openTickets: 0,
+    emailTickets: 0,
+    publicBookings: 0,
   });
   const [recentAppointments, setRecentAppointments] = useState<Appointment[]>([]);
   const [recentTickets, setRecentTickets] = useState<SupportTicket[]>([]);
+  const [recentEmailTickets, setRecentEmailTickets] = useState<EmailTicket[]>([]);
+  const [recentBookings, setRecentBookings] = useState<ConsultationBooking[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -57,8 +62,12 @@ export default function AdminOverviewPage() {
         inProgress,
         completed,
         openTickets,
+        emailTickets,
+        publicBookings,
         recentAppts,
         recentTkts,
+        recentEmail,
+        recentPublic,
       ] = await Promise.all([
         supabase.from("profiles").select("id"),
         supabase.from("profiles").select("id").gte("created_at", monthAgo),
@@ -67,8 +76,12 @@ export default function AdminOverviewPage() {
         supabase.from("appointments").select("id").eq("status", "in_progress"),
         supabase.from("appointments").select("id").eq("status", "completed"),
         supabase.from("support_tickets").select("id").in("status", ["open", "pending", "in_progress"]),
+        supabase.from("email_tickets").select("id").in("status", ["open", "in_progress", "awaiting_reply"]),
+        supabase.from("consultation_bookings").select("id").in("status", ["pending", "confirmed"]),
         supabase.from("appointments").select("*").order("created_at", { ascending: false }).limit(5),
         supabase.from("support_tickets").select("*").order("created_at", { ascending: false }).limit(5),
+        supabase.from("email_tickets").select("*").order("created_at", { ascending: false }).limit(5),
+        supabase.from("consultation_bookings").select("*").order("created_at", { ascending: false }).limit(5),
       ]);
       if (!active) return;
       setStats({
@@ -79,9 +92,13 @@ export default function AdminOverviewPage() {
         inProgress: inProgress.data?.length ?? 0,
         completed: completed.data?.length ?? 0,
         openTickets: openTickets.data?.length ?? 0,
+        emailTickets: emailTickets.data?.length ?? 0,
+        publicBookings: publicBookings.data?.length ?? 0,
       });
       setRecentAppointments((recentAppts.data ?? []) as Appointment[]);
       setRecentTickets((recentTkts.data ?? []) as SupportTicket[]);
+      setRecentEmailTickets((recentEmail.data ?? []) as EmailTicket[]);
+      setRecentBookings((recentPublic.data ?? []) as ConsultationBooking[]);
       setLoading(false);
     })();
     return () => {
@@ -118,8 +135,9 @@ export default function AdminOverviewPage() {
           <StatCard label="Confirmed" value={stats.confirmed} icon={CalendarCheck} delay={0.12} />
           <StatCard label="In Progress" value={stats.inProgress} icon={CalendarClock} delay={0.16} />
           <StatCard label="Completed" value={stats.completed} icon={CheckCircle2} delay={0.2} />
-          <StatCard label="Open Support Tickets" value={stats.openTickets} icon={MessagesSquare} delay={0.24} />
-          <StatCard label="Total Appointments" value={stats.pending + stats.confirmed + stats.inProgress + stats.completed} icon={CalendarClock} delay={0.28} />
+          <StatCard label="Live Support Conversations" value={stats.openTickets} icon={MessagesSquare} delay={0.24} />
+          <StatCard label="Email Support Tickets" value={stats.emailTickets} icon={Mail} delay={0.28} />
+          <StatCard label="Public Bookings" value={stats.publicBookings} icon={CalendarClock} delay={0.32} />
         </div>
       )}
 
@@ -159,12 +177,12 @@ export default function AdminOverviewPage() {
 
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass gradient-border rounded-2xl p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 font-display text-base font-bold">
-              <MessagesSquare className="h-4 w-4 text-cyan-500" /> Recent Support Tickets
-            </h2>
-            <Link href="/admin/support" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-              Open inbox <ArrowRight className="h-3 w-3" />
-            </Link>
+              <h2 className="flex items-center gap-2 font-display text-base font-bold">
+                <MessagesSquare className="h-4 w-4 text-cyan-500" /> Live Support Conversations
+              </h2>
+              <Link href="/admin/support" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                Open inbox <ArrowRight className="h-3 w-3" />
+              </Link>
           </div>
           {loading ? (
             <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
@@ -183,6 +201,70 @@ export default function AdminOverviewPage() {
                     </div>
                     <StatusBadge status={t.status} />
                   </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </motion.section>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass gradient-border rounded-2xl p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-display text-base font-bold">
+              <Mail className="h-4 w-4 text-cyan-500" /> Email Support Tickets
+            </h2>
+            <Link href="/admin/tickets" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {loading ? (
+            <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+          ) : recentEmailTickets.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No email tickets yet.</p>
+          ) : (
+            <ul className="space-y-2.5">
+              {recentEmailTickets.map((t) => (
+                <li key={t.id}>
+                  <Link href={`/admin/tickets/${t.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{t.issue_type}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        <span className="font-medium text-primary">{t.reference_id}</span> · {t.full_name}
+                      </p>
+                    </div>
+                    <StatusBadge status={t.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </motion.section>
+
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass gradient-border rounded-2xl p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-display text-base font-bold">
+              <CalendarClock className="h-4 w-4 text-cyan-500" /> Public Consultation Bookings
+            </h2>
+            <Link href="/admin/appointments" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {loading ? (
+            <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+          ) : recentBookings.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No public bookings yet.</p>
+          ) : (
+            <ul className="space-y-2.5">
+              {recentBookings.map((b) => (
+                <li key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 dark:bg-white/5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{b.service}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      <span className="font-medium text-primary">{b.reference_id}</span> · {b.full_name} · {fmtDate(b.appointment_date)}
+                    </p>
+                  </div>
+                  <StatusBadge status={b.status} />
                 </li>
               ))}
             </ul>

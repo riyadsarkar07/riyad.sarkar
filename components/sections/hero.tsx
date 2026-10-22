@@ -62,7 +62,7 @@ export function Hero() {
   return (
     <section
       id="home"
-      className="relative flex items-center overflow-hidden pt-[4.25rem] sm:pt-20 lg:min-h-[100dvh] lg:pt-24"
+      className="relative flex items-center overflow-hidden pt-[4.25rem] sm:pt-20 lg:min-h-[88dvh] lg:pt-24"
     >
       <MeshBackground />
       <CyberGrid />
@@ -72,7 +72,7 @@ export function Hero() {
         aria-hidden
       />
 
-      <div className="container relative z-10 grid items-center gap-4 pb-10 min-[390px]:gap-5 sm:gap-8 sm:pb-16 lg:grid-cols-[1.08fr_0.92fr] lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:gap-y-6 lg:pb-24">
+      <div className="container relative z-10 grid items-center gap-4 pb-8 min-[390px]:gap-5 sm:gap-7 sm:pb-12 lg:grid-cols-[1.08fr_0.92fr] lg:grid-rows-[auto_1fr] lg:gap-x-12 lg:gap-y-5 lg:pb-16">
         <div className="order-1 text-center lg:col-start-1 lg:row-start-1 lg:text-left">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

@@ -6,6 +6,7 @@ import {
   Home,
   LayoutDashboard,
   Lock,
+  Mail,
   MessagesSquare,
   Settings,
   ShieldCheck,
@@ -20,7 +21,8 @@ function DashboardNav() {
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
     { href: "/dashboard/appointments/new", label: "Book Appointment", icon: CalendarPlus },
     { href: "/dashboard/appointments", label: "My Appointments", icon: CalendarDays },
-    { href: "/dashboard/support", label: "Support Inbox", icon: MessagesSquare },
+    { href: "/dashboard/enquiries", label: "Email Support Tickets", icon: Mail },
+    { href: "/dashboard/support", label: "Live Support Conversations", icon: MessagesSquare },
     { href: "/dashboard/profile", label: "Profile", icon: UserRound },
     { href: "/dashboard/account", label: "Account Settings", icon: Settings },
     { href: "/dashboard/account#change-password", label: "Change Password", icon: Lock },
@@ -41,7 +43,7 @@ export function UserDashboardShell({ children }: { children: React.ReactNode }) 
         <DashboardNav />
         <div className="lg:pl-72">
           <main className="min-h-[100dvh] pb-16 pt-20 lg:pt-8">
-            <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-10">{children}</div>
+            <div className="mx-auto w-full max-w-6xl px-4 py-5 lg:px-10">{children}</div>
           </main>
         </div>
       </div>

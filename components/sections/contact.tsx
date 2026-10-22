@@ -76,6 +76,7 @@ const emptyValues = {
   budget: "",
   timeline: "",
   message: "",
+  phone: "",
   website: "",
 } as unknown as ContactFormValues;
 
@@ -95,8 +96,11 @@ export function Contact() {
   const { lenis } = useLenis();
   const reduceMotion = useReducedMotion();
   const startedAt = useRef(Date.now());
+  const submissionId = useRef(crypto.randomUUID());
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -122,11 +126,15 @@ export function Contact() {
       const result = await submitContactAction({
         ...data,
         startedAt: startedAt.current,
+        submissionId: submissionId.current,
       });
       if (result.ok) {
+        setReferenceId(result.referenceId);
+        setEmailWarning(result.emailWarning ?? null);
         setSent(true);
         reset(emptyValues);
         startedAt.current = Date.now();
+        submissionId.current = crypto.randomUUID();
         return;
       }
       if (result.fieldErrors) {
@@ -147,6 +155,8 @@ export function Contact() {
   const sendAnother = () => {
     setSent(false);
     setFormError(null);
+    setReferenceId(null);
+    setEmailWarning(null);
     startedAt.current = Date.now();
   };
 
@@ -214,7 +224,7 @@ export function Contact() {
           description={t.contact.subtitle}
         />
 
-        <Reveal className="mx-auto mt-8 max-w-6xl sm:mt-12 md:mt-14">
+        <Reveal className="mx-auto mt-6 max-w-6xl sm:mt-8">
           <div className="mb-6 flex flex-col items-center gap-3 sm:mb-8 sm:flex-row sm:justify-center">
             <AvailabilityBadge />
             <p className="max-w-md text-center text-xs text-muted-foreground sm:text-left sm:text-sm">
@@ -278,8 +288,8 @@ export function Contact() {
             })}
           </div>
 
-          <div className="mt-8 grid gap-6 lg:mt-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-8">
-            <div className="glass gradient-border scroll-mt-28 rounded-3xl p-5 sm:p-8 md:p-10" id="project-enquiry">
+          <div className="mt-6 grid gap-5 lg:mt-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-6">
+            <div className="glass gradient-border scroll-mt-24 rounded-3xl p-5 sm:p-7" id="project-enquiry">
               <AnimatePresence mode="wait">
                 {sent ? (
                   <motion.div
@@ -287,7 +297,7 @@ export function Contact() {
                     initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={reduceMotion ? undefined : { opacity: 0 }}
-                    className="flex min-h-[320px] flex-col items-center justify-center px-2 text-center sm:min-h-[380px]"
+                    className="flex min-h-[260px] flex-col items-center justify-center px-2 text-center sm:min-h-[300px]"
                   >
                     <div className="relative mb-6">
                       {!reduceMotion && (
@@ -298,10 +308,25 @@ export function Contact() {
                       </div>
                     </div>
                     <h3 className="font-display text-xl font-bold sm:text-2xl">{t.contact.success}</h3>
-                    <p className="mt-3 max-w-sm text-sm text-muted-foreground">{t.contact.successSub}</p>
-                    <Button variant="outline" className="mt-6" onClick={sendAnother}>
-                      {t.contact.sendAnother}
-                    </Button>
+                    {referenceId && (
+                      <p className="mt-3 font-display text-sm font-semibold text-primary">
+                        {t.contact.referenceLabel}: {referenceId}
+                      </p>
+                    )}
+                    <p className="mt-3 max-w-sm text-sm text-muted-foreground">
+                      {emailWarning ? t.contact.savedEmailFailed : t.contact.successSub}
+                    </p>
+                    {emailWarning && (
+                      <p className="mt-2 max-w-sm text-xs text-amber-600 dark:text-amber-400">{emailWarning}</p>
+                    )}
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                      <Button asChild>
+                        <Link href="/track">{t.contact.trackCta}</Link>
+                      </Button>
+                      <Button variant="outline" onClick={sendAnother}>
+                        {t.contact.sendAnother}
+                      </Button>
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.form
@@ -346,6 +371,22 @@ export function Contact() {
                         />
                         <FieldError id="contact-email-error" message={errors.email?.message} />
                       </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="contact-phone">
+                        {t.consultation.phone}{" "}
+                        <span className="font-normal text-muted-foreground">({t.contact.optional})</span>
+                      </Label>
+                      <Input
+                        id="contact-phone"
+                        type="tel"
+                        autoComplete="tel"
+                        placeholder="+880 1XXX-XXXXXX"
+                        {...register("phone")}
+                        aria-invalid={!!errors.phone}
+                      />
+                      <FieldError id="contact-phone-error" message={errors.phone?.message} />
                     </div>
 
                     <div>

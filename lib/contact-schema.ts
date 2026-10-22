@@ -51,12 +51,21 @@ export const contactFormSchema = z.object({
     .trim()
     .min(20, "Please share a few more details (at least 20 characters).")
     .max(4000, "Message is too long (max 4000 characters)."),
+  phone: z
+    .string()
+    .trim()
+    .max(40, "Phone is too long.")
+    .refine((value) => !value || value.length >= 6, {
+      message: "Please enter a valid phone / WhatsApp number.",
+    })
+    .optional(),
   website: z.string().optional(),
   startedAt: z.number().optional(),
+  submissionId: z.string().uuid().optional(),
 });
 
 export type ContactFormValues = z.infer<typeof contactFormSchema>;
 
 export type ContactActionResult =
-  | { ok: true }
+  | { ok: true; referenceId: string; emailDelivered: boolean; emailWarning?: string }
   | { ok: false; error: string; fieldErrors?: Record<string, string> };

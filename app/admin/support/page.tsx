@@ -7,8 +7,8 @@ export default function AdminSupportPage() {
   return (
     <div>
       <PageHeader
-        title="Support Inbox"
-        subtitle="Every client conversation in one place — replies update instantly."
+        title="Live Support Conversations"
+        subtitle="Authenticated real-time inbox. Email tickets and appointments live in their own sections."
       />
       <SupportMessenger mode="admin" />
     </div>

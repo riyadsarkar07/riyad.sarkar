@@ -97,6 +97,48 @@ export interface Notification {
   created_at: string;
 }
 
+export interface EmailTicket {
+  id: string;
+  reference_id: string | null;
+  user_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  issue_type: string;
+  message: string;
+  budget: string | null;
+  timeline: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailTicketReply {
+  id: string;
+  ticket_id: string;
+  sender_role: "user" | "admin";
+  sender_id: string | null;
+  message: string;
+  created_at: string;
+}
+
+export interface ConsultationBooking {
+  id: string;
+  reference_id: string | null;
+  user_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string;
+  service: string;
+  appointment_date: string;
+  appointment_time: string;
+  timezone: string;
+  case_description: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DashboardStats {
   upcoming: number;
   pending: number;
