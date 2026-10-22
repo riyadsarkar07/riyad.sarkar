@@ -58,7 +58,7 @@ export function WeatherWidget() {
 
   if (loading) {
     return (
-      <div className="glass flex items-center gap-3 rounded-2xl px-5 py-4">
+      <div className="glass flex h-full min-h-[88px] items-center gap-3 rounded-2xl px-5 py-4">
         <Loader2 className="h-5 w-5 animate-spin text-cyan-500" />
         <span className="text-sm text-muted-foreground">Loading weather…</span>
       </div>
@@ -75,7 +75,7 @@ export function WeatherWidget() {
         : CloudSun;
 
   return (
-    <div className="glass flex items-center gap-3 rounded-2xl px-5 py-4">
+    <div className="glass flex h-full min-h-[88px] items-center gap-3 rounded-2xl px-5 py-4 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow">
       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400/20 to-sky-400/20 text-amber-500">
         <Icon className="h-5 w-5" />
       </div>

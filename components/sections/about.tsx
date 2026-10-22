@@ -46,7 +46,7 @@ export function About() {
         {/* Story + pillars */}
         <div className="mt-14 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <Reveal>
-            <div className="glass gradient-border h-full rounded-3xl p-8 md:p-10">
+            <div className="glass gradient-border h-full rounded-3xl p-7 md:p-10">
               <h3 className="mb-4 text-2xl font-bold">The story behind the shield</h3>
               <div className="space-y-4 leading-relaxed text-muted-foreground">
                 <p>

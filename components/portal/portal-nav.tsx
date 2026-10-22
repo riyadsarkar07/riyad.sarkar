@@ -59,7 +59,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "bg-gradient-to-r from-blue-600/15 to-cyan-400/15 text-primary"
+                  ? "bg-gradient-to-r from-blue-600/15 to-cyan-400/15 text-primary shadow-inner"
                   : "text-muted-foreground hover:bg-primary/5 hover:text-primary",
               )}
             >
@@ -91,7 +91,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/60 bg-background/60 backdrop-blur-xl lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/60 bg-background/70 shadow-[8px_0_32px_rgba(2,71,132,0.06)] backdrop-blur-xl lg:block">
         {sidebar}
       </aside>
 

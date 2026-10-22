@@ -16,7 +16,7 @@ export function Tools() {
           description="Deep hands-on experience across the platforms where modern digital crime happens — and where recovery happens."
         />
 
-        <RevealGroup className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-9">
+        <RevealGroup className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9">
           {tools.map((tool) => (
             <RevealItem key={tool.name}>
               <div className="group glass flex flex-col items-center gap-3 rounded-2xl p-4 text-center transition-all duration-500 hover:-translate-y-1.5 hover:shadow-glow sm:p-5">

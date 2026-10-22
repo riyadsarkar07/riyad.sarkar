@@ -16,16 +16,17 @@ interface AuthShellProps {
 /** Centered glass auth card with the site's premium cyber design. */
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-16">
-      <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
+    <div className="portal-canvas relative flex min-h-[100dvh] items-center justify-center overflow-hidden px-4 py-16">
+      <div className="bg-grid pointer-events-none absolute inset-0 opacity-30" />
       <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl" />
+      <div className="animate-float-slow pointer-events-none absolute left-1/4 top-1/3 h-24 w-24 rounded-full border border-cyan-300/20" />
 
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
         transition={{ type: "spring", stiffness: 220, damping: 26 }}
-        className="glass gradient-border relative w-full max-w-md rounded-3xl p-8 shadow-glow-lg"
+        className="glass gradient-border relative w-full max-w-md rounded-3xl p-7 shadow-glow-lg sm:p-8"
       >
         <Link
           href="/"

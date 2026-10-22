@@ -163,7 +163,7 @@ export default function DashboardOverviewPage() {
                 <li key={a.id}>
                   <Link
                     href={`/dashboard/appointments/${a.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{a.service}</p>
@@ -213,7 +213,7 @@ export default function DashboardOverviewPage() {
                 <li key={t.id}>
                   <Link
                     href={`/dashboard/support/${t.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.subject}</p>

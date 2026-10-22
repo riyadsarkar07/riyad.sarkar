@@ -60,7 +60,7 @@ export function Testimonials() {
                 animate={{ opacity: 1, x: 0, rotateY: 0 }}
                 exit={{ opacity: 0, x: direction * -80, rotateY: direction * -12 }}
                 transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                className="glass gradient-border relative flex min-h-[360px] flex-col rounded-3xl p-8 md:min-h-[320px] md:p-10"
+                className="glass gradient-border relative flex min-h-[320px] flex-col rounded-3xl p-6 sm:p-8 md:min-h-[300px] md:p-10"
               >
                 <Quote className="h-10 w-10 text-cyan-400/60" />
                 <div className="mt-4 flex items-center gap-1">

@@ -41,17 +41,20 @@ export function Navbar() {
     }
   };
 
-  const bookHref = user ? "/dashboard/appointments/new" : "/login";
-
   return (
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-[100] transition-all duration-500",
-        scrolled ? "glass-strong shadow-glass" : "border-b border-transparent bg-transparent",
+        scrolled
+          ? "glass-strong shadow-glass border-b border-white/40 dark:border-white/5"
+          : "border-b border-transparent bg-transparent",
       )}
     >
       <nav
-        className="container flex h-[72px] items-center justify-between gap-4"
+        className={cn(
+          "container flex items-center justify-between gap-3 transition-[height] duration-500",
+          scrolled ? "h-16" : "h-[72px]",
+        )}
         aria-label="Main navigation"
       >
         <a
@@ -60,7 +63,7 @@ export function Navbar() {
             e.preventDefault();
             scrollTo("#home");
           }}
-          className="flex items-center gap-3"
+          className="flex shrink-0 items-center gap-3"
           aria-label="Go to home"
         >
           <Logo />
@@ -69,12 +72,13 @@ export function Navbar() {
           </span>
         </a>
 
-        <ul className="hidden items-center gap-0.5 xl:flex">
+        <ul className="hidden items-center lg:flex">
           {navItems.map((item) => {
             const isActive = active === item.id;
             const label = t.nav[item.labelKey as keyof typeof t.nav];
+            const compactHidden = ["certificates", "gallery", "faq"].includes(item.id);
             return (
-              <li key={item.id}>
+              <li key={item.id} className={compactHidden ? "hidden 2xl:block" : undefined}>
                 <a
                   href={item.href}
                   onClick={(e) => {
@@ -82,25 +86,23 @@ export function Navbar() {
                     scrollTo(item.href);
                   }}
                   className={cn(
-                    "relative rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors xl:px-3",
                     isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {label}
-                  {isActive && (
-                    <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 shadow-glow" />
-                  )}
+                  {isActive && <span className="nav-link-underline" />}
                 </a>
               </li>
             );
           })}
         </ul>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <ThemeToggle />
           <LanguageToggle />
           {sessionLoading ? (
-            <div className="hidden h-9 w-20 animate-pulse rounded-full bg-primary/10 md:block" />
+            <div className="hidden h-9 w-16 animate-pulse rounded-full bg-primary/10 md:block" />
           ) : user ? (
             <Button asChild size="sm" variant="outline" className="hidden md:inline-flex">
               <Link href="/dashboard">Dashboard</Link>
@@ -110,9 +112,6 @@ export function Navbar() {
               <Link href="/login">Login</Link>
             </Button>
           )}
-          <Button asChild size="sm" variant="outline" className="hidden md:inline-flex">
-            <Link href={bookHref}>Book Appointment</Link>
-          </Button>
           <Button size="sm" className="hidden md:inline-flex" onClick={() => scrollTo("#consultation")}>
             {t.common.bookConsultation}
           </Button>

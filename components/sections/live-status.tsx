@@ -11,7 +11,7 @@ export function LiveStatus() {
   return (
     <section id="status" className="relative py-16 md:py-20" aria-label="Live status">
       <div className="container">
-        <RevealGroup className="grid gap-5 lg:grid-cols-[1fr_1fr_0.8fr_1.4fr]">
+        <RevealGroup className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <RevealItem>
             <LiveClock />
           </RevealItem>

@@ -81,7 +81,7 @@ export function Gallery() {
                 </div>
 
                 {/* Caption */}
-                <div className="absolute inset-x-0 bottom-0 translate-y-2 p-5 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+                <div className="absolute inset-x-0 bottom-0 translate-y-1 p-5 opacity-100 sm:translate-y-2 sm:opacity-0 sm:transition-all sm:duration-500 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                   <p className="text-xs font-semibold uppercase tracking-widest text-cyan-200">
                     {item.category}
                   </p>

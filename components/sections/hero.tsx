@@ -87,7 +87,7 @@ export function Hero() {
   };
 
   return (
-    <section id="home" className="relative flex min-h-screen items-center overflow-hidden pt-24">
+    <section id="home" className="relative flex min-h-[100dvh] items-center overflow-hidden pt-24">
       {/* Layered background */}
       <MeshBackground />
       <CyberGrid />
@@ -122,7 +122,7 @@ export function Hero() {
         </Parallax>
       </motion.div>
 
-      <div className="container relative z-10 grid items-center gap-10 pb-16 lg:grid-cols-[1.2fr_0.8fr] md:gap-14">
+      <div className="container relative z-10 grid items-center gap-8 pb-20 lg:grid-cols-[1.15fr_0.85fr] md:gap-14 lg:gap-8">
         {/* Left column — copy */}
         <div className="text-center lg:text-left">
           <motion.div
@@ -257,7 +257,7 @@ export function Hero() {
             rotateY: rotateProfileY,
             transformPerspective: 1000,
           }}
-          className="relative mx-auto flex h-[260px] w-[260px] items-center justify-center min-[375px]:h-[300px] min-[375px]:w-[300px] min-[412px]:h-[330px] min-[412px]:w-[330px] sm:h-[420px] sm:w-[420px]"
+          className="relative mx-auto mt-4 flex h-[280px] w-[280px] items-center justify-center min-[375px]:h-[310px] min-[375px]:w-[310px] sm:mt-0 sm:h-[420px] sm:w-[420px] lg:h-[460px] lg:w-[460px]"
         >
           {/* Holographic cyber shield behind the profile */}
           <HoloShield className="z-0 scale-[1.15]" />
@@ -281,7 +281,7 @@ export function Hero() {
           <div className="animate-breath absolute inset-6 rounded-full bg-gradient-to-br from-sky-400/40 via-cyan-400/25 to-blue-600/30 blur-2xl" />
 
           {/* Profile image — perfect 1:1 circle */}
-          <div className="animate-float-slow relative z-10 aspect-square h-[190px] w-[190px] overflow-hidden rounded-full border-4 border-white/70 shadow-glow-lg transition-transform duration-500 hover:scale-[1.04] min-[375px]:h-[220px] min-[375px]:w-[220px] min-[412px]:h-[240px] min-[412px]:w-[240px] sm:h-[320px] sm:w-[320px]">
+          <div className="animate-float-slow relative z-10 aspect-square h-[200px] w-[200px] overflow-hidden rounded-full border-[5px] border-white/80 shadow-glow-lg ring-4 ring-cyan-400/20 transition-transform duration-500 hover:scale-[1.04] dark:border-white/20 min-[375px]:h-[230px] min-[375px]:w-[230px] sm:h-[320px] sm:w-[320px] lg:h-[340px] lg:w-[340px]">
             <Image
               src={profile.avatar}
               alt="Riyad Sarkar — Cyber Security Specialist"
@@ -302,7 +302,7 @@ export function Hero() {
 
           {/* Floating badges */}
           <motion.div
-            className="glass-strong absolute left-0 top-6 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 shadow-glow sm:top-8 sm:px-4 sm:py-2.5"
+            className="glass-strong absolute -left-1 top-4 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 shadow-glow sm:left-0 sm:top-8 sm:px-4 sm:py-2.5"
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
           >
@@ -314,7 +314,7 @@ export function Hero() {
           </motion.div>
 
           <motion.div
-            className="glass-strong absolute bottom-8 right-0 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 shadow-glow sm:bottom-10 sm:px-4 sm:py-2.5"
+            className="glass-strong absolute bottom-6 -right-1 z-20 flex items-center gap-2 rounded-2xl px-3 py-2 shadow-glow sm:bottom-10 sm:right-0 sm:px-4 sm:py-2.5"
             animate={{ y: [0, 12, 0] }}
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
           >

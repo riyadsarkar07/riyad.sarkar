@@ -16,7 +16,7 @@ export function SoundToggle() {
         toggle();
         playClick();
       }}
-      className="glass-strong fixed bottom-6 right-24 z-[90] flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-all duration-300 hover:scale-110 hover:text-primary"
+      className="glass-strong fixed bottom-[5.5rem] right-4 z-[90] flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-all duration-300 hover:scale-110 hover:text-primary md:bottom-6 md:right-24"
       aria-label={enabled ? "Disable sound effects" : "Enable sound effects"}
       title={enabled ? "Sound: on" : "Sound: off"}
     >
@@ -76,7 +76,7 @@ export function CookieConsent() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 26 }}
-          className="glass-strong fixed inset-x-4 bottom-6 z-[110] mx-auto max-w-md rounded-3xl p-5 shadow-glow-lg"
+          className="glass-strong fixed inset-x-4 bottom-24 z-[110] mx-auto max-w-md rounded-3xl p-5 shadow-glow-lg md:bottom-28"
           role="dialog"
           aria-label="Cookie consent"
         >

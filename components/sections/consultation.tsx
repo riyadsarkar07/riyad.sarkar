@@ -295,7 +295,7 @@ export function Consultation() {
                           <select
                             id="service"
                             {...register("service")}
-                            className="flex h-12 w-full rounded-xl border border-input bg-white/60 px-4 py-2 text-sm text-foreground shadow-sm backdrop-blur-sm transition-all hover:border-primary/30 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
+                            className="form-control"
                             aria-invalid={!!errors.service}
                           >
                             <option value="">{t.consultation.servicePlaceholder}</option>

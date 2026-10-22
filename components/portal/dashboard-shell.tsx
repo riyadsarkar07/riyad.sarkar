@@ -37,10 +37,10 @@ function DashboardNav() {
 export function UserDashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <div className="min-h-[100dvh]">
+      <div className="portal-canvas min-h-[100dvh]">
         <DashboardNav />
         <div className="lg:pl-72">
-          <main className="min-h-[100dvh] pb-16 pt-20 lg:pt-0">
+          <main className="min-h-[100dvh] pb-16 pt-20 lg:pt-8">
             <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-10">{children}</div>
           </main>
         </div>

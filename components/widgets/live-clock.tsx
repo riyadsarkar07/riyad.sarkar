@@ -22,7 +22,7 @@ export function LiveClock() {
 
   if (!now) {
     return (
-      <div className="glass flex items-center gap-3 rounded-2xl px-5 py-4">
+      <div className="glass flex h-full min-h-[88px] items-center gap-3 rounded-2xl px-5 py-4">
         <Clock className="h-5 w-5 text-cyan-500" />
         <div className="h-8 w-24 animate-pulse rounded bg-primary/10" />
       </div>
@@ -43,7 +43,7 @@ export function LiveClock() {
   });
 
   return (
-    <div className="glass flex items-center gap-3 rounded-2xl px-5 py-4">
+    <div className="glass flex h-full min-h-[88px] items-center gap-3 rounded-2xl px-5 py-4 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow">
       <span className="relative flex h-2.5 w-2.5">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
         <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />

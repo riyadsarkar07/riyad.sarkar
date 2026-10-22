@@ -27,7 +27,7 @@ export function MobileMenu() {
   };
 
   return (
-    <div className="xl:hidden">
+    <div className="lg:hidden">
       <Button
         variant="ghost"
         size="icon"
@@ -49,7 +49,7 @@ export function MobileMenu() {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-full max-w-[300px] flex-col p-6 pt-24 shadow-glow-lg"
+              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-full max-w-[320px] flex-col overflow-y-auto p-6 pt-20 shadow-glow-lg"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}

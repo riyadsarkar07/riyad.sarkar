@@ -9,8 +9,9 @@ export default function NotFound() {
       <div className="bg-grid pointer-events-none absolute inset-0 opacity-30" />
 
       <div className="relative text-center">
-        <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow-lg">
-          <ShieldAlert className="h-12 w-12" />
+        <div className="relative mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow-lg">
+          <span className="absolute -inset-3 rounded-[1.75rem] bg-cyan-400/20 animate-pulse-ring" />
+          <ShieldAlert className="relative h-12 w-12" />
         </div>
         <p className="font-display text-8xl font-bold text-gradient">404</p>
         <h1 className="mt-4 text-2xl font-bold md:text-3xl">Access Denied</h1>

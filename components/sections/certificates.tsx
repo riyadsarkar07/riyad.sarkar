@@ -29,7 +29,7 @@ function CertificateCard({ id }: { id: string }) {
         style={{ transform }}
         className="transition-transform duration-200 will-change-transform"
       >
-        <div className="group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-6 transition-all duration-500 hover:shadow-glow-lg">
+        <div className="group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-6 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow-lg">
         <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-400/20 blur-2xl opacity-40 transition-opacity duration-500 group-hover:opacity-100" />
 
         <div className="mb-5 flex items-center justify-between">

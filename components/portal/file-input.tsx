@@ -94,7 +94,7 @@ export function FileInput({
           disabled={disabled}
           onClick={() => inputRef.current?.click()}
           className={cn(
-            "flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-white/40 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-primary/5 dark:bg-white/5",
+            "flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-white/40 px-4 py-6 text-center transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary/5 hover:shadow-glow dark:bg-white/5",
             disabled && "cursor-not-allowed opacity-50",
           )}
         >
