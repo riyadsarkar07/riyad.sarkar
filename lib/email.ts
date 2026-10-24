@@ -16,6 +16,7 @@ export type SendEmailResult = {
   skipped: boolean;
   error?: string;
   code?: SendEmailCode;
+  status?: number;
 };
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
@@ -42,10 +43,29 @@ const CONSUMER_OR_PLACEHOLDER_HOSTS = new Set([
   "test.com",
 ]);
 
-function readEnv(name: string): string {
-  const raw = process.env[name];
+function cleanEnv(raw: string | undefined): string {
   if (typeof raw !== "string") return "";
   return raw.trim().replace(/^['"]+|['"]+$/g, "").trim();
+}
+
+function resendApiKey() {
+  return cleanEnv(process.env.RESEND_API_KEY);
+}
+
+function resendFromEmail() {
+  return cleanEnv(process.env.RESEND_FROM_EMAIL);
+}
+
+function resendToEmail() {
+  return cleanEnv(process.env.RESEND_TO_EMAIL);
+}
+
+function adminEmail() {
+  return cleanEnv(process.env.NEXT_PUBLIC_ADMIN_EMAIL);
+}
+
+function profileEmail() {
+  return cleanEnv(process.env.NEXT_PUBLIC_PROFILE_EMAIL);
 }
 
 function hostOf(email: string): string {
@@ -74,7 +94,7 @@ function isUsableFromEmail(email: string): boolean {
 }
 
 function resolveFrom(): { from: string; email: string } {
-  const configured = parseAddress(readEnv("RESEND_FROM_EMAIL"));
+  const configured = parseAddress(resendFromEmail());
   if (configured && isUsableFromEmail(configured.email)) {
     return {
       from: formatFrom(configured.name || "Riyad Sarkar", configured.email),
@@ -179,6 +199,7 @@ async function postResend(opts: {
       ok: false,
       skipped: false,
       code,
+      status: res.status,
       error: `Resend ${res.status}: ${sanitizeProviderMessage(message)}`,
     };
   }
@@ -188,11 +209,12 @@ async function postResend(opts: {
       ok: false,
       skipped: false,
       code: "provider",
+      status: res.status,
       error: "Resend did not confirm acceptance",
     };
   }
 
-  return { ok: true, skipped: false };
+  return { ok: true, skipped: false, status: res.status };
 }
 
 /**
@@ -201,24 +223,23 @@ async function postResend(opts: {
  * the app works without email. The API key lives only on the server.
  */
 function envPresence() {
-  const apiKey = readEnv("RESEND_API_KEY");
+  const apiKey = resendApiKey();
   return {
     RESEND_API_KEY: apiKey.length > 0,
     RESEND_API_KEY_PREFIX_OK: apiKey.startsWith("re_"),
-    RESEND_FROM_EMAIL: readEnv("RESEND_FROM_EMAIL").length > 0,
-    RESEND_TO_EMAIL: readEnv("RESEND_TO_EMAIL").length > 0,
-    NEXT_PUBLIC_ADMIN_EMAIL: readEnv("NEXT_PUBLIC_ADMIN_EMAIL").length > 0,
-    NEXT_PUBLIC_PROFILE_EMAIL: readEnv("NEXT_PUBLIC_PROFILE_EMAIL").length > 0,
+    RESEND_FROM_EMAIL: resendFromEmail().length > 0,
+    RESEND_TO_EMAIL: resendToEmail().length > 0,
+    NEXT_PUBLIC_ADMIN_EMAIL: adminEmail().length > 0,
+    NEXT_PUBLIC_PROFILE_EMAIL: profileEmail().length > 0,
   };
 }
 
+export function emailConfigStatus() {
+  return envPresence();
+}
+
 export function adminInbox(): string {
-  return (
-    readEnv("RESEND_TO_EMAIL") ||
-    readEnv("NEXT_PUBLIC_ADMIN_EMAIL") ||
-    readEnv("NEXT_PUBLIC_PROFILE_EMAIL") ||
-    "riyadsarkar1243@gmail.com"
-  );
+  return resendToEmail() || adminEmail() || profileEmail() || "riyadsarkar1243@gmail.com";
 }
 
 export function publicErrorFor(code?: SendEmailCode): string {
@@ -251,7 +272,7 @@ export async function sendEmail(opts: {
   text?: string;
   replyTo?: string;
 }): Promise<SendEmailResult> {
-  const apiKey = readEnv("RESEND_API_KEY");
+  const apiKey = resendApiKey();
   if (!apiKey) {
     console.error("[contact-email] RESEND_API_KEY is missing", envPresence());
     return { ok: false, skipped: true, code: "missing_key" };
@@ -276,7 +297,14 @@ export async function sendEmail(opts: {
     replyTo,
   });
 
-  if (result.ok) return result;
+  if (result.ok) {
+    console.error("[contact-email] resend accepted", {
+      status: result.status,
+      fromHost: hostOf(resolved.email),
+      toHost: hostOf(toParsed.email),
+    });
+    return result;
+  }
 
   const canRetryOnboarding =
     resolved.email !== TEST_FROM_EMAIL &&
@@ -296,9 +324,17 @@ export async function sendEmail(opts: {
       text: opts.text,
       replyTo,
     });
-    if (retry.ok) return retry;
+    if (retry.ok) {
+      console.error("[contact-email] resend accepted after sender fallback", {
+        status: retry.status,
+        fromHost: "resend.dev",
+        toHost: hostOf(toParsed.email),
+      });
+      return retry;
+    }
     console.error("[contact-email] resend failed", {
       code: retry.code,
+      status: retry.status,
       error: retry.error,
       fromHost: "resend.dev",
       toHost: hostOf(toParsed.email),
@@ -309,6 +345,7 @@ export async function sendEmail(opts: {
 
   console.error("[contact-email] resend failed", {
     code: result.code,
+    status: result.status,
     error: result.error,
     fromHost: hostOf(resolved.email),
     toHost: hostOf(toParsed.email),

@@ -1,11 +1,11 @@
 "use server";
 
 import { headers } from "next/headers";
-import { adminInbox, publicErrorFor, renderEmail, sendEmail } from "@/lib/email";
+import { adminInbox, emailConfigStatus, publicErrorFor, renderEmail, sendEmail } from "@/lib/email";
+import { isEmailJsConfigured, sendViaEmailJs } from "@/lib/emailjs";
 import {
   consultationFormSchema,
   type ConsultationActionResult,
-  type ConsultationFormValues,
 } from "@/lib/consultation-schema";
 import { isDuplicateSubmission, isRateLimited, markSubmission, markSubmitted } from "@/lib/rate-limit";
 import { createActionClient } from "@/lib/supabase/action";
@@ -18,61 +18,6 @@ const MIN_SUBMIT_MS = 2500;
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (typeof process.env.VERCEL_URL === "string" ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-
-async function sendConsultationViaEmailJs(
-  data: ConsultationFormValues,
-  referenceId: string,
-): Promise<boolean> {
-  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
-  if (!serviceId || !templateId || !publicKey) return false;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        service_id: serviceId,
-        template_id: templateId,
-        user_id: publicKey,
-        template_params: {
-          from_name: data.name,
-          from_email: data.email,
-          phone: data.phone,
-          service: data.service,
-          project_type: data.service,
-          budget: "",
-          timeline: "",
-          date: data.date,
-          time: data.time,
-          message: [
-            `Consultation booking ${referenceId}`,
-            `Name: ${data.name}`,
-            `Email: ${data.email}`,
-            `Phone / WhatsApp: ${data.phone}`,
-            `Service: ${data.service}`,
-            `Appointment date: ${data.date}`,
-            `Appointment time: ${data.time}`,
-            "",
-            data.message,
-          ].join("\n"),
-          to_name: "Riyad Sarkar",
-          reply_to: data.email,
-          reference_id: referenceId,
-        },
-      }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 async function clientIp(): Promise<string> {
   const h = await headers();
@@ -216,10 +161,20 @@ export async function submitConsultationAction(
     data.message,
   ].join("\n");
 
+  const inbox = adminInbox();
+  const config = emailConfigStatus();
+  console.error("[consultation-email] sending admin notification", {
+    referenceSaved: true,
+    duplicate: alreadySaved,
+    toHost: inbox.split("@")[1] ?? "invalid",
+    env: config,
+    emailjs: isEmailJsConfigured(),
+  });
+
   let adminMail;
   try {
     adminMail = await sendEmail({
-      to: adminInbox(),
+      to: inbox,
       subject: `New consultation booking ${referenceId} — ${data.service}`,
       html: adminHtml,
       text: adminText,
@@ -227,37 +182,92 @@ export async function submitConsultationAction(
     });
   } catch (error) {
     console.error("[consultation-email] resend threw", error instanceof Error ? error.name : "unknown");
-    adminMail = { ok: false, skipped: false as boolean, code: "network" as const };
+    adminMail = { ok: false, skipped: false as boolean, code: "network" as const, status: undefined as number | undefined };
   }
 
   let emailDelivered = adminMail.ok && !adminMail.skipped;
+  let deliveryVia: "resend" | "emailjs" | "none" = emailDelivered ? "resend" : "none";
+  let fallbackReason: "missing_config" | "rejected" | "timeout" | "network" | undefined;
 
-  if (!emailDelivered) {
-    try {
-      emailDelivered = await sendConsultationViaEmailJs(data, referenceId);
-      if (emailDelivered) {
-        console.error("[consultation-email] resend failed; delivered via EmailJS fallback", {
-          code: adminMail.code,
-          duplicate: alreadySaved,
-        });
-      }
-    } catch {
-      emailDelivered = false;
+  if (emailDelivered) {
+    console.error("[consultation-email] resend accepted", {
+      status: adminMail.status,
+      duplicate: alreadySaved,
+      via: deliveryVia,
+    });
+  } else {
+    const fallback = await sendViaEmailJs({
+      from_name: data.name,
+      from_email: data.email,
+      phone: data.phone,
+      service: data.service,
+      project_type: data.service,
+      budget: "Not specified",
+      timeline: "Not specified",
+      date: data.date,
+      time: data.time,
+      message: [
+        `Consultation booking ${referenceId}`,
+        `Name: ${data.name}`,
+        `Email: ${data.email}`,
+        `Phone / WhatsApp: ${data.phone}`,
+        `Service: ${data.service}`,
+        `Appointment date: ${data.date}`,
+        `Appointment time: ${data.time}`,
+        "",
+        data.message,
+      ].join("\n"),
+      to_name: "Riyad Sarkar",
+      reply_to: data.email,
+      reference_id: referenceId,
+    });
+    fallbackReason = fallback.reason;
+    if (fallback.ok) {
+      emailDelivered = true;
+      deliveryVia = "emailjs";
+      console.error("[consultation-email] resend failed; delivered via EmailJS fallback", {
+        code: adminMail.code,
+        status: adminMail.status,
+        skipped: adminMail.skipped,
+        duplicate: alreadySaved,
+        via: deliveryVia,
+      });
+    } else {
+      console.error("[consultation-email] EmailJS fallback failed", {
+        reason: fallback.reason,
+        status: fallback.status,
+        duplicate: alreadySaved,
+      });
     }
   }
 
   if (!emailDelivered) {
     console.error("[consultation-email] admin notification not delivered", {
       code: adminMail.code,
+      status: adminMail.status,
       skipped: adminMail.skipped,
+      fallback: fallbackReason,
       duplicate: alreadySaved,
+      via: "none",
+      env: config,
     });
   }
+
+  const warningCode =
+    emailDelivered
+      ? undefined
+      : fallbackReason === "timeout" || fallbackReason === "network" || adminMail.code === "network"
+        ? "network"
+        : adminMail.skipped && fallbackReason === "missing_config"
+          ? "missing_key"
+          : adminMail.skipped
+            ? "provider"
+            : adminMail.code;
 
   return {
     ok: true,
     referenceId,
     emailDelivered,
-    emailWarning: emailDelivered ? undefined : publicErrorFor(adminMail.skipped ? "missing_key" : adminMail.code),
+    emailWarning: emailDelivered ? undefined : publicErrorFor(warningCode),
   };
 }

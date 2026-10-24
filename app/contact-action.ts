@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { adminInbox, publicErrorFor, renderEmail, sendEmail } from "@/lib/email";
+import { sendViaEmailJs } from "@/lib/emailjs";
 import {
   contactFormSchema,
   type ContactActionResult,
@@ -24,43 +25,6 @@ async function clientIp(): Promise<string> {
   const forwarded = h.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
   return h.get("x-real-ip") ?? "unknown";
-}
-
-async function sendViaEmailJs(data: ContactFormValues, referenceId: string): Promise<boolean> {
-  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
-  if (!serviceId || !templateId || !publicKey) return false;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal: controller.signal,
-    body: JSON.stringify({
-      service_id: serviceId,
-      template_id: templateId,
-      user_id: publicKey,
-      template_params: {
-        from_name: data.name,
-        from_email: data.email,
-        phone: data.phone || "",
-        service: data.projectType,
-        project_type: data.projectType,
-        budget: data.budget || "Not specified",
-        timeline: data.timeline || "Not specified",
-        date: new Date().toISOString(),
-        time: "",
-        message: data.message,
-        to_name: "Riyad Sarkar",
-        reply_to: data.email,
-        reference_id: referenceId,
-      },
-    }),
-  }).finally(() => clearTimeout(timer));
-
-  return res.ok;
 }
 
 export async function submitContactAction(
@@ -204,7 +168,28 @@ export async function submitContactAction(
 
   if (!emailDelivered) {
     try {
-      emailDelivered = await sendViaEmailJs(data, referenceId);
+      const fallback = await sendViaEmailJs({
+        from_name: data.name,
+        from_email: data.email,
+        phone: data.phone || "",
+        service: data.projectType,
+        project_type: data.projectType,
+        budget: data.budget || "Not specified",
+        timeline: data.timeline || "Not specified",
+        date: new Date().toISOString(),
+        time: "",
+        message: data.message,
+        to_name: "Riyad Sarkar",
+        reply_to: data.email,
+        reference_id: referenceId,
+      });
+      emailDelivered = fallback.ok;
+      if (!fallback.ok) {
+        console.error("[enquiry-email] EmailJS fallback failed", {
+          reason: fallback.reason,
+          status: fallback.status,
+        });
+      }
     } catch {
       emailDelivered = false;
     }
