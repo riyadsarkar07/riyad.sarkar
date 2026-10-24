@@ -47,8 +47,8 @@ export function Footer() {
             </div>
             <div className="mt-5 flex flex-col items-start gap-3">
               <AvailabilityBadge compact />
-              <Button size="sm" onClick={() => go("#contact")}>
-                {t.common.startProject}
+              <Button size="sm" asChild>
+                <Link href="/consultation">{t.common.bookConsultation}</Link>
               </Button>
             </div>
           </div>

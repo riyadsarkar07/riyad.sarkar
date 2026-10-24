@@ -6,7 +6,6 @@ import {
   CalendarDays,
   Command,
   Home,
-  MessageCircle,
   MessagesSquare,
   Briefcase,
 } from "lucide-react";
@@ -18,7 +17,6 @@ import { useSectionNav } from "@/hooks/use-section-nav";
 const dockItems = [
   { id: "home", icon: Home, label: "Home", action: "#home" },
   { id: "services", icon: Briefcase, label: "Services", action: "#services" },
-  { id: "contact", icon: MessageCircle, label: "Start a Project", action: "#contact" },
 ];
 
 /**

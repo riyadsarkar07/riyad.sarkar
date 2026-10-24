@@ -27,7 +27,6 @@ import { MeshBackground } from "@/components/effects/mesh-background";
 import { CyberGrid } from "@/components/effects/cyber-grid";
 import { OrbitRings } from "@/components/effects/orbit-rings";
 import { Magnetic } from "@/components/effects/magnetic";
-import { AvailabilityBadge } from "@/components/widgets/availability-badge";
 import { Button } from "@/components/ui/button";
 
 const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -78,9 +77,8 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease }}
-            className="mb-3 flex flex-wrap items-center justify-center gap-2 min-[390px]:mb-4 sm:mb-6 lg:justify-start"
+            className="mb-3 flex flex-wrap items-center justify-center min-[390px]:mb-4 sm:mb-6 lg:justify-start"
           >
-            <AvailabilityBadge compact />
             <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium min-[390px]:px-4 min-[390px]:py-2 min-[390px]:text-sm">
               <span className="text-muted-foreground">{t.hero.greeting}</span>
               <span className="font-semibold text-primary">— {t.hero.location}</span>
@@ -215,22 +213,11 @@ export function Hero() {
               <Button
                 size="lg"
                 className="h-11 w-full px-5 text-sm sm:h-12 sm:w-auto sm:px-8 sm:text-base"
-                onClick={() => scrollTo("contact")}
-              >
-                <Mail className="mr-1 h-5 w-5" />
-                {t.common.startProject}
-              </Button>
-            </Magnetic>
-            <Magnetic strength={0.18} className="block w-full sm:inline-block sm:w-auto">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-11 w-full px-5 text-sm sm:h-12 sm:w-auto sm:px-8 sm:text-base"
                 asChild
               >
                 <Link href="/consultation">
                   <ShieldCheck className="mr-1 h-5 w-5" />
-                  {t.hero.primaryCta}
+                  {t.common.bookConsultation}
                 </Link>
               </Button>
             </Magnetic>

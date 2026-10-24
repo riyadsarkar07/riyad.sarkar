@@ -106,8 +106,8 @@ const knowledge: KnowledgeEntry[] = [
   },
   {
     keywords: ["book", "booking", "appointment", "schedule", "reserve", "book a consultation", "book appointment", "অ্যাপয়েন্টমেন্ট", "বুক", "কনসালটেশন বুক"],
-    en: "You can book a private consultation on the dedicated booking page — choose an available date, time and service. Support Inbox is for ongoing conversations, and Start a Project is for new website or security work. For urgent help, message me on WhatsApp.",
-    bn: "আপনি নিবেদিত বুকিং পেজে একটি প্রাইভেট কনসালটেশন বুক করতে পারবেন — উপলব্ধ তারিখ, সময় ও সেবা বেছে নিন। সাপোর্ট ইনবক্স চলমান কথোপকথনের জন্য, আর প্রজেক্ট শুরু করুন নতুন ওয়েবসাইট বা সিকিউরিটি কাজের জন্য। জরুরি সাহায্যে WhatsApp-এ মেসেজ করুন।",
+    en: "You can book a private consultation on the dedicated booking page — choose an available date, time and service. Support Inbox is for ongoing conversations, and the Contact page project enquiry form is for new website or security work. For urgent help, message me on WhatsApp.",
+    bn: "আপনি নিবেদিত বুকিং পেজে একটি প্রাইভেট কনসালটেশন বুক করতে পারবেন — উপলব্ধ তারিখ, সময় ও সেবা বেছে নিন। সাপোর্ট ইনবক্স চলমান কথোপকথনের জন্য, আর কন্টাক্ট পেজের প্রজেক্ট এনকোয়ারি ফর্ম নতুন ওয়েবসাইট বা সিকিউরিটি কাজের জন্য। জরুরি সাহায্যে WhatsApp-এ মেসেজ করুন।",
   },
   {
     keywords: ["price", "pricing", "cost", "charge", "fee", "how much", "rate", "price list", "মূল্য", "দাম", "কত টাকা"],

@@ -85,8 +85,10 @@ export function MobileMenu() {
               </nav>
 
               <div className="mt-auto space-y-3">
-                <Button className="w-full" onClick={() => closeAndGo("#contact")}>
-                  {t.common.startProject}
+                <Button asChild className="w-full" onClick={() => setOpen(false)}>
+                  <Link href="/consultation">
+                    <CalendarDays className="h-4 w-4" /> {t.common.bookConsultation}
+                  </Link>
                 </Button>
                 <Button
                   asChild
@@ -98,36 +100,29 @@ export function MobileMenu() {
                     <MessagesSquare className="h-4 w-4" /> {t.common.supportInbox}
                   </Link>
                 </Button>
-                <div className="grid grid-cols-2 gap-3">
-                  {user ? (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => setOpen(false)}
-                    >
-                      <Link href="/dashboard">
-                        <LayoutDashboard className="h-4 w-4" /> {t.common.dashboard}
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => setOpen(false)}
-                    >
-                      <Link href="/login">
-                        <UserRound className="h-4 w-4" /> {t.common.login}
-                      </Link>
-                    </Button>
-                  )}
-                  <Button asChild variant="outline" className="w-full" onClick={() => setOpen(false)}>
-                    <Link href="/consultation">
-                      <CalendarDays className="h-4 w-4" /> {t.common.bookConsultation}
+                {user ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setOpen(false)}
+                  >
+                    <Link href="/dashboard">
+                      <LayoutDashboard className="h-4 w-4" /> {t.common.dashboard}
                     </Link>
                   </Button>
-                </div>
+                ) : (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setOpen(false)}
+                  >
+                    <Link href="/login">
+                      <UserRound className="h-4 w-4" /> {t.common.login}
+                    </Link>
+                  </Button>
+                )}
               </div>
             </motion.div>
           </>

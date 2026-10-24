@@ -33,7 +33,6 @@ type Dictionary = {
     role2: string;
     location: string;
     tagline: string;
-    primaryCta: string;
     downloadCv: string;
     verified: string;
     verifiedSub: string;
@@ -59,7 +58,6 @@ type Dictionary = {
     verify: string;
     backToTop: string;
     bookConsultation: string;
-    startProject: string;
     supportInbox: string;
     dashboard: string;
     login: string;
@@ -114,7 +112,6 @@ type Dictionary = {
     location: string;
     response: string;
     responseValue: string;
-    startProject: string;
     formTitle: string;
     formSubtitle: string;
     fullName: string;
@@ -213,7 +210,6 @@ const en: Dictionary = {
     location: "Bangladesh",
     tagline:
       "Recovering what matters and protecting what you've built — premium account recovery, digital identity protection and business cyber security.",
-    primaryCta: "Book Consultation",
     downloadCv: "Download CV",
     verified: "Verified Professional",
     verifiedSub: "Premium certified security specialist",
@@ -239,7 +235,6 @@ const en: Dictionary = {
     verify: "Verify",
     backToTop: "Back to top",
     bookConsultation: "Book Consultation",
-    startProject: "Start a Project",
     supportInbox: "Support Inbox",
     dashboard: "Dashboard",
     login: "Login",
@@ -299,7 +294,6 @@ const en: Dictionary = {
     location: "Bangladesh",
     response: "Average response time",
     responseValue: "Under 24 hours",
-    startProject: "Start a Project",
     formTitle: "Project enquiry",
     formSubtitle: "Share a few details and I will follow up by email.",
     fullName: "Full name",
@@ -341,7 +335,7 @@ const en: Dictionary = {
     emailDirect: "Direct email",
     copyEmail: "Copy",
     copied: "Copied",
-    projectTitle: "Start a Project",
+    projectTitle: "Project Enquiry",
     projectBody:
       "Website development, web apps, cybersecurity services and other new client work. Use the enquiry form below.",
     projectCta: "Open project form",
@@ -414,7 +408,6 @@ const bn: Dictionary = {
     location: "বাংলাদেশ",
     tagline:
       "আপনার মূল্যবান অ্যাকাউন্ট উদ্ধার এবং সুরক্ষা — প্রিমিয়াম অ্যাকাউন্ট রিকভারি, ডিজিটাল আইডেন্টিটি প্রোটেকশন এবং ব্যবসায়িক সাইবার সিকিউরিটি।",
-    primaryCta: "পরামর্শ বুক করুন",
     downloadCv: "সিভি ডাউনলোড",
     verified: "ভেরিফায়েড প্রফেশনাল",
     verifiedSub: "প্রিমিয়াম সনদপ্রাপ্ত নিরাপত্তা বিশেষজ্ঞ",
@@ -440,7 +433,6 @@ const bn: Dictionary = {
     verify: "যাচাই করুন",
     backToTop: "উপরে যান",
     bookConsultation: "পরামর্শ বুক করুন",
-    startProject: "প্রজেক্ট শুরু করুন",
     supportInbox: "সাপোর্ট ইনবক্স",
     dashboard: "ড্যাশবোর্ড",
     login: "লগইন",
@@ -499,7 +491,6 @@ const bn: Dictionary = {
     location: "বাংলাদেশ",
     response: "গড় প্রতিক্রিয়া সময়",
     responseValue: "২৪ ঘণ্টার মধ্যে",
-    startProject: "প্রজেক্ট শুরু করুন",
     formTitle: "প্রজেক্ট এনকোয়ারি",
     formSubtitle: "কয়েকটি তথ্য শেয়ার করুন, আমি ইমেইলে উত্তর দেব।",
     fullName: "পূর্ণ নাম",
@@ -541,7 +532,7 @@ const bn: Dictionary = {
     emailDirect: "সরাসরি ইমেইল",
     copyEmail: "কপি",
     copied: "কপি হয়েছে",
-    projectTitle: "প্রজেক্ট শুরু করুন",
+    projectTitle: "প্রজেক্ট এনকোয়ারি",
     projectBody:
       "ওয়েবসাইট ডেভেলপমেন্ট, ওয়েব অ্যাপ, সাইবারসিকিউরিটি সেবা এবং অন্যান্য নতুন ক্লায়েন্ট কাজ। নিচের এনকোয়ারি ফর্ম ব্যবহার করুন।",
     projectCta: "প্রজেক্ট ফর্ম খুলুন",

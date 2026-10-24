@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ArrowUpRight, Check } from "lucide-react";
 import { services } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
-import { useLenis } from "@/hooks/use-lenis";
 import { useTilt } from "@/hooks/use-tilt";
 import { RevealGroup, RevealItem } from "@/components/effects/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -21,7 +21,6 @@ import {
 
 function ServiceCard({ id }: { id: string }) {
   const { t } = useI18n();
-  const { lenis } = useLenis();
   const { ref, onPointerMove, onPointerLeave } = useTilt(8);
   const [open, setOpen] = useState(false);
   const service = services.find((s) => s.id === id);
@@ -97,17 +96,10 @@ function ServiceCard({ id }: { id: string }) {
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
             <Badge variant="gradient">{service.title}</Badge>
-            <Button
-              size="sm"
-              onClick={() => {
-                setOpen(false);
-                window.setTimeout(() => {
-                  if (lenis) lenis.scrollTo("#contact", { offset: -72, duration: 1.2 });
-                  else document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
-                }, 150);
-              }}
-            >
-              {t.common.startProject}
+            <Button size="sm" asChild>
+              <Link href="/consultation" onClick={() => setOpen(false)}>
+                {t.common.bookConsultation}
+              </Link>
             </Button>
           </div>
         </DialogContent>

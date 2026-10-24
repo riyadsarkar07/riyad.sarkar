@@ -123,8 +123,8 @@ export function Navbar() {
               </Button>
             </>
           )}
-          <Button size="sm" className="hidden md:inline-flex" onClick={() => go("#contact")}>
-            {t.common.startProject}
+          <Button asChild size="sm" className="hidden md:inline-flex">
+            <Link href="/consultation">{t.common.bookConsultation}</Link>
           </Button>
           <MobileMenu />
         </div>

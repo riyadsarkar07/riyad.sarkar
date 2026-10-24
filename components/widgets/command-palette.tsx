@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, CalendarDays, Command, FileText, Home, Mail, MessagesSquare, Search, Send, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Command, FileText, Home, Mail, MessagesSquare, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { profile, services, navItems, blogPosts } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
@@ -81,13 +81,6 @@ export function CommandPalette() {
           setOpen(false);
           window.location.href = `mailto:${profile.email}`;
         },
-      },
-      {
-        id: "start-project",
-        label: t.common.startProject,
-        hint: "Contact",
-        icon: Send,
-        action: () => scrollTo("#contact"),
       },
       {
         id: "book-consultation",
