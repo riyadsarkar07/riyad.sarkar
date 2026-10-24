@@ -46,7 +46,7 @@ export function FloatingDock() {
       className="pointer-events-auto fixed bottom-6 left-1/2 z-[80] hidden -translate-x-1/2 xl:block"
       aria-label="Quick navigation dock"
     >
-      <div className="glass-strong flex items-center gap-1.5 rounded-full p-1.5 shadow-glow-lg transition-shadow duration-300 hover:shadow-glow">
+      <div       className="glass-strong flex items-center gap-1.5 rounded-full p-1.5 shadow-glass-lg">
         {dockItems.map((item) => (
           <motion.button
             key={item.id}

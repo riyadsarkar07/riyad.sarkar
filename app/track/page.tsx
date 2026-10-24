@@ -87,7 +87,7 @@ export default function TrackEnquiryPage() {
           Enter the email you used and your ticket number. This is separate from live Support Inbox conversations and consultation bookings.
         </p>
 
-        <form onSubmit={onLookup} className="glass gradient-border mt-6 space-y-4 rounded-3xl p-5 sm:p-7">
+        <form onSubmit={onLookup} className="glass gradient-border mt-6 space-y-4 rounded-[1.5rem] p-5 sm:p-7">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="track-email">Email address</Label>
@@ -123,7 +123,7 @@ export default function TrackEnquiryPage() {
         </form>
 
         {ticket && (
-          <div className="glass gradient-border mt-6 rounded-3xl p-5 sm:p-7">
+          <div className="glass gradient-border mt-6 rounded-[1.5rem] p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="font-display text-sm font-bold text-primary">{ticket.reference_id}</p>

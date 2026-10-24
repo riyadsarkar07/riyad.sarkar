@@ -42,7 +42,7 @@ export function SocialLinks({ size = "md" }: { size?: "sm" | "md" }) {
               rel="noopener noreferrer"
               aria-label={social.label}
               className={cn(
-                "glass flex items-center justify-center rounded-full text-muted-foreground transition-all duration-300 hover:scale-110 hover:text-primary hover:shadow-glow",
+                "glass flex items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:scale-105 hover:text-primary hover:shadow-glass",
                 boxSize,
               )}
             >

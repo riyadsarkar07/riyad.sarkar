@@ -232,7 +232,7 @@ export function Contact() {
               const actionClass =
                 "mt-auto inline-flex items-center gap-1.5 text-sm font-semibold text-primary";
               const cardClass =
-                "group glass gradient-border flex h-full flex-col rounded-3xl p-5 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow sm:p-6";
+                "group glass gradient-border hover-lift flex h-full flex-col rounded-[1.35rem] p-5 sm:p-6";
 
               const inner = (
                 <>
@@ -283,7 +283,7 @@ export function Contact() {
           </div>
 
           <div className="mt-5 grid gap-5 lg:mt-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-6">
-            <div className="glass gradient-border scroll-mt-24 rounded-3xl p-5 sm:p-7" id="project-enquiry">
+            <div className="glass gradient-border scroll-mt-24 rounded-[1.5rem] p-5 sm:p-7" id="project-enquiry">
               <AnimatePresence mode="wait">
                 {sent ? (
                   <motion.div
@@ -515,7 +515,7 @@ export function Contact() {
                           href={social.href}
                           target={social.href.startsWith("mailto") ? undefined : "_blank"}
                           rel="noopener noreferrer"
-                          className="group glass flex items-center gap-3 rounded-2xl p-3.5 transition-all duration-500 hover:-translate-y-0.5 hover:shadow-glow sm:gap-4 sm:p-4"
+                          className="group glass hover-lift flex items-center gap-3 rounded-2xl p-3.5 sm:gap-4 sm:p-4"
                         >
                           <div
                             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-lg transition-transform duration-500 group-hover:scale-110 sm:h-11 sm:w-11`}

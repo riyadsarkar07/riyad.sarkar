@@ -19,7 +19,7 @@ export function Tools() {
         <RevealGroup className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9">
           {tools.map((tool) => (
             <RevealItem key={tool.name}>
-              <div className="group glass flex flex-col items-center gap-3 rounded-2xl p-4 text-center transition-all duration-500 hover:-translate-y-1.5 hover:shadow-glow sm:p-5">
+              <div className="group glass hover-lift flex flex-col items-center gap-3 rounded-[1.2rem] p-4 text-center sm:p-5">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600/10 to-cyan-400/10 text-cyan-500 transition-all duration-500 group-hover:from-blue-600 group-hover:to-cyan-400 group-hover:text-white group-hover:shadow-glow">
                   <Icon name={tool.icon} className="h-6 w-6" />
                 </div>

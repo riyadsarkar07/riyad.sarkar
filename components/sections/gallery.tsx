@@ -60,7 +60,7 @@ export function Gallery() {
             <RevealItem key={item.id} className="break-inside-avoid">
               <div
                 className={cn(
-                  "group relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-br",
+                  "group relative overflow-hidden rounded-[1.35rem] border border-border/50 bg-gradient-to-br",
                   item.gradient,
                   heights[index % heights.length],
                 )}

@@ -20,7 +20,7 @@ export default function BlogPage() {
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <div className="container relative">
         <div className="mx-auto max-w-3xl text-center">
-          <div className="mb-4 flex items-center justify-center gap-3 text-sm font-semibold uppercase tracking-[0.25em] text-cyber-500">
+          <div className="mb-4 flex items-center justify-center gap-3 text-[11px] font-semibold uppercase tracking-[0.28em] text-cyber-600 sm:text-xs">
             <span className="h-px w-8 bg-gradient-to-r from-transparent to-cyber-500" />
             Insights
             <span className="h-px w-8 bg-gradient-to-l from-transparent to-cyber-500" />
@@ -37,7 +37,7 @@ export default function BlogPage() {
             <Link
               key={post.slug}
               href={`/blog/${post.slug}`}
-              className="group glass gradient-border flex h-full flex-col overflow-hidden rounded-3xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-glow-lg"
+              className="group glass gradient-border hover-lift flex h-full flex-col overflow-hidden rounded-[1.35rem]"
             >
               <div className="h-44 overflow-hidden">
                 <BlogCover

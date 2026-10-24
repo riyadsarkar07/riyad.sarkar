@@ -27,7 +27,7 @@ export function Blog() {
             <RevealItem key={post.slug}>
               <Link
                 href={`/blog/${post.slug}`}
-                className="group glass gradient-border flex h-full flex-col overflow-hidden rounded-3xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-glow-lg"
+                className="group glass gradient-border hover-lift flex h-full flex-col overflow-hidden rounded-[1.35rem]"
               >
                 <div className="h-44 overflow-hidden">
                   <BlogCover

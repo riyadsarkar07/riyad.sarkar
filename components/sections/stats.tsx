@@ -19,7 +19,7 @@ function AnimatedStat({
   const { t } = useI18n();
 
   return (
-    <RevealItem className="group relative overflow-hidden rounded-2xl border border-border/60 bg-white/50 p-5 text-center backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:border-primary/30 hover:shadow-glow dark:bg-white/[0.04] sm:p-6">
+    <RevealItem className="group relative overflow-hidden rounded-[1.25rem] border border-border/70 bg-white/65 p-5 text-center backdrop-blur-md transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-glass dark:bg-white/[0.04] sm:p-6">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
       <p className="font-display text-3xl font-bold tracking-tight min-[400px]:text-4xl sm:text-5xl">
         <span ref={ref} className="text-gradient">
@@ -39,7 +39,7 @@ export function Stats() {
   const { t } = useI18n();
 
   return (
-    <section id="stats" className="relative py-8 sm:py-10 md:py-14">
+    <section id="stats" className="relative py-10 sm:py-12 md:py-16">
       <div className="container">
         <Reveal>
           <p className="mb-5 text-center text-sm text-muted-foreground sm:mb-8">{t.stats.title}</p>

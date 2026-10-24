@@ -7,7 +7,7 @@ import { Reveal } from "@/components/effects/reveal";
 /** Animated skill / tool proficiency bars. */
 export function SkillBars() {
   return (
-    <div className="glass gradient-border rounded-3xl p-8">
+    <div className="glass gradient-border rounded-[1.35rem] p-6 sm:p-8">
       <Reveal>
         <h3 className="mb-1 text-2xl font-bold">Platform Mastery</h3>
         <p className="mb-8 text-sm text-muted-foreground">

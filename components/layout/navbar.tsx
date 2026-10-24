@@ -39,7 +39,7 @@ export function Navbar() {
       className={cn(
         "fixed inset-x-0 top-0 z-[100] transition-all duration-500",
         scrolled
-          ? "glass-strong shadow-glass border-b border-white/40 dark:border-white/5"
+          ? "glass-strong border-b border-sky-200/50 shadow-glass dark:border-white/10"
           : "border-b border-transparent bg-transparent",
       )}
     >
@@ -81,8 +81,8 @@ export function Navbar() {
                     go(item.href);
                   }}
                   className={cn(
-                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors duration-300 xl:px-3",
-                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
+                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors duration-200 xl:px-3.5",
+                    isActive ? "text-primary" : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
                   )}
                 >
                   {label}

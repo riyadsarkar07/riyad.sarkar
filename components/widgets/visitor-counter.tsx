@@ -25,7 +25,7 @@ export function VisitorCounter() {
   if (count === null) return null;
 
   return (
-    <div className="glass flex h-full min-h-[88px] items-center gap-2.5 rounded-2xl px-5 py-4 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow">
+    <div className="glass hover-lift flex h-full min-h-[88px] items-center gap-2.5 rounded-[1.2rem] px-5 py-4">
       <Users className="h-5 w-5 text-cyan-500" />
       <div>
         <p className="font-display text-xl font-bold leading-none tabular-nums">

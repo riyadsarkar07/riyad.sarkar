@@ -72,11 +72,11 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        glass: "0 8px 32px rgba(2, 71, 132, 0.12)",
-        "glass-lg": "0 24px 64px rgba(2, 71, 132, 0.16)",
-        glow: "0 0 24px rgba(14, 165, 233, 0.45)",
-        "glow-lg": "0 0 64px rgba(14, 165, 233, 0.35)",
-        "inner-glow": "inset 0 0 24px rgba(14, 165, 233, 0.12)",
+        glass: "0 10px 28px rgba(8, 74, 140, 0.08)",
+        "glass-lg": "0 18px 44px rgba(8, 74, 140, 0.12)",
+        glow: "0 8px 24px rgba(14, 165, 233, 0.18)",
+        "glow-lg": "0 14px 36px rgba(14, 165, 233, 0.2)",
+        "inner-glow": "inset 0 0 24px rgba(14, 165, 233, 0.08)",
       },
       keyframes: {
         "accordion-down": {

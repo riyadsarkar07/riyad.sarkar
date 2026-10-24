@@ -91,7 +91,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/60 bg-background/70 shadow-[8px_0_32px_rgba(2,71,132,0.06)] backdrop-blur-xl lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/70 bg-background/80 shadow-[8px_0_28px_rgba(8,74,140,0.05)] backdrop-blur-xl lg:block">
         {sidebar}
       </aside>
 
@@ -122,7 +122,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              className="glass-strong fixed inset-y-0 left-0 z-[61] w-72 max-w-[85vw] shadow-glow-lg lg:hidden"
+              className="glass-strong fixed inset-y-0 left-0 z-[61] w-72 max-w-[85vw] shadow-glass-lg lg:hidden"
             >
               <button
                 onClick={() => setOpen(false)}

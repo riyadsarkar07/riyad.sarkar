@@ -20,7 +20,7 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden border-t border-border/60 bg-gradient-to-b from-transparent to-sky-50/60 dark:to-slate-950/60">
+    <footer className="relative overflow-hidden border-t border-border/70 bg-gradient-to-b from-transparent to-sky-50/70 dark:to-slate-950/70">
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <div className="container relative pb-10 pt-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
@@ -196,7 +196,7 @@ export function Footer() {
       {/* Back to top */}
       <button
         onClick={() => go("#home")}
-        className="group glass fixed bottom-5 left-4 z-[90] flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glow-lg transition-all duration-300 hover:scale-110 hover:text-primary sm:h-11 sm:w-11 md:bottom-6 md:left-6"
+        className="group glass fixed bottom-5 left-4 z-[90] flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glass transition-all duration-200 hover:scale-105 hover:text-primary sm:h-11 sm:w-11 md:bottom-6 md:left-6"
         aria-label={t.common.backToTop}
       >
         <ArrowUp className="h-5 w-5 transition-transform duration-300 group-hover:-translate-y-1" />

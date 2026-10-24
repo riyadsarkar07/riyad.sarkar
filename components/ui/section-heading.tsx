@@ -10,25 +10,25 @@ interface SectionHeadingProps {
 /** Consistent premium section header. */
 export function SectionHeading({ eyebrow, title, description, align = "center" }: SectionHeadingProps) {
   return (
-    <div className={align === "center" ? "mx-auto max-w-3xl text-center" : "max-w-3xl"}>
+    <div className={align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
       <Reveal>
         <div
           className={
-            "mb-2 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-cyber-500 sm:text-sm sm:tracking-[0.25em] " +
+            "mb-3 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyber-600 sm:text-xs sm:tracking-[0.28em] " +
             (align === "center" ? "justify-center" : "")
           }
         >
-          <span className="hidden h-px w-8 bg-gradient-to-r from-transparent to-cyber-500 sm:block" />
+          <span className="hidden h-px w-7 bg-gradient-to-r from-transparent to-cyber-500 sm:block" />
           {eyebrow}
-          <span className="hidden h-px w-8 bg-gradient-to-l from-transparent to-cyber-500 sm:block" />
+          <span className="hidden h-px w-7 bg-gradient-to-l from-transparent to-cyber-500 sm:block" />
         </div>
       </Reveal>
-      <Reveal delay={0.08}>
+      <Reveal delay={0.06}>
         <h2 className="section-title text-balance">{title}</h2>
       </Reveal>
       {description && (
-        <Reveal delay={0.16}>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:mt-3 md:text-base">
+        <Reveal delay={0.12}>
+          <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-[0.95rem] md:text-base">
             {description}
           </p>
         </Reveal>

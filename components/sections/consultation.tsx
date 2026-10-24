@@ -214,7 +214,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
             </p>
           </div>
 
-          <div className="glass gradient-border overflow-hidden rounded-3xl">
+          <div className="glass gradient-border overflow-hidden rounded-[1.5rem]">
             <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
               <div className="border-b border-border bg-white/40 p-5 backdrop-blur-sm dark:bg-white/[0.03] sm:p-7 lg:border-b-0 lg:border-r">
                 <h3 className="mb-1 flex items-center gap-2 font-display text-lg font-bold">

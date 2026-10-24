@@ -26,7 +26,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
         initial={{ opacity: 0, y: 24, scale: 0.98, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
         transition={{ type: "spring", stiffness: 220, damping: 26 }}
-        className="glass gradient-border relative w-full max-w-md rounded-3xl p-7 shadow-glow-lg sm:p-8"
+        className="glass gradient-border relative w-full max-w-md rounded-[1.5rem] p-6 shadow-glass-lg sm:p-8"
       >
         <Link
           href="/"

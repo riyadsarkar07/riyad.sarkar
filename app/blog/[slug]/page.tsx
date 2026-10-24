@@ -45,7 +45,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <article className="container relative max-w-4xl">
         <Link
           href="/blog"
-          className="glass mb-8 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:text-primary hover:shadow-glow"
+          className="glass mb-8 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-primary hover:shadow-glass"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to articles
@@ -116,7 +116,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <Link
               key={relatedPost.slug}
               href={`/blog/${relatedPost.slug}`}
-              className="group glass gradient-border flex flex-col overflow-hidden rounded-3xl transition-all duration-500 hover:-translate-y-1.5 hover:shadow-glow-lg"
+              className="group glass gradient-border hover-lift flex flex-col overflow-hidden rounded-[1.35rem]"
             >
               <div className="h-36 overflow-hidden">
                 <BlogCover

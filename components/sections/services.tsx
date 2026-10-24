@@ -21,7 +21,7 @@ import {
 
 function ServiceCard({ id }: { id: string }) {
   const { t } = useI18n();
-  const { ref, onPointerMove, onPointerLeave } = useTilt(8);
+  const { ref, onPointerMove, onPointerLeave } = useTilt(6);
   const [open, setOpen] = useState(false);
   const service = services.find((s) => s.id === id);
   if (!service) return null;
@@ -32,7 +32,7 @@ function ServiceCard({ id }: { id: string }) {
         ref={ref}
         onPointerMove={onPointerMove}
         onPointerLeave={onPointerLeave}
-        className="tilt-card group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-3xl p-5 hover:shadow-glow-lg sm:p-7"
+        className="tilt-card group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-[1.35rem] p-5 hover:shadow-glass-lg sm:p-6 md:p-7"
         style={{ transition: "transform 0.18s ease-out, box-shadow 0.5s ease" }}
       >
           <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${service.gradient} blur-2xl transition-opacity duration-500 opacity-40 group-hover:opacity-90`} />
@@ -120,7 +120,7 @@ export function Services() {
           description="From urgent account recovery to long-term business protection — every service is handled personally with proven, documented methods."
         />
 
-        <RevealGroup className="mt-6 grid gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-5 md:mt-10 lg:grid-cols-3">
+        <RevealGroup className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 md:mt-12 lg:grid-cols-3">
           {services.map((service) => (
             <RevealItem key={service.id}>
               <ServiceCard id={service.id} />

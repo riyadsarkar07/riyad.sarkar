@@ -141,7 +141,7 @@ export function CommandPalette() {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="glass-strong fixed left-1/2 top-[16vh] z-[150] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-3xl shadow-glow-lg"
+              className="glass-strong fixed left-1/2 top-[16vh] z-[150] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-[1.5rem] shadow-glass-lg"
               initial={{ opacity: 0, y: -20, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.97 }}

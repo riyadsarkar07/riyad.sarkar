@@ -2,7 +2,7 @@
 export function NoiseOverlay() {
   return (
     <div
-      className="noise-overlay pointer-events-none fixed inset-0 z-[60] opacity-[0.035] dark:opacity-[0.05]"
+      className="noise-overlay pointer-events-none fixed inset-0 z-[60] opacity-[0.025] dark:opacity-[0.04]"
       aria-hidden
     />
   );

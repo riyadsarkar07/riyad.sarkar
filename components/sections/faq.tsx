@@ -22,7 +22,7 @@ export function Faq() {
         />
 
         <Reveal className="mx-auto mt-6 max-w-3xl sm:mt-8">
-          <div className="glass gradient-border rounded-3xl px-6 sm:px-8">
+          <div className="glass gradient-border rounded-[1.5rem] px-5 sm:px-8">
             <Accordion type="single" collapsible defaultValue={faqs[0].id}>
               {faqs.map((faq) => (
                 <AccordionItem key={faq.id} value={faq.id}>

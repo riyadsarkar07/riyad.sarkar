@@ -15,7 +15,7 @@ export function StatCard({ label, value, icon: Icon, hint, delay = 0 }: StatCard
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, type: "spring", stiffness: 220, damping: 24 }}
-      className="glass gradient-border group relative overflow-hidden rounded-2xl p-5 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow"
+      className="glass gradient-border hover-lift group relative overflow-hidden rounded-[1.25rem] p-5"
     >
       <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-400/10 blur-2xl" />
       <div className="flex items-center justify-between">

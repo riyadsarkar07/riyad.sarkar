@@ -46,7 +46,7 @@ export function About() {
         {/* Story + pillars */}
         <div className="mt-14 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <Reveal>
-            <div className="glass gradient-border h-full rounded-3xl p-7 md:p-10">
+            <div className="glass gradient-border h-full rounded-[1.5rem] p-6 sm:p-8 md:p-10">
               <h3 className="mb-4 text-2xl font-bold">The story behind the shield</h3>
               <div className="space-y-4 leading-relaxed text-muted-foreground">
                 <p>
@@ -84,7 +84,7 @@ export function About() {
           <RevealGroup className="flex flex-col gap-6">
             {pillars.map((pillar) => (
               <RevealItem key={pillar.title}>
-                <div className="group glass flex h-full gap-5 rounded-3xl p-6 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow">
+                <div className="group glass hover-lift flex h-full gap-5 rounded-[1.35rem] p-5 sm:p-6">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
                     <pillar.icon className="h-6 w-6" />
                   </div>
@@ -136,7 +136,7 @@ export function About() {
                     </span>
 
                     <div
-                      className={`glass rounded-2xl p-6 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow-lg md:w-[calc(50%-2.5rem)] ${
+                      className={`glass hover-lift rounded-[1.25rem] p-5 sm:p-6 md:w-[calc(50%-2.5rem)] ${
                         isLeft ? "md:mr-auto" : "md:ml-auto"
                       }`}
                     >

@@ -74,7 +74,7 @@ export function Testimonials() {
                 animate={{ opacity: 1, x: 0, rotateY: 0 }}
                 exit={{ opacity: 0, x: direction * -80, rotateY: direction * -12 }}
                 transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                className="glass gradient-border relative flex min-h-[320px] flex-col rounded-3xl p-6 sm:p-8 md:min-h-[300px] md:p-10"
+                className="glass gradient-border relative flex min-h-[300px] flex-col rounded-[1.5rem] p-6 sm:p-8 md:min-h-[280px] md:p-10"
               >
                 <Quote className="h-10 w-10 text-cyan-400/60" />
                 <div className="mt-4 flex items-center gap-1">
@@ -112,7 +112,7 @@ export function Testimonials() {
           <div className="mt-6 flex items-center justify-center gap-4">
             <button
               onClick={() => go(index - 1, -1)}
-              className="glass flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-all hover:scale-110 hover:text-primary hover:shadow-glow"
+              className="glass flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:scale-105 hover:text-primary hover:shadow-glass"
               aria-label="Previous testimonial"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -142,7 +142,7 @@ export function Testimonials() {
 
             <button
               onClick={() => go(index + 1, 1)}
-              className="glass flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-all hover:scale-110 hover:text-primary hover:shadow-glow"
+              className="glass flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:scale-105 hover:text-primary hover:shadow-glass"
               aria-label="Next testimonial"
             >
               <ChevronRight className="h-5 w-5" />

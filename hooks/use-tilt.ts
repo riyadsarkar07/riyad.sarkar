@@ -8,7 +8,7 @@ import { prefersReducedMotion } from "@/lib/utils";
  * hover never re-renders React. Fine pointers only; skipped on
  * reduced-motion and coarse (touch) devices.
  */
-export function useTilt(maxTilt = 10) {
+export function useTilt(maxTilt = 6) {
   const ref = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   const enabled = useRef(false);

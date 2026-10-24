@@ -46,7 +46,7 @@ export function SkillRadar() {
   });
 
   return (
-    <div className="glass gradient-border rounded-3xl p-8">
+    <div className="glass gradient-border rounded-[1.35rem] p-6 sm:p-8">
       <Reveal>
         <h3 className="mb-1 text-2xl font-bold">Skill Radar</h3>
         <p className="mb-6 text-sm text-muted-foreground">

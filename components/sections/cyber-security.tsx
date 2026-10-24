@@ -170,7 +170,7 @@ export function CyberSecurity() {
                 {defensePillars.map((pillar) => (
                   <div
                     key={pillar.title}
-                    className="group glass rounded-2xl p-5 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow"
+                    className="group glass hover-lift rounded-[1.2rem] p-5"
                   >
                     <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
                       <pillar.icon className="h-5 w-5" />

@@ -46,11 +46,11 @@ export function MobileMenu() {
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-[min(100vw,320px)] flex-col overflow-y-auto p-5 pt-16 shadow-glow-lg sm:p-6 sm:pt-20"
+              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-[min(100vw,320px)] flex-col overflow-y-auto p-5 pt-16 shadow-glass-lg sm:p-6 sm:pt-20"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 320, damping: 32 }}
+              transition={{ type: "spring", stiffness: 340, damping: 34 }}
             >
               <button
                 onClick={() => setOpen(false)}
@@ -74,7 +74,7 @@ export function MobileMenu() {
                           e.preventDefault();
                           closeAndGo(item.href);
                         }}
-                        className="group flex items-center justify-between rounded-xl px-4 py-3 text-base font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                        className="group flex items-center justify-between rounded-xl px-4 py-3 text-base font-medium text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary"
                       >
                         {t.nav[item.labelKey as keyof typeof t.nav]}
                         <span className="h-1.5 w-1.5 rounded-full bg-cyber-400 opacity-0 transition-opacity group-hover:opacity-100" />

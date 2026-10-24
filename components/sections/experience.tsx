@@ -55,7 +55,7 @@ export function Experience() {
                   </div>
 
                   <div
-                    className={`group glass rounded-3xl p-5 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow-lg sm:w-[calc(50%-3rem)] sm:p-7 ${
+                    className={`group glass hover-lift rounded-[1.35rem] p-5 sm:w-[calc(50%-3rem)] sm:p-7 ${
                       isLeft ? "sm:mr-auto" : "sm:ml-auto"
                     }`}
                   >

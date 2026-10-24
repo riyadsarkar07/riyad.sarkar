@@ -68,7 +68,7 @@ export function GitHubGraph({ username }: { username: string }) {
   const weeks = Math.ceil(days.length / 7);
 
   return (
-    <div className="glass h-full rounded-2xl px-5 py-4 transition-all duration-500 hover:-translate-y-1 hover:shadow-glow">
+    <div className="glass hover-lift h-full rounded-[1.2rem] px-5 py-4">
       <div className="mb-3 flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm font-semibold">
           <GitCommitHorizontal className="h-4 w-4 text-cyan-500" />

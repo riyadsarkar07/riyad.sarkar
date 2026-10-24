@@ -31,7 +31,7 @@ export function Achievements() {
         <RevealGroup className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {achievements.map((achievement) => (
             <RevealItem key={achievement.id}>
-              <div className="group glass gradient-border relative h-full overflow-hidden rounded-3xl p-8 text-center transition-all duration-500 hover:-translate-y-1.5 hover:shadow-glow-lg">
+              <div className="group glass gradient-border hover-lift relative h-full overflow-hidden rounded-[1.35rem] p-6 text-center sm:p-8">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                 <AchievementCounter value={achievement.value} suffix={achievement.suffix} />
                 <h4 className="mt-3 font-display text-lg font-bold">{achievement.title}</h4>
