@@ -22,18 +22,26 @@ export type EmailJsTemplateParams = {
   reference_id: string;
 };
 
+function cleanEnv(raw: string | undefined): string {
+  if (typeof raw !== "string") return "";
+  return raw.trim().replace(/^['"]+|['"]+$/g, "").trim();
+}
+
+function emailJsCredentials() {
+  return {
+    serviceId: cleanEnv(process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID),
+    templateId: cleanEnv(process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID),
+    publicKey: cleanEnv(process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY),
+  };
+}
+
 export function isEmailJsConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID &&
-      process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID &&
-      process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY,
-  );
+  const { serviceId, templateId, publicKey } = emailJsCredentials();
+  return Boolean(serviceId && templateId && publicKey);
 }
 
 export async function sendViaEmailJs(params: EmailJsTemplateParams): Promise<EmailJsSendResult> {
-  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+  const { serviceId, templateId, publicKey } = emailJsCredentials();
   if (!serviceId || !templateId || !publicKey) {
     return { ok: false, reason: "missing_config" };
   }
@@ -53,6 +61,12 @@ export async function sendViaEmailJs(params: EmailJsTemplateParams): Promise<Ema
       }),
     });
     if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const snippet = body
+        .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
+        .replace(/[A-Za-z0-9_-]{20,}/g, "[token]")
+        .slice(0, 160);
+      console.error("[emailjs] rejected", { status: res.status, snippet: snippet || "empty" });
       return { ok: false, status: res.status, reason: "rejected" };
     }
     return { ok: true, status: res.status };

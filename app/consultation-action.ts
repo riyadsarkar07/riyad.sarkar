@@ -196,31 +196,37 @@ export async function submitConsultationAction(
       via: deliveryVia,
     });
   } else {
-    const fallback = await sendViaEmailJs({
-      from_name: data.name,
-      from_email: data.email,
-      phone: data.phone,
-      service: data.service,
-      project_type: data.service,
-      budget: "Not specified",
-      timeline: "Not specified",
-      date: data.date,
-      time: data.time,
-      message: [
-        `Consultation booking ${referenceId}`,
-        `Name: ${data.name}`,
-        `Email: ${data.email}`,
-        `Phone / WhatsApp: ${data.phone}`,
-        `Service: ${data.service}`,
-        `Appointment date: ${data.date}`,
-        `Appointment time: ${data.time}`,
-        "",
-        data.message,
-      ].join("\n"),
-      to_name: "Riyad Sarkar",
-      reply_to: data.email,
-      reference_id: referenceId,
-    });
+    let fallback: { ok: boolean; reason?: "missing_config" | "rejected" | "timeout" | "network"; status?: number };
+    try {
+      fallback = await sendViaEmailJs({
+        from_name: data.name,
+        from_email: data.email,
+        phone: data.phone || "",
+        service: data.service,
+        project_type: data.service,
+        budget: "Not specified",
+        timeline: "Not specified",
+        date: data.date,
+        time: data.time,
+        message: [
+          `Consultation booking ${referenceId}`,
+          `Name: ${data.name}`,
+          `Email: ${data.email}`,
+          `Phone / WhatsApp: ${data.phone}`,
+          `Service: ${data.service}`,
+          `Appointment date: ${data.date}`,
+          `Appointment time: ${data.time}`,
+          "",
+          data.message,
+        ].join("\n"),
+        to_name: "Riyad Sarkar",
+        reply_to: data.email,
+        reference_id: referenceId,
+      });
+    } catch (error) {
+      console.error("[consultation-email] EmailJS threw", error instanceof Error ? error.name : "unknown");
+      fallback = { ok: false, reason: "network" };
+    }
     fallbackReason = fallback.reason;
     if (fallback.ok) {
       emailDelivered = true;
