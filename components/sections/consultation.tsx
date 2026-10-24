@@ -58,6 +58,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(() => firstWeekday(dates));
   const [selectedTime, setSelectedTime] = useState<string>(consultationTimes[0]);
   const [sending, setSending] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [sent, setSent] = useState(false);
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
@@ -72,6 +73,8 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
     service: string;
     message: string;
   };
+
+  const lastPayload = useRef<FormValues | null>(null);
 
   const schema = useMemo(
     () =>
@@ -116,16 +119,20 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
           submissionId: submissionId.current,
           website: "",
         }),
-        20_000,
+        30_000,
         "consultation",
       );
       if (result.ok) {
+        lastPayload.current = data;
         setReferenceId(result.referenceId);
         setEmailWarning(result.emailWarning ?? null);
         setSent(true);
         reset();
-        startedAt.current = Date.now();
-        submissionId.current = crypto.randomUUID();
+        if (!result.emailWarning) {
+          startedAt.current = Date.now();
+          submissionId.current = crypto.randomUUID();
+          lastPayload.current = null;
+        }
         return;
       }
       setFormError(result.error);
@@ -142,6 +149,44 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
     }
   };
 
+  const retryNotification = async () => {
+    const data = lastPayload.current;
+    if (!data || retrying || sending) return;
+    setRetrying(true);
+    try {
+      const result = await withClientTimeout(
+        submitConsultationAction({
+          ...data,
+          date: toIsoDate(selectedDate),
+          time: selectedTime,
+          startedAt: Date.now() - 5000,
+          submissionId: submissionId.current,
+          website: "",
+        }),
+        30_000,
+        "consultation-retry",
+      );
+      if (result.ok) {
+        setReferenceId(result.referenceId);
+        setEmailWarning(result.emailWarning ?? null);
+        if (!result.emailWarning) {
+          submissionId.current = crypto.randomUUID();
+          lastPayload.current = null;
+        }
+        return;
+      }
+      toast("error", t.consultation.error, result.error);
+    } catch (error) {
+      const message =
+        error instanceof ClientTimeoutError
+          ? "The request timed out. Please try again."
+          : t.consultation.error;
+      toast("error", t.consultation.error, message);
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
   const isPage = variant === "page";
 
@@ -150,7 +195,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
       id="consultation"
       className={cn(
         "section relative overflow-hidden",
-        isPage && "min-h-screen pb-24 pt-24 sm:pb-16 sm:pt-28",
+        isPage && "min-h-screen pb-16 pt-24 sm:pt-28 xl:pb-24",
       )}
     >
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
@@ -280,7 +325,25 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                         {emailWarning ? t.consultation.savedEmailFailed : t.consultation.successSub}
                       </p>
                       {emailWarning && (
-                        <p className="mt-2 max-w-sm text-xs text-amber-600 dark:text-amber-400">{emailWarning}</p>
+                        <>
+                          <p className="mt-2 max-w-sm text-xs text-amber-600 dark:text-amber-400">{emailWarning}</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="mt-5"
+                            onClick={retryNotification}
+                            disabled={retrying}
+                          >
+                            {retrying ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                {t.consultation.retryingNotify}
+                              </>
+                            ) : (
+                              t.consultation.retryNotify
+                            )}
+                          </Button>
+                        </>
                       )}
                     </motion.div>
                   ) : (
@@ -390,7 +453,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                         )}
                       </div>
 
-                      <div className="flex flex-col gap-3 pb-16 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:pb-2 xl:pb-4">
+                      <div className="flex flex-col gap-3 pb-4 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between xl:pb-16">
                         <p className="text-xs text-muted-foreground">
                           <span className="font-semibold text-primary">
                             {selectedDate.toLocaleDateString("en-US", {

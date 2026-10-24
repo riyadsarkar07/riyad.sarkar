@@ -209,7 +209,7 @@ export function Contact() {
   ];
 
   return (
-    <section id="contact" className="section relative scroll-mt-24 overflow-hidden pb-24 sm:pb-16">
+    <section id="contact" className="section relative scroll-mt-24 overflow-hidden pb-16 xl:pb-24">
       <div className="bg-grid pointer-events-none absolute inset-0 opacity-30 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
       <div className="container relative">
         <SectionHeading
@@ -466,7 +466,7 @@ export function Contact() {
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-3 pb-16 pt-1 sm:flex-row sm:items-center sm:justify-between sm:pb-2 xl:pb-4">
+                    <div className="flex flex-col gap-3 pb-4 pt-1 sm:flex-row sm:items-center sm:justify-between xl:pb-16">
                       <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground sm:max-w-sm">
                         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-500" />
                         {t.contact.privacy}

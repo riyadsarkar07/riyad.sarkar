@@ -2,7 +2,11 @@
 
 import { headers } from "next/headers";
 import { adminInbox, publicErrorFor, renderEmail, sendEmail } from "@/lib/email";
-import { consultationFormSchema, type ConsultationActionResult } from "@/lib/consultation-schema";
+import {
+  consultationFormSchema,
+  type ConsultationActionResult,
+  type ConsultationFormValues,
+} from "@/lib/consultation-schema";
 import { isDuplicateSubmission, isRateLimited, markSubmission, markSubmitted } from "@/lib/rate-limit";
 import { createActionClient } from "@/lib/supabase/action";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -14,6 +18,61 @@ const MIN_SUBMIT_MS = 2500;
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (typeof process.env.VERCEL_URL === "string" ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+async function sendConsultationViaEmailJs(
+  data: ConsultationFormValues,
+  referenceId: string,
+): Promise<boolean> {
+  const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+  const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+  const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+  if (!serviceId || !templateId || !publicKey) return false;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await fetch("https://api.emailjs.com/api/v1.0/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        service_id: serviceId,
+        template_id: templateId,
+        user_id: publicKey,
+        template_params: {
+          from_name: data.name,
+          from_email: data.email,
+          phone: data.phone,
+          service: data.service,
+          project_type: data.service,
+          budget: "",
+          timeline: "",
+          date: data.date,
+          time: data.time,
+          message: [
+            `Consultation booking ${referenceId}`,
+            `Name: ${data.name}`,
+            `Email: ${data.email}`,
+            `Phone / WhatsApp: ${data.phone}`,
+            `Service: ${data.service}`,
+            `Appointment date: ${data.date}`,
+            `Appointment time: ${data.time}`,
+            "",
+            data.message,
+          ].join("\n"),
+          to_name: "Riyad Sarkar",
+          reply_to: data.email,
+          reference_id: referenceId,
+        },
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function clientIp(): Promise<string> {
   const h = await headers();
@@ -66,7 +125,8 @@ export async function submitConsultationAction(
 
   const ip = await clientIp();
   const emailKey = data.email.toLowerCase();
-  if (isDuplicateSubmission(data.submissionId, now) || isRateLimited(emailKey, ip, now)) {
+  const retryingSameBooking = isDuplicateSubmission(data.submissionId, now);
+  if (!retryingSameBooking && isRateLimited(emailKey, ip, now)) {
     return { ok: false, error: "Please wait a moment before sending another request." };
   }
 
@@ -119,7 +179,6 @@ export async function submitConsultationAction(
     return { ok: false, error: persistFailureMessage("booking") };
   }
   const alreadySaved = row?.duplicate === true;
-
   markSubmitted(emailKey, ip, now);
   markSubmission(data.submissionId, now);
 
@@ -138,7 +197,8 @@ export async function submitConsultationAction(
       `<strong>${safeRef}</strong> · ${safeName} (${safeEmail})`,
       `Phone / WhatsApp: ${safePhone}`,
       `Service: ${safeService}`,
-      `Date: <strong>${safeDate}</strong> · Time: <strong>${safeTime}</strong>`,
+      `Appointment date: <strong>${safeDate}</strong>`,
+      `Appointment time: <strong>${safeTime}</strong>`,
       `Case description:<br/>${safeMessage}`,
     ],
     cta: { label: "Open Appointments", href: `${SITE_URL}/admin/appointments` },
@@ -148,48 +208,56 @@ export async function submitConsultationAction(
     `New consultation booking ${referenceId}`,
     `Name: ${data.name}`,
     `Email: ${data.email}`,
-    `Phone: ${data.phone}`,
+    `Phone / WhatsApp: ${data.phone}`,
     `Service: ${data.service}`,
-    `Date: ${data.date}`,
-    `Time: ${data.time}`,
+    `Appointment date: ${data.date}`,
+    `Appointment time: ${data.time}`,
     "",
     data.message,
   ].join("\n");
 
-  const adminMail = alreadySaved
-    ? { ok: true, skipped: false as boolean, code: undefined as undefined }
-    : await sendEmail({
-        to: adminInbox(),
-        subject: `New consultation booking ${referenceId} — ${data.service}`,
-        html: adminHtml,
-        text: adminText,
-        replyTo: data.email,
-      });
+  let adminMail;
+  try {
+    adminMail = await sendEmail({
+      to: adminInbox(),
+      subject: `New consultation booking ${referenceId} — ${data.service}`,
+      html: adminHtml,
+      text: adminText,
+      replyTo: data.email,
+    });
+  } catch (error) {
+    console.error("[consultation-email] resend threw", error instanceof Error ? error.name : "unknown");
+    adminMail = { ok: false, skipped: false as boolean, code: "network" as const };
+  }
 
-  const emailDelivered = adminMail.ok && !adminMail.skipped;
-  const emailWarning = alreadySaved
-    ? undefined
-    : emailDelivered
-      ? undefined
-      : publicErrorFor(adminMail.skipped ? "missing_key" : adminMail.code);
+  let emailDelivered = adminMail.ok && !adminMail.skipped;
 
-  if (emailDelivered && !alreadySaved) {
-    await sendEmail({
-      to: data.email,
-      subject: `Consultation booked — ${referenceId}`,
-      html: renderEmail({
-        greeting: `Hi ${safeName},`,
-        lines: [
-          "Your consultation request has been received.",
-          `Reference: <strong>${safeRef}</strong>`,
-          `Service: ${safeService}`,
-          `Date: <strong>${safeDate}</strong> · Time: <strong>${safeTime}</strong>`,
-          "I will review your case and confirm shortly.",
-        ],
-      }),
-      text: `Consultation ${referenceId} received for ${data.date} at ${data.time}.`,
+  if (!emailDelivered) {
+    try {
+      emailDelivered = await sendConsultationViaEmailJs(data, referenceId);
+      if (emailDelivered) {
+        console.error("[consultation-email] resend failed; delivered via EmailJS fallback", {
+          code: adminMail.code,
+          duplicate: alreadySaved,
+        });
+      }
+    } catch {
+      emailDelivered = false;
+    }
+  }
+
+  if (!emailDelivered) {
+    console.error("[consultation-email] admin notification not delivered", {
+      code: adminMail.code,
+      skipped: adminMail.skipped,
+      duplicate: alreadySaved,
     });
   }
 
-  return { ok: true, referenceId, emailDelivered, emailWarning };
+  return {
+    ok: true,
+    referenceId,
+    emailDelivered,
+    emailWarning: emailDelivered ? undefined : publicErrorFor(adminMail.skipped ? "missing_key" : adminMail.code),
+  };
 }

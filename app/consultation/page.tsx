@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Consultation } from "@/components/sections/consultation";
 import { buildMetadata } from "@/lib/seo";
 
+export const maxDuration = 30;
+
 export const metadata: Metadata = buildMetadata({
   title: "Book a Consultation",
   description:

@@ -101,6 +101,8 @@ type Dictionary = {
     success: string;
     successSub: string;
     savedEmailFailed: string;
+    retryNotify: string;
+    retryingNotify: string;
     referenceLabel: string;
     error: string;
     selectService: string;
@@ -283,6 +285,8 @@ const en: Dictionary = {
     success: "Appointment booked",
     successSub: "Your consultation has been saved. Keep the reference number — I will confirm shortly.",
     savedEmailFailed: "Your appointment was saved, but the notification email could not be delivered.",
+    retryNotify: "Retry notification email",
+    retryingNotify: "Sending notification…",
     referenceLabel: "Booking reference",
     error: "Something went wrong. Please try again or contact me directly.",
     selectService: "Select a service",
@@ -481,6 +485,8 @@ const bn: Dictionary = {
     success: "অ্যাপয়েন্টমেন্ট বুক হয়েছে",
     successSub: "আপনার পরামর্শ সংরক্ষণ করা হয়েছে। রেফারেন্স নম্বর রাখুন — শীঘ্রই নিশ্চিত করা হবে।",
     savedEmailFailed: "আপনার অ্যাপয়েন্টমেন্ট সংরক্ষণ হয়েছে, কিন্তু নোটিফিকেশন ইমেইল পাঠানো যায়নি।",
+    retryNotify: "নোটিফিকেশন ইমেইল আবার পাঠান",
+    retryingNotify: "নোটিফিকেশন পাঠানো হচ্ছে…",
     referenceLabel: "বুকিং রেফারেন্স",
     error: "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন বা সরাসরি যোগাযোগ করুন।",
     selectService: "সেবা নির্বাচন করুন",

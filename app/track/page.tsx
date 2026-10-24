@@ -78,7 +78,7 @@ export default function TrackEnquiryPage() {
   };
 
   return (
-    <main className="section relative min-h-screen pb-24 pt-24 sm:pb-16 sm:pt-28">
+    <main className="section relative min-h-screen pb-16 pt-24 sm:pt-28 xl:pb-24">
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <div className="container relative max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyber-500">Project Enquiry</p>
