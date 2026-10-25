@@ -76,7 +76,7 @@ export function Hero() {
 
       <motion.div
         style={reduceMotion ? undefined : { y: contentY, opacity: contentOpacity }}
-        className="container relative z-10 grid items-center gap-5 pb-16 min-[390px]:gap-6 sm:gap-8 sm:pb-20 lg:grid-cols-[1.1fr_0.9fr] lg:grid-rows-[auto_1fr] lg:gap-x-14 lg:gap-y-6 lg:pb-24"
+        className="container relative z-10 grid items-center gap-5 pb-24 min-[390px]:gap-6 sm:gap-8 sm:pb-24 lg:grid-cols-[1.1fr_0.9fr] lg:grid-rows-[auto_1fr] lg:gap-x-14 lg:gap-y-6 lg:pb-28"
       >
         <div className="order-1 text-center lg:col-start-1 lg:row-start-1 lg:text-left">
           <motion.div
@@ -121,7 +121,7 @@ export function Hero() {
 
         <div className="relative order-2 mx-auto flex h-[220px] w-[220px] items-center justify-center min-[390px]:h-[248px] min-[390px]:w-[248px] min-[430px]:h-[268px] min-[430px]:w-[268px] sm:h-[340px] sm:w-[340px] md:h-[380px] md:w-[380px] lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[400px] lg:w-[400px] lg:self-center">
           <div
-            className="pointer-events-none absolute inset-[-8%] rounded-[36px] bg-cyan-400/15 blur-3xl dark:bg-cyan-400/20"
+            className="pointer-events-none absolute inset-[-4%] rounded-[32px] bg-cyan-400/10 blur-2xl dark:bg-cyan-400/16"
             aria-hidden
           />
           <div className="relative z-10 h-full w-full">
@@ -196,7 +196,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: duration.slow, delay: 0.86, ease: easeOutExpo }}
-            className="mt-5 inline-flex items-center gap-2.5 rounded-2xl border border-cyan-300/40 bg-cyan-400/10 px-3.5 py-2.5 backdrop-blur-sm min-[390px]:mt-6 sm:mt-8 sm:gap-3 sm:px-4 sm:py-3"
+            className="mt-5 mb-2 inline-flex items-center gap-2.5 rounded-2xl border border-cyan-300/40 bg-cyan-400/10 px-3.5 py-2.5 backdrop-blur-sm min-[390px]:mt-6 sm:mt-8 sm:mb-0 sm:gap-3 sm:px-4 sm:py-3"
           >
             <BadgeCheck className="h-6 w-6 shrink-0 text-cyan-500 sm:h-8 sm:w-8" />
             <div className="text-left">

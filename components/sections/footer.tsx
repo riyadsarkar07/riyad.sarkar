@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUp, CalendarDays, Globe, Heart, Mail, MessagesSquare, ShieldCheck } from "lucide-react";
 import { navItems, profile, services, socials } from "@/data/content";
@@ -18,6 +19,22 @@ export function Footer() {
   const { go, hrefFor } = useSectionNav();
 
   const year = new Date().getFullYear();
+  const [showTop, setShowTop] = useState(false);
+
+  useEffect(() => {
+    const update = () => {
+      const hero = document.getElementById("home");
+      const threshold = hero ? hero.offsetHeight * 0.85 : window.innerHeight * 0.9;
+      setShowTop(window.scrollY > threshold);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   return (
     <footer className="relative overflow-hidden border-t border-border/70 bg-gradient-to-b from-transparent to-sky-50/70 dark:to-slate-950/70">
@@ -179,14 +196,15 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Back to top */}
-      <button
-        onClick={() => go("#home")}
-        className="group glass fixed bottom-5 left-4 z-[90] flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glass transition-all duration-200 hover:scale-105 hover:text-primary sm:h-11 sm:w-11 md:bottom-6 md:left-6"
-        aria-label={t.common.backToTop}
-      >
-        <ArrowUp className="h-5 w-5 transition-transform duration-300 group-hover:-translate-y-1" />
-      </button>
+      {showTop ? (
+        <button
+          onClick={() => go("#home")}
+          className="group glass fixed bottom-5 left-4 z-[90] flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glass transition-all duration-200 hover:scale-105 hover:text-primary sm:h-11 sm:w-11 md:bottom-6 md:left-6"
+          aria-label={t.common.backToTop}
+        >
+          <ArrowUp className="h-5 w-5 transition-transform duration-300 group-hover:-translate-y-1" />
+        </button>
+      ) : null}
     </footer>
   );
 }
