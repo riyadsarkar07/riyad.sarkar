@@ -187,6 +187,18 @@ const config: Config = {
           "70%": { opacity: "0.15" },
           "100%": { transform: "scale(1.55)", opacity: "0" },
         },
+        "scan-portrait": {
+          "0%": { transform: "translateY(-120%)" },
+          "100%": { transform: "translateY(320%)" },
+        },
+        "grid-pulse": {
+          "0%, 100%": { opacity: "0.15" },
+          "50%": { opacity: "0.7" },
+        },
+        "hero-orb": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "50%": { transform: "translate3d(18px, -22px, 0) scale(1.08)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -214,9 +226,15 @@ const config: Config = {
         "grid-drift": "grid-drift 4s linear infinite",
         "shield-pulse": "shield-pulse 3.4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "scan-sweep": "scan-sweep 9s ease-in-out infinite",
+        "scan-portrait": "scan-portrait 4.8s ease-in-out infinite",
+        "grid-pulse": "grid-pulse 3.6s ease-in-out infinite",
+        "hero-orb": "hero-orb 11s ease-in-out infinite",
       },
       backdropBlur: {
         xs: "2px",
+      },
+      justifyContent: {
+        inherit: "inherit",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

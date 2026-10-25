@@ -24,7 +24,7 @@ export function ScrollProgress() {
     <div ref={ref} className="fixed inset-x-0 top-0 z-[110] h-[3px]" aria-hidden>
       <div
         ref={barRef}
-        className="h-full w-full origin-left bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 shadow-glow"
+        className="h-full w-full origin-left bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 shadow-[0_0_12px_rgba(56,189,248,0.55)]"
         style={{ transform: "scaleX(0)" }}
       />
     </div>

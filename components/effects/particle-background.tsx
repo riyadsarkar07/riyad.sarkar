@@ -13,11 +13,9 @@ interface Particle {
 }
 
 /**
- * Lightweight canvas particle field with faint connecting lines.
- * Pauses off-screen, when the tab is hidden, and under
- * prefers-reduced-motion. No mouse tracking.
+ * Canvas particle field with faint links and subtle mouse attraction.
  */
-export function ParticleBackground({ density = 28 }: { density?: number }) {
+export function ParticleBackground({ density = 36 }: { density?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -35,8 +33,8 @@ export function ParticleBackground({ density = 28 }: { density?: number }) {
     let running = true;
     let inView = true;
     let last = 0;
-    let linkDistance = 110;
-
+    let linkDistance = 118;
+    const mouse = { x: -9999, y: -9999, active: false };
     const hueRange = [199, 210, 222];
 
     const init = () => {
@@ -49,17 +47,17 @@ export function ParticleBackground({ density = 28 }: { density?: number }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const isMobile = width < 768;
-      const cap = isMobile ? Math.min(density, 10) : density;
-      const count = Math.min(Math.floor((width * height) / (isMobile ? 32000 : 22000)), cap);
-      linkDistance = isMobile ? 64 : 110;
+      const cap = isMobile ? Math.min(density, 12) : density;
+      const count = Math.min(Math.floor((width * height) / (isMobile ? 28000 : 18000)), cap);
+      linkDistance = isMobile ? 68 : 124;
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,
-        size: Math.random() * 1.5 + 0.6,
-        speedX: (Math.random() - 0.5) * 0.22,
-        speedY: (Math.random() - 0.5) * 0.22,
+        size: Math.random() * 1.7 + 0.55,
+        speedX: (Math.random() - 0.5) * 0.24,
+        speedY: (Math.random() - 0.5) * 0.24,
         hue: hueRange[Math.floor(Math.random() * hueRange.length)],
-        alpha: Math.random() * 0.38 + 0.18,
+        alpha: Math.random() * 0.42 + 0.18,
       }));
     };
 
@@ -74,6 +72,15 @@ export function ParticleBackground({ density = 28 }: { density?: number }) {
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
+        if (mouse.active) {
+          const mx = mouse.x - p.x;
+          const my = mouse.y - p.y;
+          const md = mx * mx + my * my;
+          if (md < 22000) {
+            p.x += mx * 0.0009;
+            p.y += my * 0.0009;
+          }
+        }
         p.x += p.speedX;
         p.y += p.speedY;
         if (p.x < 0) p.x = width;
@@ -93,18 +100,28 @@ export function ParticleBackground({ density = 28 }: { density?: number }) {
           const dist = dx * dx + dy * dy;
           const max = linkDistance * linkDistance;
           if (dist < max) {
-            const opacity = (1 - dist / max) * 0.18;
+            const opacity = (1 - dist / max) * 0.22;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q.x, q.y);
             ctx.strokeStyle = `rgba(56, 189, 248, ${opacity})`;
-            ctx.lineWidth = 0.7;
+            ctx.lineWidth = 0.75;
             ctx.stroke();
           }
         }
       }
 
       raf = requestAnimationFrame(draw);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = event.clientX - rect.left;
+      mouse.y = event.clientY - rect.top;
+      mouse.active = true;
+    };
+    const onPointerLeave = () => {
+      mouse.active = false;
     };
 
     const onVisibility = () => {
@@ -133,10 +150,15 @@ export function ParticleBackground({ density = 28 }: { density?: number }) {
     raf = requestAnimationFrame(draw);
     window.addEventListener("resize", init);
     document.addEventListener("visibilitychange", onVisibility);
+    const host = canvas.closest("section") ?? canvas.parentElement;
+    host?.addEventListener("pointermove", onPointerMove as EventListener);
+    host?.addEventListener("pointerleave", onPointerLeave);
 
     return () => {
       window.removeEventListener("resize", init);
       document.removeEventListener("visibilitychange", onVisibility);
+      host?.removeEventListener("pointermove", onPointerMove as EventListener);
+      host?.removeEventListener("pointerleave", onPointerLeave);
       observer.disconnect();
       cancelAnimationFrame(raf);
     };

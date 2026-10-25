@@ -1,9 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Briefcase, GraduationCap, Sparkles } from "lucide-react";
 import { experience } from "@/data/content";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { TimelineItem, TimelineNode, TimelineTrack } from "@/components/effects/timeline";
 
 const typeMeta = {
   work: { icon: Briefcase, badge: "Professional" },
@@ -26,31 +26,21 @@ export function Experience() {
           description="From first incident to enterprise-grade defense — a journey measured in recovered accounts and hardened businesses."
         />
 
-        <div className="relative mx-auto mt-16 max-w-4xl">
-          {/* Vertical line */}
-          <div className="absolute left-0 top-0 h-full w-px bg-gradient-to-b from-blue-600/50 via-cyan-400/40 to-transparent sm:left-1/2 sm:-translate-x-1/2" />
-
+        <TimelineTrack align="edge" className="mx-auto mt-16 max-w-4xl">
           <div className="space-y-12">
             {experience.map((item, index) => {
               const meta = typeMeta[item.type];
               const IconComp = meta.icon;
               const isLeft = index % 2 === 0;
               return (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 40 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-70px" }}
-                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                  className="relative pl-14 sm:pl-0"
-                >
-                  {/* Node */}
+                <TimelineItem key={item.id} index={index} className="relative pl-14 sm:pl-0">
                   <div className="absolute left-0 top-2 sm:left-1/2 sm:-translate-x-1/2">
                     <div className="relative">
-                      <span className="absolute -inset-2 rounded-full bg-cyan-400/20 animate-pulse-ring" />
-                      <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow">
-                        <IconComp className="h-5 w-5" />
-                      </span>
+                      <TimelineNode className="h-11 w-11">
+                        <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow">
+                          <IconComp className="h-5 w-5" />
+                        </span>
+                      </TimelineNode>
                     </div>
                   </div>
 
@@ -83,11 +73,11 @@ export function Experience() {
                       ))}
                     </div>
                   </div>
-                </motion.div>
+                </TimelineItem>
               );
             })}
           </div>
-        </div>
+        </TimelineTrack>
       </div>
     </section>
   );

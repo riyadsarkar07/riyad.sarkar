@@ -13,23 +13,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useTilt } from "@/hooks/use-tilt";
+import { TiltCard } from "@/components/effects/tilt-card";
 import { useState } from "react";
 
 function CertificateCard({ id }: { id: string }) {
   const [open, setOpen] = useState(false);
-  const { ref, onPointerMove, onPointerLeave } = useTilt(5);
   const cert = certificates.find((c) => c.id === id);
   if (!cert) return null;
 
   return (
     <>
-      <div
-        ref={ref}
-        onPointerMove={onPointerMove}
-        onPointerLeave={onPointerLeave}
-        className="tilt-card group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-[1.35rem] p-6 hover:shadow-glass-lg"
-        style={{ transition: "transform 0.18s ease-out, box-shadow 0.5s ease" }}
+      <TiltCard
+        maxTilt={5}
+        className="glass gradient-border flex h-full flex-col rounded-[1.35rem] p-6 hover:shadow-glass-lg"
       >
         <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-400/20 blur-2xl opacity-40 transition-opacity duration-500 group-hover:opacity-100" />
 
@@ -58,7 +54,7 @@ function CertificateCard({ id }: { id: string }) {
             </a>
           </Button>
         </div>
-      </div>
+      </TiltCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">

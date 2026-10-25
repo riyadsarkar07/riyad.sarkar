@@ -264,6 +264,54 @@
     opacity: 1;
   }
 
+  .spotlight-card {
+    position: relative;
+    isolation: isolate;
+  }
+  .spotlight-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: radial-gradient(
+      var(--spot-size, 320px) circle at var(--spot-x, 50%) var(--spot-y, 50%),
+      rgba(56, 189, 248, 0.16),
+      transparent 58%
+    );
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .spotlight-card:hover::before {
+      opacity: 1;
+    }
+  }
+
+  .perspective-grid {
+    background-image:
+      linear-gradient(to right, rgba(14, 165, 233, 0.16) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(14, 165, 233, 0.1) 1px, transparent 1px);
+    background-size: 56px 56px;
+    transform: perspective(700px) rotateX(62deg);
+    mask-image: linear-gradient(to bottom, transparent, black 28%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 28%, transparent);
+  }
+  .dark .perspective-grid {
+    background-image:
+      linear-gradient(to right, rgba(56, 189, 248, 0.14) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+  }
+
+  .hero-fade {
+    background: linear-gradient(to bottom, transparent, hsl(var(--background)));
+  }
+
+  .profile-3d {
+    transform-style: preserve-3d;
+  }
+
   /* Icon motion utilities */
   .icon-float {
     animation: float 6s ease-in-out infinite;

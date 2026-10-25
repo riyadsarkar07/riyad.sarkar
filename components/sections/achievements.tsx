@@ -3,6 +3,7 @@
 import { achievements } from "@/data/content";
 import { useCountUp } from "@/hooks/use-count-up";
 import { RevealGroup, RevealItem } from "@/components/effects/reveal";
+import { Spotlight } from "@/components/effects/spotlight";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { formatNumber } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ export function Achievements() {
         <RevealGroup className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {achievements.map((achievement) => (
             <RevealItem key={achievement.id}>
+              <Spotlight className="h-full rounded-[1.35rem]">
               <div className="group glass gradient-border hover-lift relative h-full overflow-hidden rounded-[1.35rem] p-6 text-center sm:p-8">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                 <AchievementCounter value={achievement.value} suffix={achievement.suffix} />
@@ -39,6 +41,7 @@ export function Achievements() {
                   {achievement.description}
                 </p>
               </div>
+              </Spotlight>
             </RevealItem>
           ))}
         </RevealGroup>

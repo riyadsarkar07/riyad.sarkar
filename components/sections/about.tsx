@@ -1,9 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Eye, HeartHandshake, Target } from "lucide-react";
 import { experience } from "@/data/content";
 import { Reveal, RevealGroup, RevealItem } from "@/components/effects/reveal";
+import { TimelineItem, TimelineNode, TimelineTrack } from "@/components/effects/timeline";
+import { Spotlight } from "@/components/effects/spotlight";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { SkillBars } from "@/components/sections/skill-bars";
 import { SkillRadar } from "@/components/sections/skill-radar";
@@ -84,6 +85,7 @@ export function About() {
           <RevealGroup className="flex flex-col gap-6">
             {pillars.map((pillar) => (
               <RevealItem key={pillar.title}>
+                <Spotlight className="h-full rounded-[1.35rem]">
                 <div className="group glass hover-lift flex h-full gap-5 rounded-[1.35rem] p-5 sm:p-6">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
                     <pillar.icon className="h-6 w-6" />
@@ -95,6 +97,7 @@ export function About() {
                     </p>
                   </div>
                 </div>
+                </Spotlight>
               </RevealItem>
             ))}
           </RevealGroup>
@@ -113,26 +116,18 @@ export function About() {
               Career <span className="text-gradient">Timeline</span>
             </h3>
           </Reveal>
-          <div className="relative mx-auto max-w-3xl">
-            <div className="absolute left-6 top-0 h-full w-px bg-gradient-to-b from-blue-500/50 via-cyan-400/40 to-transparent md:left-1/2" />
-
+          <TimelineTrack className="mx-auto max-w-3xl">
             <div className="space-y-10">
               {experience.map((item, index) => {
                 const isLeft = index % 2 === 0;
                 return (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-60px" }}
-                    transition={{ duration: 0.6, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                    className="relative pl-16 md:pl-0"
-                  >
-                    {/* Center node */}
+                  <TimelineItem key={item.id} index={index} className="relative pl-16 md:pl-0">
                     <span className="absolute left-6 top-3 -translate-x-1/2 md:left-1/2">
-                      <span
-                        className={`block h-5 w-5 rounded-full bg-gradient-to-br ${timelineIconColor[item.type] ?? "from-blue-600 to-cyan-400"} shadow-glow`}
-                      />
+                      <TimelineNode>
+                        <span
+                          className={`relative block h-5 w-5 rounded-full bg-gradient-to-br ${timelineIconColor[item.type] ?? "from-blue-600 to-cyan-400"} shadow-glow`}
+                        />
+                      </TimelineNode>
                     </span>
 
                     <div
@@ -159,11 +154,11 @@ export function About() {
                         ))}
                       </div>
                     </div>
-                  </motion.div>
+                  </TimelineItem>
                 );
               })}
             </div>
-          </div>
+          </TimelineTrack>
         </div>
       </div>
     </section>

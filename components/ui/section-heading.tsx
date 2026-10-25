@@ -1,4 +1,7 @@
+"use client";
+
 import { Reveal } from "@/components/effects/reveal";
+import { TextReveal } from "@/components/effects/text-reveal";
 
 interface SectionHeadingProps {
   eyebrow: string;
@@ -7,7 +10,7 @@ interface SectionHeadingProps {
   align?: "center" | "left";
 }
 
-/** Consistent premium section header. */
+/** Consistent premium section header with cinematic title reveal. */
 export function SectionHeading({ eyebrow, title, description, align = "center" }: SectionHeadingProps) {
   return (
     <div className={align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
@@ -23,9 +26,9 @@ export function SectionHeading({ eyebrow, title, description, align = "center" }
           <span className="hidden h-px w-7 bg-gradient-to-l from-transparent to-cyber-500 sm:block" />
         </div>
       </Reveal>
-      <Reveal delay={0.06}>
-        <h2 className="section-title text-balance">{title}</h2>
-      </Reveal>
+      <h2 className={`section-title text-balance ${align === "center" ? "justify-center" : ""} flex flex-wrap`}>
+        <TextReveal text={title} delay={0.04} inView className={align === "center" ? "justify-center" : ""} />
+      </h2>
       {description && (
         <Reveal delay={0.12}>
           <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-[0.95rem] md:text-base">

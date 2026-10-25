@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { Activity, Fingerprint, ShieldCheck, Building2, Radar } from "lucide-react";
 import { Reveal } from "@/components/effects/reveal";
+import { Spotlight } from "@/components/effects/spotlight";
 import { SectionHeading } from "@/components/ui/section-heading";
 
 const ShieldCanvas = dynamic(
@@ -168,8 +169,8 @@ export function CyberSecurity() {
             <Reveal delay={0.15}>
               <div className="grid gap-4 sm:grid-cols-3">
                 {defensePillars.map((pillar) => (
+                  <Spotlight key={pillar.title} className="rounded-[1.2rem]" size={240}>
                   <div
-                    key={pillar.title}
                     className="group glass hover-lift rounded-[1.2rem] p-5"
                   >
                     <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
@@ -180,6 +181,7 @@ export function CyberSecurity() {
                       {pillar.text}
                     </p>
                   </div>
+                  </Spotlight>
                 ))}
               </div>
             </Reveal>

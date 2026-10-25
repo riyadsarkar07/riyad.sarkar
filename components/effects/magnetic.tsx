@@ -10,10 +10,9 @@ interface MagneticButtonProps {
 }
 
 /**
- * Subtle magnetic hover. Direct DOM transforms, no React re-renders,
- * fine-pointer only, and immediately reset on leave.
+ * Magnetic hover with a slight scale. Direct DOM transforms, fine-pointer only.
  */
-export function Magnetic({ children, className, strength = 0.28 }: MagneticButtonProps) {
+export function Magnetic({ children, className, strength = 0.32 }: MagneticButtonProps) {
   const ref = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   const enabled = useRef(false);
@@ -35,7 +34,7 @@ export function Magnetic({ children, className, strength = 0.28 }: MagneticButto
       const ty = dy * strength;
       cancelAnimationFrame(frame.current);
       frame.current = requestAnimationFrame(() => {
-        el.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0)`;
+        el.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(1.045)`;
       });
     },
     [strength],
@@ -45,13 +44,14 @@ export function Magnetic({ children, className, strength = 0.28 }: MagneticButto
     const el = ref.current;
     if (!el) return;
     cancelAnimationFrame(frame.current);
-    el.style.transform = "translate3d(0, 0, 0)";
+    el.style.transform = "translate3d(0, 0, 0) scale(1)";
   }, []);
 
   return (
     <div
       ref={ref}
       className={cn("inline-block will-change-transform", className)}
+      style={{ transition: "transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)" }}
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
     >

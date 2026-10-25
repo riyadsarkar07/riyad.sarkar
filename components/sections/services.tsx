@@ -5,8 +5,8 @@ import Link from "next/link";
 import { ArrowUpRight, Check } from "lucide-react";
 import { services } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
-import { useTilt } from "@/hooks/use-tilt";
 import { RevealGroup, RevealItem } from "@/components/effects/reveal";
+import { TiltCard } from "@/components/effects/tilt-card";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -21,20 +21,13 @@ import {
 
 function ServiceCard({ id }: { id: string }) {
   const { t } = useI18n();
-  const { ref, onPointerMove, onPointerLeave } = useTilt(6);
   const [open, setOpen] = useState(false);
   const service = services.find((s) => s.id === id);
   if (!service) return null;
 
   return (
     <>
-      <div
-        ref={ref}
-        onPointerMove={onPointerMove}
-        onPointerLeave={onPointerLeave}
-        className="tilt-card group glass gradient-border relative flex h-full flex-col overflow-hidden rounded-[1.35rem] p-5 hover:shadow-glass-lg sm:p-6 md:p-7"
-        style={{ transition: "transform 0.18s ease-out, box-shadow 0.5s ease" }}
-      >
+      <TiltCard className="glass gradient-border flex h-full flex-col rounded-[1.35rem] p-5 hover:shadow-glass-lg sm:p-6 md:p-7">
           <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${service.gradient} blur-2xl transition-opacity duration-500 opacity-40 group-hover:opacity-90`} />
 
           <div className="mb-5 flex items-center justify-between">
@@ -68,7 +61,7 @@ function ServiceCard({ id }: { id: string }) {
             {t.common.learnMore}
             <span className="h-px w-0 bg-current transition-all duration-300 group-hover:w-6" />
           </button>
-      </div>
+      </TiltCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
