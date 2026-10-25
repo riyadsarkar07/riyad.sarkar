@@ -74,7 +74,7 @@ export function Profile3D() {
     >
       <div
         ref={cardRef}
-        className="profile-3d relative h-full w-full overflow-hidden rounded-full border-[3px] border-white/90 bg-sky-50 shadow-glow-lg ring-2 ring-cyan-400/25 dark:border-white/10 dark:bg-slate-900 sm:border-[4px] sm:ring-4"
+        className="profile-3d relative h-full w-full overflow-hidden rounded-full border-[3px] border-white/90 bg-slate-900 shadow-glow-lg ring-2 ring-cyan-400/25 dark:border-white/10 dark:bg-slate-950 sm:border-[4px] sm:ring-4"
         style={{
           transform: "perspective(1100px) rotateX(4deg) rotateY(-6deg)",
           transformStyle: "preserve-3d",
@@ -91,18 +91,18 @@ export function Profile3D() {
         >
           <Image
             src={profile.avatar}
-            alt="Riyad Sarkar — Cyber Security Specialist"
+            alt="Professional portrait of Riyad Sarkar, Cyber Security Specialist"
             fill
             priority
-            quality={92}
-            sizes="(max-width: 430px) 168px, (max-width: 640px) 188px, 340px"
+            quality={90}
+            sizes="(max-width: 430px) 172px, (max-width: 640px) 268px, (max-width: 1024px) 300px, 324px"
             draggable={false}
-            className="object-cover object-[50%_14%] sm:object-[50%_16%]"
+            className="object-cover object-[50%_28%] min-[430px]:object-[50%_26%] sm:object-[50%_24%]"
             onLoad={() => setImageLoaded(true)}
           />
         </div>
         {!imageLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sky-100 to-blue-200 text-3xl font-bold text-blue-500/60 dark:from-slate-800 dark:to-slate-900">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-950 text-3xl font-bold text-cyan-400/50">
             {profile.initials}
           </div>
         )}

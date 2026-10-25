@@ -108,7 +108,7 @@ export function personJsonLd() {
     "@type": "Person",
     name: siteConfig.name,
     url: siteConfig.url,
-    image: `${siteConfig.url}/profile.png`,
+    image: `${siteConfig.url}/profile.webp`,
     jobTitle: "Cyber Security Specialist & Digital Recovery Expert",
     description: siteConfig.description,
     knowsAbout: [

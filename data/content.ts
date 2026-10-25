@@ -23,7 +23,7 @@ export const profile = {
   email: process.env.NEXT_PUBLIC_PROFILE_EMAIL ?? "riyadsarkar1243@gmail.com",
   whatsapp: process.env.NEXT_PUBLIC_PROFILE_WHATSAPP ?? "+8801577174050",
   cvUrl: process.env.NEXT_PUBLIC_CV_URL ?? "/cv/Riyad-Sarkar-CV.pdf",
-  avatar: "/profile.png",
+  avatar: "/profile.webp",
 };
 
 export const socials = [

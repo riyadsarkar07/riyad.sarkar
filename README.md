@@ -92,7 +92,7 @@ components/
 data/content.ts     # ALL site content — edit once, everywhere updates
 hooks/              # useCountUp, useTyping, useTilt, useScrollSpy, useLenis…
 lib/                # utils, fonts, seo, i18n (EN/BN), toast, sound engine
-public/             # profile.png, icons, noise, CV
+public/             # profile.webp, icons, noise, CV
 types/              # Shared TypeScript interfaces
 ```
 
@@ -102,7 +102,7 @@ types/              # Shared TypeScript interfaces
 
 ## 🖼 Image Rules
 
-- `/public/profile.png` is the **only** profile photo used — replace it with your real photo.
+- `/public/profile.webp` is the **only** profile photo used — replace it with your real photo.
 - Every other visual is a generated SVG / CSS / Three.js artwork. No stock photos, no generated faces.
 
 ---
