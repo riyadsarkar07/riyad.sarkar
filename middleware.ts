@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { safeNextPath } from "@/lib/safe-path";
 
 /**
  * Route guard:
@@ -21,7 +22,8 @@ export async function middleware(request: NextRequest) {
     ) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      url.searchParams.set("next", pathname);
+      const next = pathname + (request.nextUrl.search || "");
+      url.searchParams.set("next", next);
       return NextResponse.redirect(url);
     }
     return supabaseResponse;
@@ -33,6 +35,10 @@ export async function middleware(request: NextRequest) {
     pathname === "/reset-password"
   ) {
     const url = request.nextUrl.clone();
+    const next = safeNextPath(request.nextUrl.searchParams.get("next"));
+    if (next) {
+      return NextResponse.redirect(new URL(next, request.url));
+    }
     url.pathname = "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);

@@ -97,7 +97,7 @@ export async function submitConsultationAction(
         p_service: data.service,
         p_date: data.date,
         p_time: data.time,
-        p_timezone: "Asia/Dhaka",
+        p_timezone: data.timezone || "Asia/Dhaka",
         p_description: data.message,
       }),
       12_000,

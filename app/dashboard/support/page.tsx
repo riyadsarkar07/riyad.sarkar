@@ -14,7 +14,7 @@ function SupportInbox() {
     <div>
       <PageHeader
         title="Live Support Conversations"
-        subtitle="Private real-time inbox. Email tickets and consultation bookings are tracked separately."
+        subtitle="Private real-time inbox. Ticket status is shown on each conversation. Email tickets and consultation bookings are tracked separately."
       />
       <SupportMessenger
         mode="user"

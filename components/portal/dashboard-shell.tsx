@@ -19,8 +19,8 @@ function DashboardNav() {
   const { isAdmin } = useAuth();
   const items = [
     { href: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
-    { href: "/dashboard/appointments/new", label: "Book Appointment", icon: CalendarPlus },
     { href: "/dashboard/appointments", label: "My Appointments", icon: CalendarDays },
+    { href: "/dashboard/appointments/new", label: "Book Appointment", icon: CalendarPlus },
     { href: "/dashboard/enquiries", label: "Email Support Tickets", icon: Mail },
     { href: "/dashboard/support", label: "Live Support Conversations", icon: MessagesSquare },
     { href: "/dashboard/profile", label: "Profile", icon: UserRound },

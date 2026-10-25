@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
+  AlertCircle,
   ArrowRight,
   CalendarCheck,
   CalendarClock,
@@ -12,9 +13,11 @@ import {
   Loader2,
   Mail,
   MessagesSquare,
+  RefreshCw,
   UserPlus,
   Users,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useSupabase } from "@/hooks/use-supabase";
 import { PageHeader } from "@/components/portal/page-header";
 import { StatCard } from "@/components/portal/stat-card";
@@ -49,62 +52,92 @@ export default function AdminOverviewPage() {
   const [recentTickets, setRecentTickets] = useState<SupportTicket[]>([]);
   const [recentEmailTickets, setRecentEmailTickets] = useState<EmailTicket[]>([]);
   const [recentBookings, setRecentBookings] = useState<ConsultationBooking[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const monthAgo = new Date(Date.now() - 30 * 864e5).toISOString();
-      const [
-        users,
-        newUsers,
-        pending,
-        confirmed,
-        inProgress,
-        completed,
-        openTickets,
-        emailTickets,
-        publicBookings,
-        recentAppts,
-        recentTkts,
-        recentEmail,
-        recentPublic,
-      ] = await Promise.all([
-        supabase.from("profiles").select("id"),
-        supabase.from("profiles").select("id").gte("created_at", monthAgo),
-        supabase.from("appointments").select("id").eq("status", "pending"),
-        supabase.from("appointments").select("id").eq("status", "confirmed"),
-        supabase.from("appointments").select("id").eq("status", "in_progress"),
-        supabase.from("appointments").select("id").eq("status", "completed"),
-        supabase.from("support_tickets").select("id").in("status", ["open", "pending", "in_progress"]),
-        supabase.from("email_tickets").select("id").in("status", ["open", "in_progress", "awaiting_reply"]),
-        supabase.from("consultation_bookings").select("id").in("status", ["pending", "confirmed"]),
-        supabase.from("appointments").select("*").order("created_at", { ascending: false }).limit(5),
-        supabase.from("support_tickets").select("*").order("created_at", { ascending: false }).limit(5),
-        supabase.from("email_tickets").select("*").order("created_at", { ascending: false }).limit(5),
-        supabase.from("consultation_bookings").select("*").order("created_at", { ascending: false }).limit(5),
-      ]);
-      if (!active) return;
-      setStats({
-        totalUsers: users.data?.length ?? 0,
-        newUsers: newUsers.data?.length ?? 0,
-        pending: pending.data?.length ?? 0,
-        confirmed: confirmed.data?.length ?? 0,
-        inProgress: inProgress.data?.length ?? 0,
-        completed: completed.data?.length ?? 0,
-        openTickets: openTickets.data?.length ?? 0,
-        emailTickets: emailTickets.data?.length ?? 0,
-        publicBookings: publicBookings.data?.length ?? 0,
-      });
-      setRecentAppointments((recentAppts.data ?? []) as Appointment[]);
-      setRecentTickets((recentTkts.data ?? []) as SupportTicket[]);
-      setRecentEmailTickets((recentEmail.data ?? []) as EmailTicket[]);
-      setRecentBookings((recentPublic.data ?? []) as ConsultationBooking[]);
-      setLoading(false);
+      setLoading(true);
+      setError(null);
+      try {
+        const monthAgo = new Date(Date.now() - 30 * 864e5).toISOString();
+        const [
+          users,
+          newUsers,
+          pending,
+          confirmed,
+          inProgress,
+          completed,
+          openTickets,
+          emailTickets,
+          publicBookings,
+          recentAppts,
+          recentTkts,
+          recentEmail,
+          recentPublic,
+        ] = await Promise.all([
+          supabase.from("profiles").select("id"),
+          supabase.from("profiles").select("id").gte("created_at", monthAgo),
+          supabase.from("appointments").select("id").eq("status", "pending"),
+          supabase.from("appointments").select("id").eq("status", "confirmed"),
+          supabase.from("appointments").select("id").eq("status", "in_progress"),
+          supabase.from("appointments").select("id").eq("status", "completed"),
+          supabase.from("support_tickets").select("id").in("status", ["open", "pending", "in_progress"]),
+          supabase.from("email_tickets").select("id").in("status", ["open", "in_progress", "awaiting_reply"]),
+          supabase.from("consultation_bookings").select("id").in("status", ["pending", "confirmed"]),
+          supabase.from("appointments").select("*").order("created_at", { ascending: false }).limit(5),
+          supabase.from("support_tickets").select("*").order("created_at", { ascending: false }).limit(5),
+          supabase.from("email_tickets").select("*").order("created_at", { ascending: false }).limit(5),
+          supabase.from("consultation_bookings").select("*").order("created_at", { ascending: false }).limit(5),
+        ]);
+        if (!active) return;
+        const failed = [
+          users,
+          newUsers,
+          pending,
+          confirmed,
+          inProgress,
+          completed,
+          openTickets,
+          emailTickets,
+          publicBookings,
+          recentAppts,
+          recentTkts,
+          recentEmail,
+          recentPublic,
+        ].find((r) => r.error);
+        if (failed?.error) {
+          setError(failed.error.message || "Could not load dashboard data.");
+          setLoading(false);
+          return;
+        }
+        setStats({
+          totalUsers: users.data?.length ?? 0,
+          newUsers: newUsers.data?.length ?? 0,
+          pending: pending.data?.length ?? 0,
+          confirmed: confirmed.data?.length ?? 0,
+          inProgress: inProgress.data?.length ?? 0,
+          completed: completed.data?.length ?? 0,
+          openTickets: openTickets.data?.length ?? 0,
+          emailTickets: emailTickets.data?.length ?? 0,
+          publicBookings: publicBookings.data?.length ?? 0,
+        });
+        setRecentAppointments((recentAppts.data ?? []) as Appointment[]);
+        setRecentTickets((recentTkts.data ?? []) as SupportTicket[]);
+        setRecentEmailTickets((recentEmail.data ?? []) as EmailTicket[]);
+        setRecentBookings((recentPublic.data ?? []) as ConsultationBooking[]);
+        setLoading(false);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Could not load dashboard data.");
+        setLoading(false);
+      }
     })();
     return () => {
       active = false;
     };
-  }, [supabase]);
+  }, [supabase, reloadKey]);
 
   return (
     <div>
@@ -121,13 +154,25 @@ export default function AdminOverviewPage() {
         }
       />
 
+      {error && (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <p className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            {error} Counts are hidden until the data loads successfully.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setReloadKey((k) => k + 1)}>
+            <RefreshCw className="h-4 w-4" /> Retry
+          </Button>
+        </div>
+      )}
+
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[...Array(8)].map((_, i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
-      ) : (
+      ) : error ? null : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Total Users" value={stats.totalUsers} icon={Users} delay={0} />
           <StatCard label="New Users (30d)" value={stats.newUsers} icon={UserPlus} delay={0.04} />
@@ -153,6 +198,8 @@ export default function AdminOverviewPage() {
           </div>
           {loading ? (
             <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load appointments.</p>
           ) : recentAppointments.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No appointments yet.</p>
           ) : (
@@ -186,6 +233,8 @@ export default function AdminOverviewPage() {
           </div>
           {loading ? (
             <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load conversations.</p>
           ) : recentTickets.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No support tickets yet.</p>
           ) : (
@@ -220,6 +269,8 @@ export default function AdminOverviewPage() {
           </div>
           {loading ? (
             <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load email tickets.</p>
           ) : recentEmailTickets.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No email tickets yet.</p>
           ) : (
@@ -252,6 +303,8 @@ export default function AdminOverviewPage() {
           </div>
           {loading ? (
             <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load public bookings.</p>
           ) : recentBookings.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">No public bookings yet.</p>
           ) : (
@@ -272,7 +325,7 @@ export default function AdminOverviewPage() {
         </motion.section>
       </div>
 
-      {loading && <Loader2 className="mx-auto mt-10 h-6 w-6 animate-spin text-cyan-500" />}
+      {loading && !error && <Loader2 className="mx-auto mt-10 h-6 w-6 animate-spin text-cyan-500" />}
     </div>
   );
 }

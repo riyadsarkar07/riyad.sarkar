@@ -4,13 +4,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   CalendarDays,
-  Command,
   Home,
   MessagesSquare,
   Briefcase,
 } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
-import { useToast } from "@/lib/toast";
 import { useI18n } from "@/lib/i18n";
 import { useSectionNav } from "@/hooks/use-section-nav";
 
@@ -24,7 +22,6 @@ const dockItems = [
  * Activates after scrolling past the hero.
  */
 export function FloatingDock() {
-  const { toast } = useToast();
   const { user } = useSession();
   const { t } = useI18n();
   const { go } = useSectionNav();
@@ -33,8 +30,6 @@ export function FloatingDock() {
   const run = (item: (typeof dockItems)[number]) => {
     if (item.action.startsWith("#")) {
       go(item.action, -72);
-    } else {
-      toast("info", item.label);
     }
   };
 
@@ -90,21 +85,6 @@ export function FloatingDock() {
             </span>
           </motion.span>
         </Link>
-        <span className="mx-1 h-5 w-px bg-border" />
-        <motion.button
-          onClick={() => {
-            toast("info", "Press Cmd/Ctrl + K for the command palette");
-          }}
-          whileHover={{ y: -8, scale: 1.12 }}
-          whileTap={{ scale: 0.94 }}
-          className="group relative flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary"
-          aria-label="Command palette"
-        >
-          <Command className="icon-glow h-5 w-5" />
-          <span className="pointer-events-none absolute -top-9 whitespace-nowrap rounded-lg glass-strong px-2.5 py-1 text-[11px] font-semibold opacity-0 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:opacity-100">
-            Command palette
-          </span>
-        </motion.button>
       </div>
     </motion.div>
   );

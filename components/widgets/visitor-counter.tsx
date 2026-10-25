@@ -16,9 +16,9 @@ export function VisitorCounter() {
       const stored = Number(window.localStorage.getItem(KEY) ?? 0);
       const next = stored + 1;
       window.localStorage.setItem(KEY, String(next));
-      setCount(10420 + (next % 10000));
+      setCount(next);
     } catch {
-      setCount(10421);
+      setCount(1);
     }
   }, []);
 
@@ -31,7 +31,7 @@ export function VisitorCounter() {
         <p className="font-display text-xl font-bold leading-none tabular-nums">
           {count.toLocaleString()}
         </p>
-        <p className="mt-1 text-[11px] text-muted-foreground">Visitors</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">Your visits (this browser)</p>
       </div>
     </div>
   );

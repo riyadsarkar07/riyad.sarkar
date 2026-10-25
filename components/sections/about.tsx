@@ -1,9 +1,7 @@
 "use client";
 
 import { Eye, HeartHandshake, Target } from "lucide-react";
-import { experience } from "@/data/content";
 import { Reveal, RevealGroup, RevealItem } from "@/components/effects/reveal";
-import { TimelineItem, TimelineNode, TimelineTrack } from "@/components/effects/timeline";
 import { Spotlight } from "@/components/effects/spotlight";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { SkillBars } from "@/components/sections/skill-bars";
@@ -27,13 +25,7 @@ const pillars = [
   },
 ];
 
-const timelineIconColor: Record<string, string> = {
-  work: "from-blue-600 to-cyan-400",
-  education: "from-violet-600 to-indigo-400",
-  milestone: "from-emerald-600 to-teal-400",
-};
-
-/** Professional story, mission/vision pillars, timeline and skills. */
+/** Professional story, mission/vision pillars and skills. */
 export function About() {
   return (
     <section id="about" className="section relative overflow-hidden">
@@ -107,58 +99,6 @@ export function About() {
         <div className="mt-20 grid gap-8 lg:grid-cols-2">
           <SkillBars />
           <SkillRadar />
-        </div>
-
-        {/* Career timeline */}
-        <div className="mt-20">
-          <Reveal>
-            <h3 className="mb-10 text-center text-2xl font-bold md:text-3xl">
-              Career <span className="text-gradient">Timeline</span>
-            </h3>
-          </Reveal>
-          <TimelineTrack className="mx-auto max-w-3xl">
-            <div className="space-y-10">
-              {experience.map((item, index) => {
-                const isLeft = index % 2 === 0;
-                return (
-                  <TimelineItem key={item.id} index={index} className="relative pl-16 md:pl-0">
-                    <span className="absolute left-6 top-3 -translate-x-1/2 md:left-1/2">
-                      <TimelineNode>
-                        <span
-                          className={`relative block h-5 w-5 rounded-full bg-gradient-to-br ${timelineIconColor[item.type] ?? "from-blue-600 to-cyan-400"} shadow-glow`}
-                        />
-                      </TimelineNode>
-                    </span>
-
-                    <div
-                      className={`glass hover-lift rounded-[1.25rem] p-5 sm:p-6 md:w-[calc(50%-2.5rem)] ${
-                        isLeft ? "md:mr-auto" : "md:ml-auto"
-                      }`}
-                    >
-                      <span className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                        {item.period}
-                      </span>
-                      <h4 className="mt-2 font-display text-lg font-bold">{item.role}</h4>
-                      <p className="mt-0.5 text-sm font-medium text-cyan-500">{item.company}</p>
-                      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                        {item.description}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {item.skills.map((skill) => (
-                          <span
-                            key={skill}
-                            className="rounded-full border border-border bg-background/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </TimelineItem>
-                );
-              })}
-            </div>
-          </TimelineTrack>
         </div>
       </div>
     </section>

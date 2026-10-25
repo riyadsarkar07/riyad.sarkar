@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -23,14 +23,49 @@ interface PortalNavProps {
   subtitle: string;
 }
 
+function pathAndHash(href: string): { path: string; hash: string } {
+  const [path, hash = ""] = href.split("#");
+  return { path, hash };
+}
+
+function routeIsActive(item: PortalNavItem, pathname: string, hash: string, items: PortalNavItem[]) {
+  const { path, hash: itemHash } = pathAndHash(item.href);
+
+  if (itemHash) {
+    return pathname === path && hash === `#${itemHash}`;
+  }
+
+  if (item.end) {
+    return pathname === path && !hash;
+  }
+
+  const moreSpecific = items.some((other) => {
+    if (other.href === item.href) return false;
+    const otherPath = pathAndHash(other.href).path;
+    return otherPath !== path && otherPath.startsWith(`${path}/`) && (pathname === otherPath || pathname.startsWith(`${otherPath}/`));
+  });
+  if (moreSpecific) return false;
+
+  if (pathname !== path && !pathname.startsWith(`${path}/`)) return false;
+  if (path === "/dashboard/account" && hash === "#change-password") return false;
+  return true;
+}
+
 export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { signOut, profile } = useAuth();
   const [open, setOpen] = useState(false);
+  const [hash, setHash] = useState("");
 
-  const isActive = (item: PortalNavItem) =>
-    item.end ? pathname === item.href : pathname.startsWith(item.href);
+  useEffect(() => {
+    const sync = () => setHash(window.location.hash);
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, [pathname]);
+
+  const isActive = (item: PortalNavItem) => routeIsActive(item, pathname, hash, items);
 
   const handleLogout = async () => {
     await signOut();
@@ -56,6 +91,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
                 active

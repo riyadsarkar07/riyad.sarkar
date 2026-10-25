@@ -115,6 +115,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
           ...data,
           date: toIsoDate(selectedDate),
           time: selectedTime,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           startedAt: startedAt.current,
           submissionId: submissionId.current,
           website: "",
@@ -159,6 +160,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
           ...data,
           date: toIsoDate(selectedDate),
           time: selectedTime,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           startedAt: Date.now() - 5000,
           submissionId: submissionId.current,
           website: "",
@@ -277,6 +279,9 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                   <Clock className="h-5 w-5 text-cyan-500" />
                   {t.consultation.selectTime}
                 </h3>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Clock times are a preference, not a reserved slot.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {consultationTimes.map((time) => (
                     <button

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarClock,
   CheckCircle2,
+  ChevronLeft,
   Download,
   FileText,
   ImageIcon,
@@ -81,6 +82,8 @@ export function SupportMessenger({
   const [newFile, setNewFile] = useState<File | null>(null);
   const [newErr, setNewErr] = useState<string | null>(null);
   const [ticketErr, setTicketErr] = useState<string | null>(null);
+  const [listErr, setListErr] = useState<string | null>(null);
+  const [sendOk, setSendOk] = useState(false);
   const [appointmentRef, setAppointmentRef] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -94,9 +97,15 @@ export function SupportMessenger({
       .select("*")
       .order("created_at", { ascending: false });
     if (mode === "user" && user) q = q.eq("user_id", user.id);
-    const { data } = await q;
+    const { data, error } = await q;
+    if (error) {
+      setListErr(error.message || "Could not load tickets.");
+      setLoadingList(false);
+      return [] as SupportTicket[];
+    }
     const list = (data ?? []) as SupportTicket[];
     setTickets(list);
+    setListErr(null);
     setLoadingList(false);
     return list;
   }, [supabase, mode, user]);
@@ -262,6 +271,8 @@ export function SupportMessenger({
       if (!res.ok) throw new Error(res.error ?? "Failed to send");
       setReply("");
       setReplyFile(null);
+      setSendOk(true);
+      window.setTimeout(() => setSendOk(false), 2500);
     } catch (err) {
       setTicketErr(err instanceof Error ? err.message : "Failed to send");
     } finally {
@@ -369,6 +380,11 @@ export function SupportMessenger({
         <div className="flex-1 overflow-y-auto">
           {loadingList ? (
             <div className="space-y-3 p-4"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
+          ) : listErr ? (
+            <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+              <p className="text-sm text-red-500">{listErr}</p>
+              <Button size="sm" variant="outline" onClick={() => { setLoadingList(true); loadTickets(); }}>Retry</Button>
+            </div>
           ) : tickets.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
               <Mail className="h-8 w-8 text-muted-foreground/50" />
@@ -452,11 +468,11 @@ export function SupportMessenger({
             {/* Header */}
             <div className="flex flex-wrap items-center gap-3 border-b border-border/60 px-5 py-3">
               <button
-                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary lg:hidden"
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary lg:hidden"
                 onClick={() => setSelectedId(null)}
                 aria-label="Back to tickets"
               >
-                <X className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4" /> Inbox
               </button>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 truncate font-display text-sm font-bold">
@@ -576,7 +592,8 @@ export function SupportMessenger({
             {/* Reply box */}
             {selectedTicket.status !== "closed" ? (
               <div className="border-t border-border/60 p-4">
-                {ticketErr && <p className="mb-2 text-xs text-red-500">{ticketErr}</p>}
+                {ticketErr && <p className="mb-2 text-xs text-red-500" role="alert">{ticketErr}</p>}
+                {sendOk && <p className="mb-2 text-xs text-emerald-600 dark:text-emerald-400" role="status">Message sent</p>}
                 <div className="flex items-end gap-2">
                   <FileInput onChange={setReplyFile} disabled={sending} />
                   <div className="flex min-w-0 flex-1 flex-col gap-2">

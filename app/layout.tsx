@@ -6,7 +6,7 @@ import { SmoothScrollProvider } from "@/components/layout/smooth-scroll";
 import { PortfolioChrome } from "@/components/layout/portfolio-chrome";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/sections/footer";
-import { Loader } from "@/components/effects/loader";
+import { IntroLoader } from "@/components/effects/intro-loader";
 import { TiltController } from "@/components/effects/tilt-controller";
 import { NoiseOverlay } from "@/components/effects/noise-overlay";
 import { ScrollProgress } from "@/components/effects/scroll-progress";
@@ -49,7 +49,7 @@ export default function RootLayout({
         <Providers>
           <SoundProvider>
             <SmoothScrollProvider />
-            <Loader />
+            <IntroLoader />
             <a
               href="#main-content"
               className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[300] focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-white"

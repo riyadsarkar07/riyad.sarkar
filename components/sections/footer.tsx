@@ -166,26 +166,12 @@ export function Footer() {
             © {year} {profile.name}. {t.footer.rights}
           </p>
           <div className="flex items-center gap-5 text-xs text-muted-foreground">
-            <a
-              href={hrefFor("#home")}
-              onClick={(e) => {
-                e.preventDefault();
-                go("#home");
-              }}
-              className="transition-colors hover:text-primary"
-            >
+            <Link href="/privacy" className="transition-colors hover:text-primary">
               {t.footer.privacy}
-            </a>
-            <a
-              href={hrefFor("#home")}
-              onClick={(e) => {
-                e.preventDefault();
-                go("#home");
-              }}
-              className="transition-colors hover:text-primary"
-            >
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-primary">
               {t.footer.terms}
-            </a>
+            </Link>
             <span className="flex items-center gap-1.5">
               {t.footer.madeWith} <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" />
             </span>

@@ -11,6 +11,7 @@ export const consultationFormSchema = z.object({
     .string()
     .min(1, "Please select a time.")
     .refine((value) => consultationTimes.includes(value), { message: "Please select a valid time." }),
+  timezone: z.string().trim().max(64).optional(),
   message: z
     .string()
     .trim()

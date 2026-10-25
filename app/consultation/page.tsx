@@ -7,7 +7,7 @@ export const maxDuration = 30;
 export const metadata: Metadata = buildMetadata({
   title: "Book a Consultation",
   description:
-    "Schedule a private session with Riyad Sarkar for account recovery, cyber security audit or business protection strategy. Choose an available date and time.",
+    "Request a private session with Riyad Sarkar for account recovery, cyber security audit or business protection strategy. Choose a preferred date and time.",
   path: "/consultation",
 });
 

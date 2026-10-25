@@ -213,7 +213,7 @@ function AppointmentDetail() {
                   className="flex h-12 w-full rounded-xl border border-input bg-white/60 px-4 py-2 text-sm text-foreground shadow-sm transition-all focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
                   aria-label="New time"
                 >
-                  <option value="">Select a new time…</option>
+                  <option value="">Select a preferred time…</option>
                   {TIME_SLOTS.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}

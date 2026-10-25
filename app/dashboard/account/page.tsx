@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   BadgeCheck,
   CalendarDays,
@@ -19,6 +20,13 @@ import { ChangePasswordForm } from "@/components/portal/change-password-form";
 export default function AccountPage() {
   const { user, profile, isAdmin } = useAuth();
   const verified = !!user?.email_confirmed_at;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#change-password") {
+      document.getElementById("change-password")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
 
   const rows = [
     {
@@ -87,7 +95,7 @@ export default function AccountPage() {
           </dl>
         </section>
 
-        <section id="change-password" className="glass gradient-border rounded-3xl p-6 sm:p-8">
+        <section id="change-password" className="glass gradient-border scroll-mt-24 rounded-3xl p-6 sm:p-8">
           <h3 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <KeyRound className="h-4 w-4 text-cyan-500" /> Change Password
           </h3>

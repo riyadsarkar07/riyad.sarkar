@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 /**
  * Luxury boot loader — animated logo, progress counter and a
@@ -10,8 +10,15 @@ import { AnimatePresence, motion } from "framer-motion";
 export function Loader({ onComplete }: { onComplete?: () => void }) {
   const [progress, setProgress] = useState(0);
   const [visible, setVisible] = useState(true);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      setProgress(100);
+      setVisible(false);
+      onComplete?.();
+      return;
+    }
     let value = 0;
     const interval = window.setInterval(() => {
       value += Math.floor(Math.random() * 22) + 14;
@@ -26,7 +33,7 @@ export function Loader({ onComplete }: { onComplete?: () => void }) {
       setProgress(value);
     }, 70);
     return () => window.clearInterval(interval);
-  }, [onComplete]);
+  }, [onComplete, reduceMotion]);
 
   return (
     <AnimatePresence>

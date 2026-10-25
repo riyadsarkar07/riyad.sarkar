@@ -253,14 +253,14 @@ const en: Dictionary = {
     subtitle:
       "Schedule a private session for account recovery, cyber security audit or business protection strategy.",
     pageIntro:
-      "This page is for scheduling a private one-to-one session. Choose an available date and time — it is not a general inbox or project enquiry.",
+      "This page is for requesting a private one-to-one session. Choose a preferred weekday and time — it is not a general inbox or project enquiry.",
     privateNote:
-      "Private sessions are for users who want a dedicated appointment with a selected date and time. Support conversations and project enquiries live on the Contact page.",
+      "Times shown are preferred slots in your local calendar, not live availability. Your request is reviewed before it is confirmed. Support conversations and project enquiries live on the Contact page.",
     formTitle: "Your session details",
-    formSubtitle: "Confirm the service and a short brief after selecting a date and time.",
-    selectDate: "Select a date",
-    selectDateHint: "Pick an available weekday for your private session.",
-    selectTime: "Select a time",
+    formSubtitle: "Confirm the service and a short brief after selecting a preferred date and time.",
+    selectDate: "Preferred date",
+    selectDateHint: "Pick a weekday you prefer. Weekend dates are not offered.",
+    selectTime: "Preferred time",
     weekendUnavailable: "Weekend unavailable",
     at: "at",
     confidential: "All consultations are handled with strict confidentiality.",
@@ -277,8 +277,8 @@ const en: Dictionary = {
       "Briefly describe your situation — the platform, what happened, and any details you can share.",
     submit: "Request Consultation",
     submitting: "Sending…",
-    success: "Appointment booked",
-    successSub: "Your consultation has been saved. Keep the reference number — I will confirm shortly.",
+    success: "Request received",
+    successSub: "Your preferred time has been saved. Keep the reference number — I will confirm availability shortly.",
     savedEmailFailed: "Your appointment was saved, but the notification email could not be delivered.",
     retryNotify: "Retry notification email",
     retryingNotify: "Sending notification…",
@@ -341,7 +341,7 @@ const en: Dictionary = {
     projectCta: "Open project form",
     consultationTitle: "Book a Consultation",
     consultationBody:
-      "Schedule a private session. You will pick an available date and time on a dedicated booking page.",
+      "Request a private session. You will pick a preferred date and time on a dedicated booking page.",
     consultationCta: "Choose date & time",
     contactByEmail: "Contact by Email",
   },
@@ -382,7 +382,7 @@ const en: Dictionary = {
   },
   gallery: {
     title: "Behind the Operations",
-    subtitle: "A glimpse into the cyber security lab — dashboards, servers and digital defense.",
+    subtitle: "Stylised visual studies of security operations — generated artwork, not live client dashboards or photos.",
   },
 };
 
@@ -451,14 +451,14 @@ const bn: Dictionary = {
     subtitle:
       "অ্যাকাউন্ট রিকভারি, সাইবার সিকিউরিটি অডিট বা ব্যবসায়িক সুরক্ষা কৌশলের জন্য ব্যক্তিগত সেশন বুক করুন।",
     pageIntro:
-      "এই পেজটি ব্যক্তিগত ওয়ান-টু-ওয়ান সেশন নির্ধারণের জন্য। একটি উপলব্ধ তারিখ ও সময় বেছে নিন — এটি সাধারণ ইনবক্স বা প্রজেক্ট এনকোয়ারি নয়।",
+      "এই পেজটি ব্যক্তিগত ওয়ান-টু-ওয়ান সেশনের অনুরোধের জন্য। আপনার পছন্দের কার্যদিবস ও সময় বেছে নিন — এটি সাধারণ ইনবক্স বা প্রজেক্ট এনকোয়ারি নয়।",
     privateNote:
-      "প্রাইভেট সেশন তাদের জন্য যারা নির্দিষ্ট তারিখ ও সময়সহ একটি নিবেদিত অ্যাপয়েন্টমেন্ট চান। সাপোর্ট কথোপকথন ও প্রজেক্ট এনকোয়ারি কন্টাক্ট পেজে আছে।",
+      "দেখানো সময়গুলো পছন্দের স্লট, লাইভ উপলব্ধতা নয়। অনুরোধ নিশ্চিত হওয়ার আগে পর্যালোচনা করা হয়। সাপোর্ট কথোপকথন ও প্রজেক্ট এনকোয়ারি কন্টাক্ট পেজে আছে।",
     formTitle: "আপনার সেশনের তথ্য",
-    formSubtitle: "তারিখ ও সময় বেছে নেওয়ার পর সেবা এবং সংক্ষিপ্ত বিবরণ নিশ্চিত করুন।",
-    selectDate: "তারিখ নির্বাচন করুন",
-    selectDateHint: "আপনার প্রাইভেট সেশনের জন্য একটি উপলব্ধ কার্যদিবস বেছে নিন।",
-    selectTime: "সময় নির্বাচন করুন",
+    formSubtitle: "পছন্দের তারিখ ও সময় বেছে নেওয়ার পর সেবা এবং সংক্ষিপ্ত বিবরণ নিশ্চিত করুন।",
+    selectDate: "পছন্দের তারিখ",
+    selectDateHint: "আপনি যে কার্যদিবস পছন্দ করেন সেটি বেছে নিন। সপ্তাহান্তে অফার করা হয় না।",
+    selectTime: "পছন্দের সময়",
     weekendUnavailable: "সপ্তাহান্তে উপলব্ধ নয়",
     at: "সময়ে",
     confidential: "সব পরামর্শ কঠোর গোপনীয়তার সাথে পরিচালিত হয়।",
@@ -474,8 +474,8 @@ const bn: Dictionary = {
     messagePlaceholder: "আপনার পরিস্থিতি সংক্ষেপে লিখুন — প্ল্যাটফর্ম, কী ঘটেছে এবং অন্যান্য তথ্য।",
     submit: "অনুরোধ পাঠান",
     submitting: "পাঠানো হচ্ছে…",
-    success: "অ্যাপয়েন্টমেন্ট বুক হয়েছে",
-    successSub: "আপনার পরামর্শ সংরক্ষণ করা হয়েছে। রেফারেন্স নম্বর রাখুন — শীঘ্রই নিশ্চিত করা হবে।",
+    success: "অনুরোধ গৃহীত হয়েছে",
+    successSub: "আপনার পছন্দের সময় সংরক্ষণ করা হয়েছে। রেফারেন্স নম্বর রাখুন — উপলব্ধতা শীঘ্রই নিশ্চিত করা হবে।",
     savedEmailFailed: "আপনার অ্যাপয়েন্টমেন্ট সংরক্ষণ হয়েছে, কিন্তু নোটিফিকেশন ইমেইল পাঠানো যায়নি।",
     retryNotify: "নোটিফিকেশন ইমেইল আবার পাঠান",
     retryingNotify: "নোটিফিকেশন পাঠানো হচ্ছে…",
@@ -579,7 +579,7 @@ const bn: Dictionary = {
   },
   gallery: {
     title: "অপারেশনের ভেতরে",
-    subtitle: "সাইবার সিকিউরিটি ল্যাব — ড্যাশবোর্ড, সার্ভার এবং ডিজিটাল প্রতিরক্ষার আভাস।",
+    subtitle: "সিকিউরিটি অপারেশনের স্টাইলাইজড ভিজ্যুয়াল — জেনারেটেড আর্টওয়ার্ক, লাইভ ক্লায়েন্ট ড্যাশবোর্ড বা ছবি নয়।",
   },
 };
 

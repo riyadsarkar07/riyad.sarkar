@@ -157,11 +157,11 @@ function BookingForm() {
             <CheckCircle2 className="h-10 w-10" />
           </div>
         </motion.div>
-        <h2 className="font-display text-2xl font-bold">Appointment requested!</h2>
+        <h2 className="font-display text-2xl font-bold">Appointment requested</h2>
         <p className="mt-3 text-sm text-muted-foreground">
           Your reference ID is{" "}
-          <span className="font-bold text-primary">{done}</span>. We&apos;ve emailed you a
-          confirmation and will review your case shortly.
+          <span className="font-bold text-primary">{done}</span>. Your preferred time is held as a
+          request until the team confirms it. We&apos;ve emailed you a receipt and will review your case shortly.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild>
@@ -179,7 +179,7 @@ function BookingForm() {
     <div>
       <PageHeader
         title="Book an Appointment"
-        subtitle="Tell us about your case — we'll confirm availability within 24 hours."
+        subtitle="Tell us about your case and a preferred time. We'll confirm availability within 24 hours — slots are not held until confirmed."
       />
 
       <form onSubmit={onSubmit} noValidate className="glass gradient-border rounded-3xl p-6 sm:p-8">
@@ -223,13 +223,13 @@ function BookingForm() {
           <Field label="Preferred Date" error={errors.date}>
             <Input required type="date" min={today} value={form.date} onChange={set("date")} />
           </Field>
-          <Field label="Available Time" error={errors.time}>
+          <Field label="Preferred Time" error={errors.time}>
             <select
               value={form.time}
               onChange={set("time")}
               className="form-control"
             >
-              <option value="">Select a time…</option>
+              <option value="">Select a preferred time…</option>
               {TIME_SLOTS.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}

@@ -10,21 +10,6 @@ interface Day {
   date: string;
 }
 
-function generateFallback(weeks = 52): Day[] {
-  const days: Day[] = [];
-  const now = new Date();
-  for (let i = weeks * 7 - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    const rand = Math.random();
-    const level =
-      rand > 0.92 ? 4 : rand > 0.78 ? 3 : rand > 0.58 ? 2 : rand > 0.32 ? 1 : 0;
-    const count = level === 0 ? 0 : Math.round(Math.random() * (level * 3) + 1);
-    days.push({ count, level: level as Day["level"], date: d.toISOString().slice(0, 10) });
-  }
-  return days;
-}
-
 const cellColors: Record<Day["level"], string> = {
   0: "bg-primary/[0.06]",
   1: "bg-sky-300/60 dark:bg-sky-800/60",
@@ -38,8 +23,9 @@ const cellColors: Record<Day["level"], string> = {
  * falls back to a locally generated activity grid when unavailable.
  */
 export function GitHubGraph({ username }: { username: string }) {
-  const [days, setDays] = useState<Day[]>(() => generateFallback(26));
+  const [days, setDays] = useState<Day[]>([]);
   const [loading, setLoading] = useState(true);
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +41,10 @@ export function GitHubGraph({ username }: { username: string }) {
             level: Math.min(4, Math.ceil(c.count / 4)) as Day["level"],
           }),
         );
-        if (mapped.length >= 49) setDays(mapped);
+        if (mapped.length >= 49) {
+          setDays(mapped.slice(-182));
+          setLive(true);
+        }
       })
       .catch(() => undefined)
       .finally(() => !cancelled && setLoading(false));
@@ -75,38 +64,48 @@ export function GitHubGraph({ username }: { username: string }) {
           GitHub Activity
           {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         </p>
-        <span className="text-xs font-semibold text-primary">{total} contributions</span>
-      </div>
-
-      <div className="flex gap-[3px] overflow-hidden">
-        {Array.from({ length: weeks }).map((_, week) => (
-          <div key={week} className="grid flex-1 grid-rows-7 gap-[3px]">
-            {days
-              .slice(week * 7, week * 7 + 7)
-              .map((d, i) => (
-                <span
-                  key={i}
-                  title={`${d.date}: ${d.count} contributions`}
-                  className={cn(
-                    "h-2.5 w-full rounded-[3px] transition-transform hover:scale-125",
-                    cellColors[d.level],
-                  )}
-                />
-              ))}
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-        <span className="truncate">@{username}</span>
-        <span className="flex items-center gap-1">
-          Less
-          {Object.values(cellColors).map((color) => (
-            <span key={color} className={cn("h-2 w-2 rounded-[2px]", color)} />
-          ))}
-          More
+        <span className="text-xs font-semibold text-primary">
+          {live ? `${total} contributions` : loading ? "Loading" : "Unavailable"}
         </span>
       </div>
+
+      {!live && !loading ? (
+        <p className="py-4 text-xs text-muted-foreground">
+          Live GitHub activity could not be loaded. No estimated data is shown.
+        </p>
+      ) : (
+        <>
+          <div className="flex gap-[3px] overflow-hidden">
+            {Array.from({ length: weeks }).map((_, week) => (
+              <div key={week} className="grid flex-1 grid-rows-7 gap-[3px]">
+                {days
+                  .slice(week * 7, week * 7 + 7)
+                  .map((d, i) => (
+                    <span
+                      key={i}
+                      title={`${d.date}: ${d.count} contributions`}
+                      className={cn(
+                        "h-2.5 w-full rounded-[3px] transition-transform hover:scale-125",
+                        cellColors[d.level],
+                      )}
+                    />
+                  ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="truncate">@{username}</span>
+            <span className="flex items-center gap-1">
+              Less
+              {Object.values(cellColors).map((color) => (
+                <span key={color} className={cn("h-2 w-2 rounded-[2px]", color)} />
+              ))}
+              More
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

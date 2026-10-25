@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check } from "lucide-react";
-import { services } from "@/data/content";
+import { ArrowUpRight, Check, ChevronDown } from "lucide-react";
+import { serviceCategories, services } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { RevealGroup, RevealItem } from "@/components/effects/reveal";
 import { TiltCard } from "@/components/effects/tilt-card";
@@ -18,6 +18,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+const FEATURED_LIMIT = 6;
 
 function ServiceCard({ id }: { id: string }) {
   const { t } = useI18n();
@@ -75,7 +78,7 @@ function ServiceCard({ id }: { id: string }) {
 
           <div>
             <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              What's included
+              What&apos;s included
             </h4>
             <ul className="space-y-2.5">
               {service.features.map((feature) => (
@@ -88,7 +91,7 @@ function ServiceCard({ id }: { id: string }) {
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
-            <Badge variant="gradient">{service.title}</Badge>
+            <Badge variant="gradient">{service.category}</Badge>
             <Button size="sm" asChild>
               <Link href="/consultation" onClick={() => setOpen(false)}>
                 {t.common.bookConsultation}
@@ -101,8 +104,24 @@ function ServiceCard({ id }: { id: string }) {
   );
 }
 
-/** Services grid — premium glass cards with 3D tilt. */
+/** Services grid — featured cards by category, with a view-all interaction. */
 export function Services() {
+  const [filter, setFilter] = useState<string>("Featured");
+  const [showAll, setShowAll] = useState(false);
+
+  const featured = useMemo(() => {
+    const marked = services.filter((s) => s.featured);
+    return marked.length >= FEATURED_LIMIT ? marked.slice(0, FEATURED_LIMIT) : services.slice(0, FEATURED_LIMIT);
+  }, []);
+
+  const visible = useMemo(() => {
+    if (filter === "Featured" && !showAll) return featured;
+    if (filter === "Featured") return services;
+    return services.filter((s) => s.category === filter);
+  }, [filter, showAll, featured]);
+
+  const filters = ["Featured", ...serviceCategories];
+
   return (
     <section id="services" className="section relative overflow-hidden">
       <div className="bg-grid pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
@@ -113,13 +132,49 @@ export function Services() {
           description="From urgent account recovery to long-term business protection — every service is handled personally with proven, documented methods."
         />
 
+        <div className="mt-8 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Service categories">
+          {filters.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              role="tab"
+              aria-selected={filter === cat}
+              onClick={() => {
+                setFilter(cat);
+                if (cat !== "Featured") setShowAll(true);
+              }}
+              className={cn(
+                "rounded-full px-4 py-2 text-sm font-medium transition-all duration-300",
+                filter === cat
+                  ? "btn-primary-glow text-white shadow-glow"
+                  : "glass text-muted-foreground hover:text-primary",
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         <RevealGroup className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 sm:gap-5 md:mt-12 lg:grid-cols-3">
-          {services.map((service) => (
+          {visible.map((service) => (
             <RevealItem key={service.id}>
               <ServiceCard id={service.id} />
             </RevealItem>
           ))}
         </RevealGroup>
+
+        {filter === "Featured" && !showAll && services.length > featured.length && (
+          <div className="mt-8 flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowAll(true)}
+              aria-expanded={showAll}
+            >
+              View all {services.length} services
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

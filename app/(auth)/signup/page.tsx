@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -18,9 +18,11 @@ import { AuthShell, Field } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
+import { safeNextPath } from "@/lib/safe-path";
 
 function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signUp } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -58,7 +60,7 @@ function SignupForm() {
     if (needsEmailConfirmation) {
       setSent(true);
     } else {
-      router.push("/dashboard");
+      router.push(safeNextPath(searchParams.get("next")) ?? "/dashboard");
       router.refresh();
     }
   };
@@ -77,7 +79,17 @@ function SignupForm() {
           We sent a verification link to <strong className="text-foreground">{email}</strong>.
           Click it to activate your account, then sign in.
         </p>
-        <Button variant="outline" className="mt-6" onClick={() => router.push("/login")}>
+        <Button
+          variant="outline"
+          className="mt-6"
+          onClick={() =>
+            router.push(
+              safeNextPath(searchParams.get("next"))
+                ? `/login?next=${encodeURIComponent(searchParams.get("next") ?? "")}`
+                : "/login",
+            )
+          }
+        >
           Go to Sign In
         </Button>
       </div>
@@ -182,9 +194,30 @@ function SignupForm() {
         )}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        By creating an account you agree to our terms and privacy policy.
+        By creating an account you agree to our{" "}
+        <Link href="/terms" className="font-semibold text-primary hover:underline">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="font-semibold text-primary hover:underline">
+          Privacy Policy
+        </Link>
+        .
       </p>
     </form>
+  );
+}
+
+function SignupLoginLink() {
+  const searchParams = useSearchParams();
+  const next = safeNextPath(searchParams.get("next"));
+  return (
+    <Link
+      href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+      className="font-semibold text-primary hover:underline"
+    >
+      Sign in
+    </Link>
   );
 }
 
@@ -196,9 +229,9 @@ export default function SignupPage() {
       footer={
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-primary hover:underline">
-            Sign in
-          </Link>
+          <Suspense fallback={<Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link>}>
+            <SignupLoginLink />
+          </Suspense>
         </p>
       }
     >

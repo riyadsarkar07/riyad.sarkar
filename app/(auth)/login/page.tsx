@@ -8,6 +8,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
+import { safeNextPath } from "@/lib/safe-path";
 
 function LoginForm() {
   const router = useRouter();
@@ -35,8 +36,8 @@ function LoginForm() {
       setError(err);
       return;
     }
-    const next = searchParams.get("next");
-    router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
+    const next = safeNextPath(searchParams.get("next"));
+    router.push(next ?? "/dashboard");
     router.refresh();
   };
 
@@ -110,6 +111,15 @@ function LoginForm() {
           </>
         )}
       </Button>
+      <p className="text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <Link
+          href={safeNextPath(searchParams.get("next")) ? `/signup?next=${encodeURIComponent(searchParams.get("next") ?? "")}` : "/signup"}
+          className="font-semibold text-primary hover:underline"
+        >
+          Create one
+        </Link>
+      </p>
     </form>
   );
 }
@@ -119,14 +129,6 @@ export default function LoginPage() {
     <AuthShell
       title="Welcome back"
       subtitle="Sign in to manage appointments and support"
-      footer={
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-semibold text-primary hover:underline">
-            Create one
-          </Link>
-        </p>
-      }
     >
       <Suspense>
         <LoginForm />

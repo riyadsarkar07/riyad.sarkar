@@ -14,6 +14,8 @@ export interface Service {
   icon: string;
   features: string[];
   gradient: string;
+  category: string;
+  featured?: boolean;
 }
 
 export interface ExperienceItem {

@@ -16,7 +16,7 @@ export function SoundToggle() {
         toggle();
         playClick();
       }}
-      className="glass-strong fixed bottom-[5.25rem] right-4 z-[90] flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glass transition-colors duration-200 hover:text-primary sm:h-11 sm:w-11 md:bottom-6 md:right-24"
+      className="glass-strong fixed bottom-[5.25rem] right-4 z-[70] hidden h-10 w-10 items-center justify-center rounded-full text-muted-foreground shadow-glass transition-colors duration-200 hover:text-primary md:flex md:bottom-6 md:right-24"
       aria-label={enabled ? "Disable sound effects" : "Enable sound effects"}
       title={enabled ? "Sound: on" : "Sound: off"}
     >
@@ -87,8 +87,12 @@ export function CookieConsent() {
             <div className="flex-1">
               <p className="font-display text-sm font-bold">We respect your privacy</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                This site uses essential local storage for preferences (theme, language) and
-                privacy-friendly analytics. No tracking cookies are used.
+                This site uses essential local storage for preferences (theme, language).
+                No tracking cookies are used. See the{" "}
+                <a href="/privacy" className="font-semibold text-primary hover:underline">
+                  Privacy Policy
+                </a>
+                .
               </p>
             </div>
           </div>

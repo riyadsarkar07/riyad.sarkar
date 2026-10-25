@@ -124,6 +124,8 @@ export const services: Service[] = [
     icon: "facebook",
     features: ["Hacked accounts", "Disabled accounts", "Locked / checkpoint"],
     gradient: "from-sky-500/20 to-blue-600/10",
+    category: "Account Recovery",
+    featured: true,
   },
   {
     id: "facebook-page",
@@ -133,6 +135,7 @@ export const services: Service[] = [
     icon: "globe",
     features: ["Page hijacking", "Lost admin access", "Fan page restoration"],
     gradient: "from-blue-600/20 to-indigo-600/10",
+    category: "Account Recovery",
   },
   {
     id: "instagram-recovery",
@@ -142,6 +145,8 @@ export const services: Service[] = [
     icon: "instagram",
     features: ["Hacked accounts", "Disabled accounts", "Two-factor lockout"],
     gradient: "from-fuchsia-500/15 to-pink-500/10",
+    category: "Account Recovery",
+    featured: true,
   },
   {
     id: "business-manager",
@@ -151,6 +156,8 @@ export const services: Service[] = [
     icon: "briefcase",
     features: ["BM ownership", "Ad account access", "Business verification"],
     gradient: "from-cyan-500/20 to-blue-500/10",
+    category: "Meta & Advertising",
+    featured: true,
   },
   {
     id: "facebook-ads",
@@ -160,6 +167,7 @@ export const services: Service[] = [
     icon: "megaphone",
     features: ["Ad account bans", "Payment issues", "Account quality flags"],
     gradient: "from-amber-500/15 to-orange-500/10",
+    category: "Meta & Advertising",
   },
   {
     id: "meta-verification",
@@ -169,6 +177,7 @@ export const services: Service[] = [
     icon: "badgeCheck",
     features: ["Blue badge", "Business verification", "Official status"],
     gradient: "from-blue-500/20 to-sky-500/10",
+    category: "Meta & Advertising",
   },
   {
     id: "youtube-recovery",
@@ -178,6 +187,7 @@ export const services: Service[] = [
     icon: "youtube",
     features: ["Channel hijacking", "Brand account access", "Monetization restore"],
     gradient: "from-red-500/15 to-rose-500/10",
+    category: "Account Recovery",
   },
   {
     id: "google-account",
@@ -187,6 +197,7 @@ export const services: Service[] = [
     icon: "mail",
     features: ["Gmail recovery", "Google Ads access", "Workspace restore"],
     gradient: "from-emerald-500/15 to-teal-500/10",
+    category: "Account Recovery",
   },
   {
     id: "copyright",
@@ -196,6 +207,7 @@ export const services: Service[] = [
     icon: "copyright",
     features: ["DMCA takedowns", "Content theft", "Copyright registration"],
     gradient: "from-indigo-500/20 to-violet-500/10",
+    category: "Content & Identity",
   },
   {
     id: "dmca",
@@ -205,6 +217,7 @@ export const services: Service[] = [
     icon: "scale",
     features: ["Takedown notices", "Legal guidance", "Retraction strategy"],
     gradient: "from-purple-500/15 to-indigo-500/10",
+    category: "Content & Identity",
   },
   {
     id: "fake-account",
@@ -214,6 +227,7 @@ export const services: Service[] = [
     icon: "userX",
     features: ["Impersonation", "Scam accounts", "Brand impersonation"],
     gradient: "from-rose-500/15 to-red-500/10",
+    category: "Content & Identity",
   },
   {
     id: "identity-protection",
@@ -223,6 +237,8 @@ export const services: Service[] = [
     icon: "fingerprint",
     features: ["Identity monitoring", "Dark web alerts", "Preventive hardening"],
     gradient: "from-sky-500/20 to-cyan-500/10",
+    category: "Content & Identity",
+    featured: true,
   },
   {
     id: "security-consultation",
@@ -232,6 +248,8 @@ export const services: Service[] = [
     icon: "shieldCheck",
     features: ["Risk assessment", "Security roadmap", "Expert guidance"],
     gradient: "from-blue-600/20 to-cyan-500/10",
+    category: "Security & Advisory",
+    featured: true,
   },
   {
     id: "privacy-protection",
@@ -241,6 +259,7 @@ export const services: Service[] = [
     icon: "lock",
     features: ["Privacy audit", "Data minimization", "Exposure removal"],
     gradient: "from-teal-500/15 to-emerald-500/10",
+    category: "Security & Advisory",
   },
   {
     id: "risk-assessment",
@@ -250,6 +269,7 @@ export const services: Service[] = [
     icon: "scanSearch",
     features: ["Full audit", "Exposure scan", "Actionable report"],
     gradient: "from-cyan-500/20 to-sky-500/10",
+    category: "Security & Advisory",
   },
   {
     id: "business-protection",
@@ -259,6 +279,8 @@ export const services: Service[] = [
     icon: "building2",
     features: ["Team training", "Account security", "Brand defense"],
     gradient: "from-indigo-500/20 to-blue-600/10",
+    category: "Security & Advisory",
+    featured: true,
   },
   {
     id: "email-security",
@@ -268,6 +290,7 @@ export const services: Service[] = [
     icon: "shieldAlert",
     features: ["Phishing defense", "SPF / DKIM setup", "Takeover prevention"],
     gradient: "from-sky-500/20 to-blue-500/10",
+    category: "Security & Advisory",
   },
   {
     id: "brand-protection",
@@ -277,6 +300,7 @@ export const services: Service[] = [
     icon: "trademark",
     features: ["Brand monitoring", "Takedown strategy", "Domain defense"],
     gradient: "from-blue-500/20 to-violet-500/10",
+    category: "Content & Identity",
   },
   {
     id: "reputation",
@@ -286,6 +310,7 @@ export const services: Service[] = [
     icon: "star",
     features: ["Reputation audit", "Review strategy", "Search presence"],
     gradient: "from-amber-500/15 to-yellow-500/10",
+    category: "Content & Identity",
   },
 ];
 
@@ -802,4 +827,21 @@ export const consultationTimes = [
   "08:00 PM",
 ];
 
-export const galleryCategories = ["All", "Monitoring", "Protection", "Infrastructure", "Analytics", "Response"];
+export const galleryCategories = [
+  "All",
+  "Monitoring",
+  "Protection",
+  "Infrastructure",
+  "Analytics",
+  "Response",
+  "Networking",
+  "Cryptography",
+  "Scanning",
+];
+
+export const serviceCategories = [
+  "Account Recovery",
+  "Meta & Advertising",
+  "Content & Identity",
+  "Security & Advisory",
+] as const;
