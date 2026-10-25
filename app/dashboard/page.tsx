@@ -135,7 +135,7 @@ export default function DashboardOverviewPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass gradient-border rounded-2xl p-5"
+          className="saas-card p-5"
         >
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
@@ -163,7 +163,7 @@ export default function DashboardOverviewPage() {
                 <li key={a.id}>
                   <Link
                     href={`/dashboard/appointments/${a.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-muted/70"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{a.service}</p>
@@ -185,7 +185,7 @@ export default function DashboardOverviewPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass gradient-border rounded-2xl p-5"
+          className="saas-card p-5"
         >
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
@@ -213,7 +213,7 @@ export default function DashboardOverviewPage() {
                 <li key={t.id}>
                   <Link
                     href={`/dashboard/support/${t.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-muted/70"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.subject}</p>
@@ -237,7 +237,7 @@ export default function DashboardOverviewPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="glass gradient-border mt-6 rounded-2xl p-5"
+          className="saas-card mt-6 p-5"
         >
           <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <Bell className="h-4 w-4 text-cyan-500" /> Recent Activity

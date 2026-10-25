@@ -20,7 +20,7 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden border-t border-border/70 bg-gradient-to-b from-transparent to-sky-50/70 dark:to-slate-950/70">
+    <footer className="relative overflow-hidden border-t border-border/70 bg-background">
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
       <div className="container relative pb-10 pt-16">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">

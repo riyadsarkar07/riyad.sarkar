@@ -117,7 +117,7 @@ function AppointmentDetail() {
 
   if (notFound || !appointment) {
     return (
-      <div className="glass gradient-border flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
+      <div className="saas-card flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
         <X className="h-10 w-10 text-red-500" />
         <p className="text-sm text-muted-foreground">Appointment not found or you don't have access to it.</p>
         <Button variant="outline" onClick={() => router.push("/dashboard/appointments")}>Back to appointments</Button>
@@ -146,7 +146,7 @@ function AppointmentDetail() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass gradient-border rounded-2xl p-6">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="saas-card rounded-2xl p-6">
           <h2 className="mb-4 font-display text-base font-bold">Full Details</h2>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             {[
@@ -202,7 +202,7 @@ function AppointmentDetail() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-5">
-          <div className="glass gradient-border rounded-2xl p-6">
+          <div className="saas-card rounded-2xl p-6">
             <h2 className="mb-3 font-display text-base font-bold">Appointment Actions</h2>
             {reschedule ? (
               <div className="space-y-3">

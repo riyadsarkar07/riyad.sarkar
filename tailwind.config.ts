@@ -29,16 +29,16 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#0ea5e9",
+          DEFAULT: "#0284c7",
           foreground: "#ffffff",
         },
         secondary: {
-          DEFAULT: "#2563eb",
+          DEFAULT: "#0f172a",
           foreground: "#ffffff",
         },
         accent: {
           DEFAULT: "#38bdf8",
-          foreground: "#052035",
+          foreground: "#082f49",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -72,11 +72,12 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        glass: "0 10px 28px rgba(8, 74, 140, 0.08)",
-        "glass-lg": "0 18px 44px rgba(8, 74, 140, 0.12)",
-        glow: "0 8px 24px rgba(14, 165, 233, 0.18)",
-        "glow-lg": "0 14px 36px rgba(14, 165, 233, 0.2)",
-        "inner-glow": "inset 0 0 24px rgba(14, 165, 233, 0.08)",
+        glass: "0 12px 32px rgba(15, 23, 42, 0.06)",
+        "glass-lg": "0 22px 48px rgba(15, 23, 42, 0.1)",
+        glow: "0 10px 24px rgba(2, 132, 199, 0.16)",
+        "glow-lg": "0 16px 36px rgba(2, 132, 199, 0.18)",
+        "inner-glow": "inset 0 0 24px rgba(14, 165, 233, 0.05)",
+        saas: "0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.04)",
       },
       keyframes: {
         "accordion-down": {
@@ -240,7 +241,7 @@ const config: Config = {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic": "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
         "mesh-blue":
-          "radial-gradient(at 20% 20%, rgba(56, 189, 248, 0.18) 0, transparent 50%), radial-gradient(at 80% 0%, rgba(37, 99, 235, 0.14) 0, transparent 50%), radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.12) 0, transparent 50%)",
+          "radial-gradient(at 18% 12%, rgba(14, 165, 233, 0.1) 0, transparent 48%), radial-gradient(at 82% 0%, rgba(37, 99, 235, 0.07) 0, transparent 46%), radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.06) 0, transparent 50%)",
         "noise": "url('/noise.svg')",
       },
     },

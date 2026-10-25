@@ -87,7 +87,7 @@ export function About() {
               <RevealItem key={pillar.title}>
                 <Spotlight className="h-full rounded-[1.35rem]">
                 <div className="group glass hover-lift flex h-full gap-5 rounded-[1.35rem] p-5 sm:p-6">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-white">
                     <pillar.icon className="h-6 w-6" />
                   </div>
                   <div>
@@ -125,7 +125,7 @@ export function About() {
                     <span className="absolute left-6 top-3 -translate-x-1/2 md:left-1/2">
                       <TimelineNode>
                         <span
-                          className={`relative block h-5 w-5 rounded-full bg-gradient-to-br ${timelineIconColor[item.type] ?? "from-blue-600 to-cyan-400"} shadow-glow`}
+                          className={`relative block h-4 w-4 rounded-full bg-gradient-to-br ${timelineIconColor[item.type] ?? "from-sky-600 to-cyan-400"}`}
                         />
                       </TimelineNode>
                     </span>

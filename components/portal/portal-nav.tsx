@@ -59,13 +59,13 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "bg-gradient-to-r from-blue-600/15 to-cyan-400/15 text-primary shadow-inner"
-                  : "text-muted-foreground hover:bg-primary/5 hover:text-primary",
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <item.icon className={cn("h-4.5 w-4.5", active ? "text-cyan-500" : "text-muted-foreground group-hover:text-primary")} />
+              <item.icon className={cn("h-4 w-4", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
               {item.label}
-              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-glow" />}
+              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
             </Link>
           );
         })}
@@ -73,7 +73,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
 
       <div className="border-t border-border/60 p-4">
         <div className="mb-3 flex items-center gap-3 rounded-xl bg-primary/5 px-3 py-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-400 text-sm font-bold text-white">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
             {(profile?.full_name ?? "U").charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -91,7 +91,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/70 bg-background/80 shadow-[8px_0_28px_rgba(8,74,140,0.05)] backdrop-blur-xl lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border bg-card/90 backdrop-blur-xl lg:block">
         {sidebar}
       </aside>
 
@@ -122,7 +122,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
-              className="glass-strong fixed inset-y-0 left-0 z-[61] w-72 max-w-[85vw] shadow-glass-lg lg:hidden"
+              className="saas-card fixed inset-y-0 left-0 z-[61] w-72 max-w-[85vw] rounded-none border-y-0 border-l-0 lg:hidden"
             >
               <button
                 onClick={() => setOpen(false)}
@@ -143,7 +143,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
 export function PortalTitle({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
         <ShieldCheck className="h-5 w-5" />
       </div>
       <div>

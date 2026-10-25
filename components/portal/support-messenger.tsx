@@ -50,6 +50,20 @@ function fmtTime(d: string) {
   return new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+function fmtDay(d: string) {
+  return new Date(d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function isSameDay(a: string, b: string) {
+  const da = new Date(a);
+  const db = new Date(b);
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+}
+
 export function SupportMessenger({
   mode,
   initialTicketId,
@@ -355,7 +369,7 @@ export function SupportMessenger({
   /* ------------------------------------------------------------------ */
 
   return (
-    <div className="glass gradient-border flex h-[calc(100dvh-13rem)] min-h-[480px] flex-col overflow-hidden rounded-3xl lg:flex-row">
+    <div className="saas-card flex h-[calc(100dvh-13rem)] min-h-[480px] flex-col overflow-hidden lg:flex-row">
       {/* Ticket list */}
       <aside className={cn("flex w-full flex-col border-b border-border/60 lg:w-80 lg:border-b-0 lg:border-r", selectedId ? "hidden lg:flex" : "")}>
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
@@ -393,7 +407,7 @@ export function SupportMessenger({
                       }}
                       className={cn(
                         "flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors",
-                        active ? "bg-gradient-to-r from-blue-600/10 to-cyan-400/10" : "hover:bg-primary/5",
+                        active ? "bg-primary/10" : "hover:bg-muted/60",
                       )}
                     >
                       <span className="text-lg leading-none">{CATEGORY_ICON[t.category] ?? "💬"}</span>
@@ -401,7 +415,7 @@ export function SupportMessenger({
                         <span className="flex items-center justify-between gap-2">
                           <span className="truncate text-sm font-semibold">{t.subject}</span>
                           {unreadCount > 0 && (
-                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1.5 text-[10px] font-bold text-white">
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-white">
                               {unreadCount}
                             </span>
                           )}
@@ -429,7 +443,7 @@ export function SupportMessenger({
       <section className={cn("flex min-w-0 flex-1 flex-col", !selectedId ? "hidden lg:flex" : "")}>
         {!selectedTicket ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/20 to-cyan-400/20 text-cyan-500">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Lock className="h-7 w-7" />
             </div>
             {mode === "user" ? (
@@ -519,13 +533,21 @@ export function SupportMessenger({
                   No messages yet — say hello.
                 </p>
               ) : (
-                messages.map((m) => {
+                messages.map((m, index) => {
                   const mine = mode === "admin" ? m.sender_role === "admin" : m.sender_role === "user";
                   const file = m.attachment_file_id ? fileMap[m.attachment_file_id] : null;
+                  const showDay = index === 0 || !isSameDay(messages[index - 1].created_at, m.created_at);
                   return (
+                    <div key={m.id}>
+                      {showDay && (
+                        <div className="my-3 flex items-center gap-3">
+                          <span className="h-px flex-1 bg-border" />
+                          <span className="text-[11px] font-medium text-muted-foreground">{fmtDay(m.created_at)}</span>
+                          <span className="h-px flex-1 bg-border" />
+                        </div>
+                      )}
                     <motion.div
-                      key={m.id}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={cn("flex", mine ? "justify-end" : "justify-start")}
                     >
@@ -534,12 +556,12 @@ export function SupportMessenger({
                           className={cn(
                             "inline-block rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed",
                             mine
-                              ? "rounded-br-md bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-glow"
-                              : "rounded-bl-md bg-primary/5 text-foreground",
+                              ? "rounded-br-md chat-mine"
+                              : "rounded-bl-md chat-theirs",
                           )}
                         >
                           {!mine && (
-                            <p className={cn("mb-1 text-[10px] font-bold uppercase tracking-wide", mine ? "text-white/70" : "text-cyan-500")}>
+                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-primary">
                               {mode === "admin" ? "Client" : "Support Team"}
                             </p>
                           )}
@@ -568,6 +590,7 @@ export function SupportMessenger({
                         </p>
                       </div>
                     </motion.div>
+                    </div>
                   );
                 })
               )}
@@ -591,7 +614,7 @@ export function SupportMessenger({
                       }}
                       placeholder={mode === "user" ? "Write a reply…" : "Reply as admin…"}
                       rows={2}
-                      className="flex-1 rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
+                      className="flex-1 rounded-xl border border-input bg-muted/40 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none"
                       aria-label="Reply message"
                     />
                     <Button size="sm" onClick={sendReply} disabled={sending || !reply.trim()} className="self-end">
@@ -646,7 +669,7 @@ export function SupportMessenger({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 40, scale: 0.96 }}
                     transition={{ type: "spring", stiffness: 260, damping: 26 }}
-                    className="glass-strong pointer-events-auto max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-3xl p-6 shadow-glow-lg"
+                    className="saas-card pointer-events-auto max-h-[90dvh] w-full max-w-lg overflow-y-auto p-6 shadow-glass-lg"
                     role="dialog"
                     aria-label="New support ticket"
                   >

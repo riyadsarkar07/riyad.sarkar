@@ -237,7 +237,7 @@ export function Contact() {
               const inner = (
                 <>
                   <div
-                    className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${path.gradient} text-white shadow-glow sm:h-12 sm:w-12`}
+                    className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${path.gradient} text-white sm:h-12 sm:w-12`}
                   >
                     <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
@@ -493,7 +493,7 @@ export function Contact() {
             <div className="flex flex-col gap-5">
               <div className="glass gradient-border rounded-3xl p-5 sm:p-7">
                 <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow sm:h-12 sm:w-12">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white sm:h-12 sm:w-12">
                     <MapPin className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
                   <div>

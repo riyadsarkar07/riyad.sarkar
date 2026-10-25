@@ -81,16 +81,16 @@ export function Hero() {
         <CyberGrid />
       </div>
       <div data-depth="0.28" className="pointer-events-none absolute inset-0">
-        <ParticleBackground density={38} />
+        <ParticleBackground density={22} />
       </div>
       <span
         data-depth="0.42"
-        className="pointer-events-none absolute left-[8%] top-[18%] hidden h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl motion-reduce:animate-none animate-hero-orb md:block"
+        className="pointer-events-none absolute left-[8%] top-[18%] hidden h-40 w-40 rounded-full bg-cyan-400/12 blur-3xl motion-reduce:animate-none animate-hero-orb md:block"
         aria-hidden
       />
       <span
         data-depth="0.32"
-        className="pointer-events-none absolute right-[10%] top-[28%] hidden h-52 w-52 rounded-full bg-blue-500/16 blur-3xl motion-reduce:animate-none animate-hero-orb md:block"
+        className="pointer-events-none absolute right-[10%] top-[28%] hidden h-52 w-52 rounded-full bg-blue-500/10 blur-3xl motion-reduce:animate-none animate-hero-orb md:block"
         style={{ animationDelay: "-4s" }}
         aria-hidden
       />
@@ -108,7 +108,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 18, filter: "blur(8px)" }}
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: duration.slow, ease: easeOutExpo }}
-            className="mb-4 flex flex-wrap items-center justify-center min-[390px]:mb-5 sm:mb-7 lg:justify-start"
+            className="mb-5 flex flex-wrap items-center justify-center min-[390px]:mb-6 sm:mb-8 lg:justify-start"
           >
             <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium min-[390px]:px-4 min-[390px]:py-2 min-[390px]:text-sm">
               <span className="relative flex h-2 w-2">
@@ -120,7 +120,7 @@ export function Hero() {
             </span>
           </motion.div>
 
-          <h1 className="flex flex-wrap justify-center gap-x-[0.32em] text-[2.15rem] font-bold leading-[1.05] tracking-tight min-[390px]:text-[2.45rem] min-[430px]:text-5xl sm:text-6xl md:text-7xl lg:justify-start lg:text-[4.6rem]">
+          <h1 className="flex flex-wrap justify-center gap-x-[0.32em] text-[2.15rem] font-semibold leading-[1.02] tracking-tight min-[390px]:text-[2.45rem] min-[430px]:text-5xl sm:text-6xl md:text-7xl lg:justify-start lg:text-[4.75rem]">
             <TextReveal text={t.hero.name.split(" ")[0]} delay={0.08} />
             <TextReveal text={lastName} delay={0.18} gradientWords={lastName.split(" ")} />
           </h1>
@@ -131,13 +131,13 @@ export function Hero() {
             transition={{ duration: duration.slow, delay: 0.42, ease: easeOutExpo }}
             className="mt-3 flex min-h-[1.5em] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[0.98rem] font-medium min-[390px]:mt-4 min-[390px]:text-lg sm:mt-5 sm:text-2xl lg:justify-start"
           >
-            <span className="hidden h-6 w-1 rounded-full bg-gradient-to-b from-sky-500 to-blue-600 sm:block" />
+            <span className="hidden h-6 w-px rounded-full bg-primary/70 sm:block" />
             <span className="text-muted-foreground">{t.hero.role1}</span>
             <span className="hidden text-muted-foreground/50 sm:inline">·</span>
             <span className="inline-flex items-center gap-1" style={{ opacity: isDeleting ? 0.45 : 1 }}>
               <span className="text-gradient font-semibold">{typed}</span>
               <span
-                className="ml-0.5 inline-block h-[1.1em] w-[2px] rounded-full bg-gradient-to-b from-sky-500 to-blue-600 animate-blink"
+                className="ml-0.5 inline-block h-[1.1em] w-[2px] rounded-full bg-primary animate-blink"
                 aria-hidden
               />
             </span>
@@ -176,7 +176,7 @@ export function Hero() {
             initial={{ opacity: 0, x: -24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.95, duration: 0.7, ease: easeOutExpo }}
-            className="glass-strong absolute left-0 top-6 z-20 hidden items-center gap-2 rounded-2xl px-3 py-2 shadow-glass motion-reduce:animate-none animate-float-card sm:flex sm:top-10 sm:px-4 sm:py-2.5"
+            className="glass-strong absolute left-0 top-6 z-20 hidden items-center gap-2 rounded-2xl px-3 py-2 shadow-glass sm:flex sm:top-10 sm:px-4 sm:py-2.5"
           >
             <ShieldCheck className="h-5 w-5 text-cyan-500" />
             <div className="text-left">
@@ -190,7 +190,7 @@ export function Hero() {
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 1.08, duration: 0.7, ease: easeOutExpo }}
-            className="glass-strong absolute bottom-8 right-0 z-20 hidden items-center gap-2 rounded-2xl px-3 py-2 shadow-glass motion-reduce:animate-none animate-float-card sm:flex sm:bottom-12 sm:px-4 sm:py-2.5"
+            className="glass-strong absolute bottom-8 right-0 z-20 hidden items-center gap-2 rounded-2xl px-3 py-2 shadow-glass sm:flex sm:bottom-12 sm:px-4 sm:py-2.5"
             style={{ animationDelay: "-2.4s" }}
           >
             <span className="relative flex h-2.5 w-2.5">
@@ -213,7 +213,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: duration.slow, delay: 0.64, ease: easeOutExpo }}
-            className="mt-5 flex w-full flex-col gap-2.5 min-[390px]:mt-6 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3 lg:justify-start"
+            className="mt-6 flex w-full flex-col gap-2.5 min-[390px]:mt-7 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-3 lg:justify-start"
           >
             <Magnetic strength={0.38} className="block w-full sm:inline-block sm:w-auto">
               <Button
@@ -271,7 +271,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: duration.slow, delay: 0.86, ease: easeOutExpo }}
-            className="mt-5 inline-flex items-center gap-2.5 rounded-2xl border border-cyan-300/40 bg-cyan-400/10 px-3.5 py-2.5 backdrop-blur-sm min-[390px]:mt-6 sm:mt-8 sm:gap-3 sm:px-4 sm:py-3"
+            className="mt-6 inline-flex items-center gap-2.5 rounded-2xl border border-border/80 bg-background/60 px-3.5 py-2.5 backdrop-blur-sm min-[390px]:mt-7 sm:mt-8 sm:gap-3 sm:px-4 sm:py-3"
           >
             <BadgeCheck className="h-6 w-6 shrink-0 text-cyan-500 sm:h-8 sm:w-8" />
             <div className="text-left">

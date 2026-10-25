@@ -98,11 +98,11 @@ export default function AdminFilesPage() {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
+        <div className="saas-card rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
           No files uploaded yet.
         </div>
       ) : (
-        <div className="glass gradient-border overflow-x-auto rounded-2xl">
+        <div className="saas-card overflow-x-auto rounded-2xl">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">

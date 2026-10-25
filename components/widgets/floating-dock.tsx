@@ -43,7 +43,7 @@ export function FloatingDock() {
       initial={{ y: 90 }}
       animate={{ y: 0 }}
       transition={{ delay: 1.6, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-      className="pointer-events-auto fixed bottom-6 left-1/2 z-[80] hidden -translate-x-1/2 xl:block"
+      className="pointer-events-auto fixed bottom-6 left-1/2 z-[80] hidden -translate-x-1/2 2xl:block"
       aria-label="Quick navigation dock"
     >
       <div       className="glass-strong flex items-center gap-1.5 rounded-full p-1.5 shadow-glass-lg">

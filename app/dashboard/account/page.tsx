@@ -65,7 +65,7 @@ export default function AccountPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="glass gradient-border rounded-3xl p-6 sm:p-8">
+        <section className="saas-card rounded-3xl p-6 sm:p-8">
           <h3 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <UserRound className="h-4 w-4 text-cyan-500" /> Account information
           </h3>
@@ -87,7 +87,7 @@ export default function AccountPage() {
           </dl>
         </section>
 
-        <section id="change-password" className="glass gradient-border rounded-3xl p-6 sm:p-8">
+        <section id="change-password" className="saas-card rounded-3xl p-6 sm:p-8">
           <h3 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <KeyRound className="h-4 w-4 text-cyan-500" /> Change Password
           </h3>

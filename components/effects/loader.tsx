@@ -32,7 +32,7 @@ export function Loader({ onComplete }: { onComplete?: () => void }) {
     <AnimatePresence>
       {visible && (
         <motion.div
-          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gradient-to-b from-sky-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-950 dark:to-blue-950"
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background"
           exit={{ opacity: 0, scale: 1.06 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           aria-label="Loading"
@@ -46,11 +46,11 @@ export function Loader({ onComplete }: { onComplete?: () => void }) {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="relative"
           >
-            <div className="absolute -inset-8 rounded-full bg-cyan-400/30 blur-3xl animate-pulse" />
+            <div className="absolute -inset-8 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative flex h-28 w-28 items-center justify-center">
-              <span className="absolute inset-0 rounded-full border-2 border-cyan-400/40 animate-pulse-ring" />
-              <span className="absolute inset-3 rounded-full border border-sky-500/40 animate-spin-slow border-t-sky-500" />
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 shadow-glow">
+              <span className="absolute inset-0 rounded-full border border-primary/20 animate-pulse-ring" />
+              <span className="absolute inset-3 rounded-full border border-primary/25 animate-spin-slow border-t-primary" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-glow">
                 <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" fill="none" aria-hidden>
                   <path
                     d="M12 2l8 3v6c0 5.5-3.5 9.5-8 11-4.5-1.5-8-5.5-8-11V5l8-3z"
@@ -96,7 +96,7 @@ export function Loader({ onComplete }: { onComplete?: () => void }) {
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-primary/10">
               <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 shadow-glow"
+                className="h-full rounded-full bg-primary"
                 style={{ width: `${progress}%` }}
                 transition={{ ease: "easeOut" }}
               />

@@ -37,7 +37,7 @@ export function Experience() {
                   <div className="absolute left-0 top-2 sm:left-1/2 sm:-translate-x-1/2">
                     <div className="relative">
                       <TimelineNode className="h-11 w-11">
-                        <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow">
+                        <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-primary text-white">
                           <IconComp className="h-5 w-5" />
                         </span>
                       </TimelineNode>
@@ -50,7 +50,7 @@ export function Experience() {
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-3 py-1 text-xs font-bold text-white shadow-glow">
+                      <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white">
                         {item.period}
                       </span>
                       <span className="rounded-full border border-border bg-background/60 px-3 py-1 text-xs font-medium text-muted-foreground">

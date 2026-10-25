@@ -61,7 +61,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               exit={{ opacity: 0, x: 60, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 320, damping: 28 }}
               className={cn(
-                "glass-strong pointer-events-auto flex items-start gap-3 rounded-2xl p-4 shadow-glow-lg",
+                "glass-strong pointer-events-auto flex items-start gap-3 rounded-2xl p-4 shadow-glass-lg",
               )}
               role="status"
             >

@@ -31,7 +31,7 @@ function ServiceCard({ id }: { id: string }) {
           <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${service.gradient} blur-2xl transition-opacity duration-500 opacity-40 group-hover:opacity-90`} />
 
           <div className="mb-5 flex items-center justify-between">
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow transition-all duration-500 group-hover:scale-110 group-hover:rotate-6">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-500 group-hover:bg-primary group-hover:text-white">
               <Icon name={service.icon} className="h-7 w-7" />
             </div>
             <ArrowUpRight className="h-5 w-5 text-muted-foreground/40 transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-primary" />
@@ -66,7 +66,7 @@ function ServiceCard({ id }: { id: string }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Icon name={service.icon} className="h-7 w-7" />
             </div>
             <DialogTitle>{service.title}</DialogTitle>

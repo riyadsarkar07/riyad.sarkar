@@ -74,7 +74,7 @@ export function Profile3D() {
     >
       <div
         ref={cardRef}
-        className="profile-3d relative h-full w-full overflow-hidden rounded-full border-[3px] border-white/90 bg-sky-50 shadow-glow-lg ring-2 ring-cyan-400/25 dark:border-white/10 dark:bg-slate-900 sm:border-[4px] sm:ring-4"
+        className="profile-3d relative h-full w-full overflow-hidden rounded-full border-[3px] border-white/80 bg-slate-100 shadow-glass-lg ring-1 ring-cyan-400/15 dark:border-white/10 dark:bg-slate-900 sm:border-[4px]"
         style={{
           transform: "perspective(1100px) rotateX(4deg) rotateY(-6deg)",
           transformStyle: "preserve-3d",

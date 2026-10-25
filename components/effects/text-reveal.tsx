@@ -51,7 +51,7 @@ export function TextReveal({
             variants={{
               hidden: reduceMotion
                 ? { y: 0, opacity: 1, rotateX: 0 }
-                : { y: "112%", opacity: 0, rotateX: 28 },
+                : { y: "108%", opacity: 0, rotateX: 16 },
               visible: {
                 y: "0%",
                 opacity: 1,

@@ -34,7 +34,7 @@ export function Magnetic({ children, className, strength = 0.32 }: MagneticButto
       const ty = dy * strength;
       cancelAnimationFrame(frame.current);
       frame.current = requestAnimationFrame(() => {
-        el.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(1.045)`;
+        el.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(1.03)`;
       });
     },
     [strength],

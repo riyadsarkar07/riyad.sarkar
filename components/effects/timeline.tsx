@@ -32,7 +32,7 @@ export function TimelineTrack({
     <div ref={ref} className={cn("relative", className)}>
       <div className={cn(lineClass, "bg-gradient-to-b from-blue-500/25 via-cyan-400/18 to-transparent")} />
       <motion.div
-        className={cn(lineClass, "origin-top bg-gradient-to-b from-blue-600 via-sky-400 to-cyan-300")}
+        className={cn(lineClass, "origin-top bg-gradient-to-b from-primary via-sky-500/80 to-cyan-400/40")}
         style={{ scaleY }}
       />
       {children}
@@ -80,7 +80,7 @@ export function TimelineNode({
       <span className="absolute -inset-1 rounded-full bg-cyan-400/30 motion-reduce:animate-none animate-pulse-ring" />
       {children ?? (
         <motion.span
-          className="relative block h-3.5 w-3.5 rounded-full bg-gradient-to-br from-blue-600 to-cyan-400 shadow-glow"
+          className="relative block h-3.5 w-3.5 rounded-full bg-primary"
           initial={reduceMotion ? { scale: 1 } : { scale: 0 }}
           whileInView={{ scale: 1 }}
           viewport={viewportOnce}

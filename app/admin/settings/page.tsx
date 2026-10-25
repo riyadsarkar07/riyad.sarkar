@@ -51,7 +51,7 @@ export default function AdminSettingsPage() {
       <PageHeader title="Settings" subtitle="Small portal-wide configuration options." />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="glass gradient-border rounded-2xl p-6">
+        <section className="saas-card rounded-2xl p-6">
           <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <ShieldCheck className="h-4 w-4 text-cyan-500" /> Notifications
           </h2>
@@ -87,7 +87,7 @@ export default function AdminSettingsPage() {
           )}
         </section>
 
-        <section className="glass gradient-border rounded-2xl p-6">
+        <section className="saas-card rounded-2xl p-6">
           <h2 className="mb-4 font-display text-base font-bold">Environment</h2>
           <dl className="space-y-3 text-sm">
             <div className="flex items-center justify-between rounded-xl bg-primary/5 px-4 py-3">
@@ -105,7 +105,7 @@ export default function AdminSettingsPage() {
           </dl>
         </section>
 
-        <section id="change-password" className="glass gradient-border rounded-2xl p-6">
+        <section id="change-password" className="saas-card rounded-2xl p-6">
           <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <KeyRound className="h-4 w-4 text-cyan-500" /> Change Password
           </h2>

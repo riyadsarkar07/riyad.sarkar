@@ -30,7 +30,7 @@ function CertificateCard({ id }: { id: string }) {
         <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-400/20 blur-2xl opacity-40 transition-opacity duration-500 group-hover:opacity-100" />
 
         <div className="mb-5 flex items-center justify-between">
-          <div className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-white">
             <Icon name={cert.icon} className="h-6 w-6" />
           </div>
           <ShieldCheck className="h-5 w-5 text-emerald-500 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
@@ -69,7 +69,7 @@ function CertificateCard({ id }: { id: string }) {
           <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-slate-50 to-sky-50 p-8 text-center dark:from-slate-900 dark:to-blue-950">
             <div className="bg-grid pointer-events-none absolute inset-0 opacity-30" />
             <div className="relative">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-white">
                 <Icon name={cert.icon} className="h-8 w-8" />
               </div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-500">

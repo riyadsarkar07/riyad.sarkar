@@ -182,7 +182,7 @@ function BookingForm() {
         subtitle="Tell us about your case — we'll confirm availability within 24 hours."
       />
 
-      <form onSubmit={onSubmit} noValidate className="glass gradient-border rounded-3xl p-6 sm:p-8">
+      <form onSubmit={onSubmit} noValidate className="saas-card p-6 sm:p-8">
         {errors._form && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
             {errors._form}
@@ -260,7 +260,7 @@ function BookingForm() {
                     "rounded-xl border px-3 py-2 text-left transition-all",
                     form.priority === p
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-white/40 hover:border-primary/40 dark:bg-white/5",
+                      : "border-border bg-muted/40 hover:border-primary/40",
                   )}
                 >
                   <span className="block text-sm font-semibold">{PRIORITY_META[p].label}</span>
@@ -305,8 +305,8 @@ function BookingForm() {
                   className={cn(
                     "rounded-full px-4 py-2 text-sm font-semibold capitalize transition-all",
                     form.preferredContact === m
-                      ? "btn-primary-glow text-white shadow-glow"
-                      : "border border-border bg-white/40 text-muted-foreground hover:text-primary dark:bg-white/5",
+                      ? "chip-active"
+                      : "border border-border bg-muted/40 text-muted-foreground hover:text-primary",
                   )}
                 >
                   {m}
@@ -316,6 +316,21 @@ function BookingForm() {
           </Field>
           <FileInput label="Optional Attachment" onChange={setFile} error={errors.file} />
         </div>
+
+        {(form.service || form.date || form.time) && (
+          <div className="mt-8 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Request summary</p>
+            <p className="mt-1.5 text-foreground">
+              {form.service || "Service not selected"}
+              {form.date ? ` · ${form.date}` : ""}
+              {form.time ? ` at ${form.time}` : ""}
+              {form.timezone ? ` · ${form.timezone}` : ""}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This is a request, not a confirmed booking. Availability is reviewed before confirmation.
+            </p>
+          </div>
+        )}
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">

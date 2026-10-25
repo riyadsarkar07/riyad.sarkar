@@ -112,7 +112,7 @@ export default function AdminEmailTicketDetailPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <section className="glass gradient-border rounded-2xl p-5">
+        <section className="saas-card rounded-2xl p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{ticket.issue_type}</p>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{ticket.message}</p>
           <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
@@ -135,7 +135,7 @@ export default function AdminEmailTicketDetailPage() {
           </dl>
         </section>
 
-        <section className="glass gradient-border rounded-2xl p-5">
+        <section className="saas-card rounded-2xl p-5">
           <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</label>
           <select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-2 h-11 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5">
             {EMAIL_TICKET_STATUSES.map((s) => (
@@ -151,7 +151,7 @@ export default function AdminEmailTicketDetailPage() {
         </section>
       </div>
 
-      <section className="glass gradient-border mt-6 rounded-2xl p-5">
+      <section className="saas-card mt-6 rounded-2xl p-5">
         <h2 className="font-display text-base font-bold">Replies</h2>
         <div className="mt-4 space-y-3">
           {replies.length === 0 ? (

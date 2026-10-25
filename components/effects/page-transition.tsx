@@ -12,8 +12,8 @@ export function PageTransition({ children }: { children: ReactNode }) {
 
   return (
     <motion.div
-      initial={reduceMotion ? false : { opacity: 0, y: 14, filter: "blur(6px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: reduceMotion ? 0 : duration.slow, ease: easeOutExpo }}
     >
       {children}

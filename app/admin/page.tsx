@@ -142,7 +142,7 @@ export default function AdminOverviewPage() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="saas-card p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
               <CalendarCheck className="h-4 w-4 text-cyan-500" /> Recent Appointments
@@ -159,7 +159,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentAppointments.map((a) => (
                 <li key={a.id}>
-                  <Link href={`/admin/appointments/${a.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/appointments/${a.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-muted/70">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{a.service}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -175,7 +175,7 @@ export default function AdminOverviewPage() {
           )}
         </motion.section>
 
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="saas-card p-5">
           <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-base font-bold">
                 <MessagesSquare className="h-4 w-4 text-cyan-500" /> Live Support Conversations
@@ -192,7 +192,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentTickets.map((t) => (
                 <li key={t.id}>
-                  <Link href="/admin/support" className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href="/admin/support" className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-muted/70">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.subject}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -209,7 +209,7 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="saas-card p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
               <Mail className="h-4 w-4 text-cyan-500" /> Email Support Tickets
@@ -226,7 +226,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentEmailTickets.map((t) => (
                 <li key={t.id}>
-                  <Link href={`/admin/tickets/${t.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/tickets/${t.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 px-4 py-3 transition-colors hover:border-primary/30 hover:bg-muted/70">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.issue_type}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -241,7 +241,7 @@ export default function AdminOverviewPage() {
           )}
         </motion.section>
 
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="saas-card p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
               <CalendarClock className="h-4 w-4 text-cyan-500" /> Public Consultation Bookings
@@ -257,7 +257,7 @@ export default function AdminOverviewPage() {
           ) : (
             <ul className="space-y-2.5">
               {recentBookings.map((b) => (
-                <li key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 dark:bg-white/5">
+                <li key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 px-4 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{b.service}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">

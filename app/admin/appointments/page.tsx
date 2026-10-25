@@ -97,7 +97,7 @@ export default function AdminAppointmentsPage() {
         subtitle="Portal appointments and public consultation bookings, kept separate from email tickets and live chat."
       />
 
-      <div className="glass gradient-border mb-6 rounded-2xl p-4">
+      <div className="saas-card mb-6 rounded-2xl p-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div className="relative lg:col-span-2">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -145,11 +145,11 @@ export default function AdminAppointmentsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
+        <div className="saas-card rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
           No appointments match your filters.
         </div>
       ) : (
-        <div className="glass gradient-border overflow-x-auto rounded-2xl">
+        <div className="saas-card overflow-x-auto rounded-2xl">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
               <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
@@ -228,11 +228,11 @@ export default function AdminAppointmentsPage() {
       {loading ? (
         <Skeleton className="h-16" />
       ) : bookings.length === 0 ? (
-        <div className="glass gradient-border rounded-2xl px-6 py-12 text-center text-sm text-muted-foreground">
+        <div className="saas-card rounded-2xl px-6 py-12 text-center text-sm text-muted-foreground">
           No public consultation bookings yet.
         </div>
       ) : (
-        <div className="glass gradient-border overflow-x-auto rounded-2xl">
+        <div className="saas-card overflow-x-auto rounded-2xl">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead>
               <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">

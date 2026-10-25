@@ -17,7 +17,7 @@ export function SectionHeading({ eyebrow, title, description, align = "center" }
       <Reveal>
         <div
           className={
-            "mb-3 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyber-600 sm:text-xs sm:tracking-[0.28em] " +
+            "mb-3 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.26em] text-cyber-600 sm:text-xs sm:tracking-[0.32em] " +
             (align === "center" ? "justify-center" : "")
           }
         >

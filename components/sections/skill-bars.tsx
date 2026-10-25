@@ -23,7 +23,7 @@ export function SkillBars() {
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-primary/10">
               <motion.div
-                className="relative h-full rounded-full bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400"
+                className="relative h-full rounded-full bg-primary"
                 initial={{ width: 0 }}
                 whileInView={{ width: `${tool.level}%` }}
                 viewport={{ once: true, margin: "-40px" }}

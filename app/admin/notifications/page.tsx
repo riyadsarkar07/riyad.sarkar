@@ -68,7 +68,7 @@ export default function AdminNotificationsPage() {
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
+        <div className="saas-card rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
           No notifications yet.
         </div>
       ) : (
@@ -76,14 +76,14 @@ export default function AdminNotificationsPage() {
           {notifications.map((n) => (
             <li
               key={n.id}
-              className={`glass rounded-2xl border-l-4 px-5 py-4 ${
-                n.read ? "border-l-border/40 opacity-70" : "border-l-cyan-500"
+              className={`saas-card rounded-2xl border-l-4 px-5 py-4 ${
+                n.read ? "border-l-border/40 opacity-70" : "border-l-primary"
               }`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 font-semibold">
-                    {!n.read && <span className="h-2 w-2 rounded-full bg-cyan-500" />}
+                    {!n.read && <span className="h-2 w-2 rounded-full bg-primary" />}
                     {n.title}
                   </p>
                   {n.body && <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>}

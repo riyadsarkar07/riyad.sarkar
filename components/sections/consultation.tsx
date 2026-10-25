@@ -246,7 +246,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                         className={cn(
                           "flex h-10 flex-col items-center justify-center rounded-xl text-sm font-medium transition-all duration-300 sm:h-11",
                           active
-                            ? "btn-primary-glow text-white shadow-glow scale-105"
+                            ? "chip-active scale-105"
                             : weekend
                               ? "cursor-not-allowed text-muted-foreground/30"
                               : "text-foreground hover:bg-primary/10",
@@ -286,7 +286,7 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                       className={cn(
                         "min-h-10 rounded-full px-3.5 py-2 text-xs font-semibold transition-all duration-300",
                         selectedTime === time
-                          ? "btn-primary-glow text-white shadow-glow"
+                          ? "chip-active"
                           : "border border-border bg-white/50 text-muted-foreground hover:text-primary dark:bg-white/5",
                       )}
                       aria-pressed={selectedTime === time}

@@ -52,7 +52,7 @@ export default function MyEnquiriesPage() {
           <Skeleton className="h-16" />
         </div>
       ) : tickets.length === 0 ? (
-        <div className="glass gradient-border flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
+        <div className="saas-card flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
           <Mail className="h-10 w-10 text-cyan-500" />
           <p className="max-w-sm text-sm text-muted-foreground">You have not submitted a project enquiry yet.</p>
           <Button asChild>
@@ -62,7 +62,7 @@ export default function MyEnquiriesPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {tickets.map((t) => (
-            <div key={t.id} className="glass gradient-border rounded-2xl p-5">
+            <div key={t.id} className="saas-card rounded-2xl p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-display text-sm font-bold text-primary">{t.reference_id}</p>

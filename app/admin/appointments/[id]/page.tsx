@@ -129,7 +129,7 @@ export default function AdminAppointmentDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
         <div className="space-y-6">
-          <section className="glass gradient-border rounded-2xl p-6">
+          <section className="saas-card rounded-2xl p-6">
             <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
               <CalendarClock className="h-4 w-4 text-cyan-500" /> Schedule & details
             </h2>
@@ -180,7 +180,7 @@ export default function AdminAppointmentDetailPage() {
             </div>
           </section>
 
-          <section className="glass gradient-border rounded-2xl p-6">
+          <section className="saas-card rounded-2xl p-6">
             <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold">
               <StickyNote className="h-4 w-4 text-cyan-500" /> Problem description
             </h2>
@@ -193,7 +193,7 @@ export default function AdminAppointmentDetailPage() {
             )}
           </section>
 
-          <section className="glass gradient-border rounded-2xl p-6">
+          <section className="saas-card rounded-2xl p-6">
             <h2 className="mb-3 flex items-center gap-2 font-display text-base font-bold">
               <StickyNote className="h-4 w-4 text-cyan-500" /> Admin notes
             </h2>
@@ -208,7 +208,7 @@ export default function AdminAppointmentDetailPage() {
         </div>
 
         <aside className="space-y-6">
-          <section className="glass gradient-border rounded-2xl p-6">
+          <section className="saas-card rounded-2xl p-6">
             <h2 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
               <FileText className="h-4 w-4 text-cyan-500" /> Attachments
             </h2>
@@ -231,7 +231,7 @@ export default function AdminAppointmentDetailPage() {
             )}
           </section>
 
-          <section className="glass gradient-border rounded-2xl p-6">
+          <section className="saas-card rounded-2xl p-6">
             <h2 className="mb-4 font-display text-base font-bold">Linked support tickets</h2>
             {tickets.length === 0 ? (
               <p className="text-sm text-muted-foreground">No linked tickets.</p>

@@ -10,13 +10,13 @@ export function OrbitRings() {
       <span className="absolute inset-[21%] hidden rounded-full border border-cyan-300/10 sm:block" />
 
       <span className="absolute inset-[7%] hidden motion-reduce:animate-none animate-orbit-dot sm:block sm:inset-[5%]">
-        <span className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-cyan-400 shadow-glow" />
+        <span className="absolute left-1/2 top-0 h-2 w-2 -translate-x-1/2 rounded-full bg-cyan-400/80" />
       </span>
       <span
         className="absolute inset-[11%] hidden motion-reduce:animate-none animate-orbit-dot sm:block"
         style={{ animationDuration: "18s", animationDirection: "reverse" }}
       >
-        <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-sky-500 shadow-glow" />
+        <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-sky-400/80" />
       </span>
       <span
         className="absolute inset-[16%] hidden motion-reduce:animate-none animate-orbit-dot lg:block"

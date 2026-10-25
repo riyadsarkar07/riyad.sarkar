@@ -148,11 +148,11 @@ export function CyberSecurity() {
               <div className="pointer-events-none absolute inset-0 bg-mesh-blue" />
               <div className="absolute inset-10 rounded-full border border-cyan-300/20" />
               <ShieldCanvas />
-              <div className="glass-strong absolute left-2 top-8 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glow sm:left-0">
+              <div className="glass-strong absolute left-2 top-8 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glass sm:left-0">
                 <Activity className="h-4 w-4 text-cyan-500" />
                 Shield Active
               </div>
-              <div className="glass-strong absolute bottom-8 right-2 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glow sm:right-0">
+              <div className="glass-strong absolute bottom-8 right-2 flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold shadow-glass sm:right-0">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -173,7 +173,7 @@ export function CyberSecurity() {
                   <div
                     className="group glass hover-lift rounded-[1.2rem] p-5"
                   >
-                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-white">
                       <pillar.icon className="h-5 w-5" />
                     </div>
                     <h4 className="font-display text-sm font-bold">{pillar.title}</h4>

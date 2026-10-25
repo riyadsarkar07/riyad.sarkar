@@ -2,8 +2,7 @@
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import type { ReactNode } from "react";
-
-const ease = [0.22, 1, 0.36, 1] as const;
+import { duration, easeOutExpo } from "@/lib/motion";
 
 /** Staggered reveal container. */
 export function RevealGroup({
@@ -55,7 +54,7 @@ export function Reveal({
       initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-48px", amount: 0.1 }}
-      transition={{ duration: reduceMotion ? 0 : 0.55, delay: reduceMotion ? 0 : delay, ease }}
+      transition={{ duration: reduceMotion ? 0 : duration.base, delay: reduceMotion ? 0 : delay, ease: easeOutExpo }}
     >
       {children}
     </motion.div>
@@ -70,7 +69,7 @@ export function RevealItem({ children, className }: { children: ReactNode; class
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: reduceMotion ? 0 : 0.5, ease },
+      transition: { duration: reduceMotion ? 0 : duration.base, ease: easeOutExpo },
     },
   };
 

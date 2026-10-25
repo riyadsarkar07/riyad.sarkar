@@ -26,7 +26,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
         initial={{ opacity: 0, y: 24, scale: 0.98, filter: "blur(8px)" }}
         animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
         transition={{ type: "spring", stiffness: 220, damping: 26 }}
-        className="glass gradient-border relative w-full max-w-md rounded-[1.5rem] p-6 shadow-glass-lg sm:p-8"
+        className="saas-card relative w-full max-w-md rounded-[1.5rem] p-6 sm:p-8"
       >
         <Link
           href="/"
@@ -38,7 +38,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
         <div className="mb-6 flex items-center gap-3">
           <div className="relative">
             <span className="absolute -inset-2 rounded-full bg-cyan-400/30 animate-pulse-ring" />
-            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white">
               <ShieldCheck className="h-6 w-6" />
             </div>
           </div>

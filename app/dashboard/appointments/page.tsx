@@ -81,7 +81,7 @@ export default function MyAppointmentsPage() {
               onClick={() => setFilter(s)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-semibold capitalize transition-all ${
                 filter === s
-                  ? "btn-primary-glow text-white shadow-glow"
+                  ? "chip-active"
                   : "border border-border bg-white/40 text-muted-foreground hover:text-primary dark:bg-white/5"
               }`}
             >
@@ -98,7 +98,7 @@ export default function MyAppointmentsPage() {
           <Skeleton className="h-16" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass gradient-border flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
+        <div className="saas-card flex flex-col items-center gap-4 px-6 py-16 text-center">
           <CalendarPlus className="h-10 w-10 text-cyan-500" />
           <p className="max-w-sm text-sm text-muted-foreground">
             {appointments.length === 0
@@ -112,7 +112,7 @@ export default function MyAppointmentsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {filtered.map((a) => (
-            <div key={a.id} className="glass gradient-border rounded-2xl p-5">
+            <div key={a.id} className="saas-card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-display text-sm font-bold text-primary">{a.reference_id}</p>

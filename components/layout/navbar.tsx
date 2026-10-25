@@ -38,9 +38,9 @@ export function Navbar() {
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-[100] transition-all duration-500",
-        scrolled
-          ? "glass-strong border-b border-sky-200/50 shadow-glass dark:border-white/10"
-          : "border-b border-transparent bg-transparent",
+          scrolled
+            ? "glass-strong border-b border-border/70 shadow-glass"
+            : "border-b border-transparent bg-transparent backdrop-blur-[2px]",
       )}
     >
       <nav
@@ -81,7 +81,7 @@ export function Navbar() {
                     go(item.href);
                   }}
                   className={cn(
-                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors duration-200 xl:px-3.5",
+                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium tracking-tight transition-colors duration-200 xl:px-3.5",
                     isActive ? "text-primary" : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
                   )}
                 >

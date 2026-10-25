@@ -88,7 +88,7 @@ export function Testimonials() {
                 <figcaption className="mt-6 flex items-center gap-4 border-t border-border pt-5">
                   <span
                     className={cn(
-                      "flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white shadow-glow",
+                      "flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white",
                       current.avatarColor,
                     )}
                   >
@@ -132,7 +132,7 @@ export function Testimonials() {
                     className={cn(
                       "block h-2 rounded-full transition-all duration-300",
                       dotIndex === index
-                        ? "w-8 bg-gradient-to-r from-blue-600 to-cyan-400 shadow-glow"
+                        ? "w-8 bg-primary"
                         : "w-2 bg-primary/20 hover:bg-primary/40",
                     )}
                   />

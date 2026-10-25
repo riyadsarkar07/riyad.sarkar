@@ -12,8 +12,8 @@ const badgeVariants = cva(
         secondary:
           "border-transparent bg-secondary/15 text-secondary hover:bg-secondary/25",
         outline: "text-foreground",
-        gradient:
-          "border-transparent btn-primary-glow text-white",
+          gradient:
+            "border-transparent bg-primary text-white",
         success:
           "border-transparent bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
       },

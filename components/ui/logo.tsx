@@ -13,7 +13,7 @@ export function Logo({ size = 40, className }: { size?: number; className?: stri
       transition={{ type: "spring", stiffness: 300, damping: 18 }}
       aria-hidden
     >
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 shadow-glow" />
+      <div className="absolute inset-0 rounded-2xl bg-primary shadow-glow" />
       <svg
         viewBox="0 0 24 24"
         className="relative h-[58%] w-[58%] text-white"

@@ -56,7 +56,7 @@ export default function ProfilePage() {
       <PageHeader title="Profile" subtitle="Manage your personal details and account security." />
 
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-        <form onSubmit={save} className="glass gradient-border space-y-5 rounded-3xl p-6 sm:p-8">
+        <form onSubmit={save} className="saas-card space-y-5 rounded-3xl p-6 sm:p-8">
           <h3 className="flex items-center gap-2 font-display text-base font-bold">
             <UserRound className="h-4 w-4 text-cyan-500" /> Personal details
           </h3>
@@ -96,7 +96,7 @@ export default function ProfilePage() {
         </form>
 
         <div className="space-y-5">
-          <div className="glass gradient-border rounded-3xl p-6">
+          <div className="saas-card rounded-3xl p-6">
             <h3 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
               <Mail className="h-4 w-4 text-cyan-500" /> Account & security
             </h3>

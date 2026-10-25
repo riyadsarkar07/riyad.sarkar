@@ -225,7 +225,7 @@ export function AIAssistant() {
       {/* Floating action button */}
       <motion.button
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-4 right-3 z-[95] flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow sm:h-14 sm:w-14 md:bottom-6 md:right-6"
+        className="fixed bottom-4 right-3 z-[95] flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white shadow-glow sm:h-14 sm:w-14 md:bottom-6 md:right-6"
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.94 }}
         aria-label={t.ai.title}
@@ -262,7 +262,7 @@ export function AIAssistant() {
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-border/60 bg-gradient-to-r from-blue-600/10 to-cyan-400/10 px-5 py-4">
               <div className="relative">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
@@ -294,8 +294,8 @@ export function AIAssistant() {
                     className={cn(
                       "max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                       message.role === "user"
-                        ? "rounded-br-md bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-glow"
-                        : "rounded-bl-md bg-primary/5 text-foreground",
+                        ? "rounded-br-md chat-mine"
+                        : "rounded-bl-md chat-theirs",
                     )}
                   >
                     {message.text}
@@ -368,7 +368,7 @@ export function AIAssistant() {
                 type="submit"
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.92 }}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-cyan-400 text-white shadow-glow disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-50"
                 disabled={!input.trim() || typing}
                 aria-label="Send message"
               >

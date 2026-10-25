@@ -43,7 +43,7 @@ export function UserDashboardShell({ children }: { children: React.ReactNode }) 
         <DashboardNav />
         <div className="lg:pl-72">
           <main className="min-h-[100dvh] pb-16 pt-20 lg:pt-8">
-            <div className="mx-auto w-full max-w-6xl px-4 py-5 lg:px-10">{children}</div>
+            <div className="mx-auto w-full max-w-6xl px-4 py-6 lg:px-10">{children}</div>
           </main>
         </div>
       </div>

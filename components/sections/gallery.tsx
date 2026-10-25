@@ -45,7 +45,7 @@ export function Gallery() {
               className={cn(
                 "rounded-full px-4 py-2 text-sm font-medium transition-all duration-300",
                 filter === category
-                  ? "btn-primary-glow text-white shadow-glow"
+                  ? "chip-active"
                   : "glass text-muted-foreground hover:text-primary",
               )}
             >
