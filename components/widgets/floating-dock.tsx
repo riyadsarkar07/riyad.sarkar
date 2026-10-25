@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   CalendarDays,
   Home,
@@ -25,7 +26,24 @@ export function FloatingDock() {
   const { user } = useSession();
   const { t } = useI18n();
   const { go } = useSectionNav();
+  const reduceMotion = useReducedMotion();
+  const [visible, setVisible] = useState(false);
   const supportHref = user ? "/dashboard/support" : "/login?next=/dashboard/support";
+
+  useEffect(() => {
+    const update = () => {
+      const hero = document.getElementById("home");
+      const threshold = hero ? hero.offsetHeight * 0.72 : window.innerHeight * 0.85;
+      setVisible(window.scrollY > threshold);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   const run = (item: (typeof dockItems)[number]) => {
     if (item.action.startsWith("#")) {
@@ -34,10 +52,13 @@ export function FloatingDock() {
   };
 
   return (
+    <AnimatePresence>
+      {visible ? (
     <motion.div
-      initial={{ y: 90 }}
-      animate={{ y: 0 }}
-      transition={{ delay: 1.6, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      initial={reduceMotion ? { opacity: 1 } : { y: 90, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={reduceMotion ? { opacity: 0 } : { y: 90, opacity: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className="pointer-events-auto fixed bottom-6 left-1/2 z-[80] hidden -translate-x-1/2 xl:block"
       aria-label="Quick navigation dock"
     >
@@ -87,5 +108,7 @@ export function FloatingDock() {
         </Link>
       </div>
     </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }

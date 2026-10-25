@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import {
   ArrowDown,
@@ -20,11 +21,6 @@ import { profile, socials, typingWords } from "@/data/content";
 import { useTyping } from "@/hooks/use-typing";
 import { useI18n } from "@/lib/i18n";
 import { useLenis } from "@/hooks/use-lenis";
-import { usePointerParallax } from "@/hooks/use-pointer-parallax";
-import { ParticleBackground } from "@/components/effects/particle-background";
-import { MeshBackground } from "@/components/effects/mesh-background";
-import { CyberGrid } from "@/components/effects/cyber-grid";
-import { OrbitRings } from "@/components/effects/orbit-rings";
 import { Magnetic } from "@/components/effects/magnetic";
 import { Profile3D } from "@/components/effects/profile-3d";
 import { TextReveal, LineReveal } from "@/components/effects/text-reveal";
@@ -43,23 +39,22 @@ const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 /**
- * Cinematic hero — 3D portrait, text reveal, particle grid, mouse parallax.
+ * Cinematic hero — framed portrait, restrained cyan lighting, calm motion.
  */
 export function Hero() {
   const { t } = useI18n();
   const { lenis } = useLenis();
   const { text: typed, isDeleting } = useTyping(typingWords);
   const reduceMotion = useReducedMotion();
-  const { ref, onPointerMove, onPointerLeave } = usePointerParallax(36);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
   const { scrollYProgress } = useScroll({
-    target: ref,
+    target: sectionRef,
     offset: ["start start", "end start"],
   });
-  const contentY = useTransform(scrollYProgress, [0, 1], [0, 90]);
-  const contentOpacity = useTransform(scrollYProgress, [0, 0.72], [1, 0]);
-  const portraitY = useTransform(scrollYProgress, [0, 1], [0, -48]);
-  const fadeOpacity = useTransform(scrollYProgress, [0.35, 1], [0.2, 1]);
+  const contentY = useTransform(scrollYProgress, [0, 1], [0, 36]);
+  const contentOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0.96]);
+  const fadeOpacity = useTransform(scrollYProgress, [0.45, 1], [0.15, 1]);
 
   const scrollTo = (id: string) => {
     if (lenis) lenis.scrollTo(`#${id}`, { offset: -72, duration: 1.35 });
@@ -71,33 +66,13 @@ export function Hero() {
   return (
     <section
       id="home"
-      ref={ref}
-      onPointerMove={onPointerMove}
-      onPointerLeave={onPointerLeave}
+      ref={sectionRef}
       className="relative flex items-center overflow-hidden pt-[4.5rem] sm:pt-24 lg:min-h-[92dvh] lg:pt-28"
     >
-      <MeshBackground />
-      <div data-depth="0.18" className="pointer-events-none absolute inset-0">
-        <CyberGrid />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(900px_420px_at_78%_18%,rgba(14,165,233,0.14),transparent_58%),radial-gradient(720px_360px_at_12%_8%,rgba(15,23,42,0.08),transparent_62%)] dark:bg-[radial-gradient(900px_420px_at_78%_18%,rgba(14,165,233,0.16),transparent_58%),radial-gradient(720px_360px_at_12%_8%,rgba(2,6,23,0.55),transparent_62%)]" />
+        <div className="bg-grid absolute inset-0 opacity-20 dark:opacity-[0.14] [mask-image:radial-gradient(ellipse_at_center,black_18%,transparent_72%)]" />
       </div>
-      <div data-depth="0.28" className="pointer-events-none absolute inset-0">
-        <ParticleBackground density={38} />
-      </div>
-      <span
-        data-depth="0.42"
-        className="pointer-events-none absolute left-[8%] top-[18%] hidden h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl motion-reduce:animate-none animate-hero-orb md:block"
-        aria-hidden
-      />
-      <span
-        data-depth="0.32"
-        className="pointer-events-none absolute right-[10%] top-[28%] hidden h-52 w-52 rounded-full bg-blue-500/16 blur-3xl motion-reduce:animate-none animate-hero-orb md:block"
-        style={{ animationDelay: "-4s" }}
-        aria-hidden
-      />
-      <span
-        className="light-streak pointer-events-none absolute left-0 top-[22%] hidden w-[42%] motion-reduce:animate-none animate-light-streak md:block"
-        aria-hidden
-      />
 
       <motion.div
         style={reduceMotion ? undefined : { y: contentY, opacity: contentOpacity }}
@@ -144,65 +119,15 @@ export function Hero() {
           </motion.div>
         </div>
 
-        <motion.div
-          style={reduceMotion ? undefined : { y: portraitY }}
-          className="relative order-2 mx-auto flex h-[196px] w-[196px] items-center justify-center min-[390px]:h-[216px] min-[390px]:w-[216px] min-[430px]:h-[236px] min-[430px]:w-[236px] sm:h-[360px] sm:w-[360px] md:h-[400px] md:w-[400px] lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[440px] lg:w-[440px] lg:self-center"
-        >
-          <div data-depth="0.22" className="absolute inset-0">
-            <div
-              className="absolute inset-0 rounded-full opacity-70 motion-reduce:animate-none animate-spin-slow sm:opacity-80"
-              style={{
-                background:
-                  "conic-gradient(from 0deg, rgba(14,165,233,0) 0%, rgba(14,165,233,0.55) 12%, rgba(56,189,248,0) 28%, rgba(37,99,235,0.45) 55%, rgba(14,165,233,0) 75%, rgba(56,189,248,0.55) 90%, rgba(14,165,233,0) 100%)",
-                WebkitMask:
-                  "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px))",
-                mask: "radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px))",
-              }}
-              aria-hidden
-            />
-            <OrbitRings />
-            <div
-              className="absolute inset-8 rounded-full bg-gradient-to-br from-sky-400/30 via-cyan-400/20 to-blue-600/20 blur-xl motion-reduce:animate-none animate-breath sm:inset-10 sm:blur-2xl"
-              aria-hidden
-            />
-          </div>
-
-          <div data-depth="0.48" className="relative z-10">
+        <div className="relative order-2 mx-auto flex h-[220px] w-[220px] items-center justify-center min-[390px]:h-[248px] min-[390px]:w-[248px] min-[430px]:h-[268px] min-[430px]:w-[268px] sm:h-[340px] sm:w-[340px] md:h-[380px] md:w-[380px] lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[400px] lg:w-[400px] lg:self-center">
+          <div
+            className="pointer-events-none absolute inset-[-8%] rounded-[36px] bg-cyan-400/15 blur-3xl dark:bg-cyan-400/20"
+            aria-hidden
+          />
+          <div className="relative z-10 h-full w-full">
             <Profile3D />
           </div>
-
-          <motion.div
-            data-depth="0.62"
-            initial={{ opacity: 0, x: -24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.95, duration: 0.7, ease: easeOutExpo }}
-            className="glass-strong absolute left-0 top-6 z-20 hidden items-center gap-2 rounded-2xl px-3 py-2 shadow-glass motion-reduce:animate-none animate-float-card sm:flex sm:top-10 sm:px-4 sm:py-2.5"
-          >
-            <ShieldCheck className="h-5 w-5 text-cyan-500" />
-            <div className="text-left">
-              <p className="text-xs font-semibold leading-none">99% Success</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">Recovery rate</p>
-            </div>
-          </motion.div>
-
-          <motion.div
-            data-depth="0.58"
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 1.08, duration: 0.7, ease: easeOutExpo }}
-            className="glass-strong absolute bottom-8 right-0 z-20 hidden items-center gap-2 rounded-2xl px-3 py-2 shadow-glass motion-reduce:animate-none animate-float-card sm:flex sm:bottom-12 sm:px-4 sm:py-2.5"
-            style={{ animationDelay: "-2.4s" }}
-          >
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            </span>
-            <div className="text-left">
-              <p className="text-xs font-semibold leading-none">24/7 Support</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">Always available</p>
-            </div>
-          </motion.div>
-        </motion.div>
+        </div>
 
         <div className="order-3 text-center lg:col-start-1 lg:row-start-2 lg:text-left">
           <p className="mx-auto mt-1 max-w-xl text-pretty text-[0.95rem] leading-relaxed text-muted-foreground min-[390px]:text-base sm:mt-0 md:text-lg lg:mx-0">
