@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -40,6 +40,7 @@ const PRIORITY_META: Record<string, { label: string; hint: string }> = {
 
 function BookingForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user, profile } = useAuth();
   const supabase = useSupabase();
 
@@ -139,7 +140,10 @@ function BookingForm() {
       if (!res.ok) {
         throw new Error(res.error ?? "Could not book appointment");
       }
-      setDone(res.referenceId ?? "RS-????");
+      if (!res.referenceId) {
+        throw new Error("Appointment saved without a reference. Please contact support.");
+      }
+      setDone(res.referenceId);
     } catch (err) {
       submittedRef.current = false;
       setErrors({ _form: err instanceof Error ? err.message : "Something went wrong" });
@@ -147,6 +151,14 @@ function BookingForm() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!done) return;
+    const timer = window.setTimeout(() => {
+      router.push("/dashboard/appointments");
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [done, router]);
 
   if (done) {
     return (
@@ -157,11 +169,11 @@ function BookingForm() {
             <CheckCircle2 className="h-10 w-10" />
           </div>
         </motion.div>
-        <h2 className="font-display text-2xl font-bold">Appointment requested</h2>
+        <h2 className="font-display text-2xl font-bold">Booking Request Received</h2>
+        <p className="mt-3 font-display text-sm font-semibold text-primary">Booking reference: {done}</p>
         <p className="mt-3 text-sm text-muted-foreground">
-          Your reference ID is{" "}
-          <span className="font-bold text-primary">{done}</span>. Your preferred time is held as a
-          request until the team confirms it. We&apos;ve emailed you a receipt and will review your case shortly.
+          Your request is pending confirmation. Preferred times are not held until the team confirms.
+          You will be taken to My Appointments in a few seconds.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild>

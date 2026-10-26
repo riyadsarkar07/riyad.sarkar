@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, Mail } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { PageHeader } from "@/components/portal/page-header";
+import { LoadError } from "@/components/portal/load-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/toast";
@@ -14,14 +15,22 @@ export default function AdminNotificationsPage() {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    setLoading(true);
+    setLoadError(null);
+    const { data, error } = await supabase
       .from("notifications")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100);
-    setNotifications((data ?? []) as Notification[]);
+    if (error) {
+      setLoadError(error.message || "Could not load notifications.");
+      setNotifications([]);
+    } else {
+      setNotifications((data ?? []) as Notification[]);
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -61,13 +70,15 @@ export default function AdminNotificationsPage() {
         {unread} unread of {notifications.length} shown · emails are sent server-side via Resend when configured.
       </p>
 
+      {loadError && <LoadError message={loadError} onRetry={() => load()} />}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
-      ) : notifications.length === 0 ? (
+      ) : loadError ? null : notifications.length === 0 ? (
         <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
           No notifications yet.
         </div>

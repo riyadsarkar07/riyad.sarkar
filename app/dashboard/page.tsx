@@ -19,6 +19,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { StatCard } from "@/components/portal/stat-card";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { PageHeader } from "@/components/portal/page-header";
+import { LoadError } from "@/components/portal/load-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Appointment, Notification, SupportTicket } from "@/types/dashboard";
@@ -44,10 +45,14 @@ export default function DashboardOverviewPage() {
   const [recentTickets, setRecentTickets] = useState<SupportTicket[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     (async () => {
+      setLoading(true);
+      setError(null);
       const today = new Date().toISOString().slice(0, 10);
       const [up, ap, pending, tickets, completed, notifs] = await Promise.all([
         supabase
@@ -76,6 +81,12 @@ export default function DashboardOverviewPage() {
           .limit(6),
       ]);
       if (!active) return;
+      const failed = [up, ap, pending, tickets, completed, notifs].find((r) => r.error);
+      if (failed?.error) {
+        setError(failed.error.message || "Could not load dashboard data.");
+        setLoading(false);
+        return;
+      }
       setStats({
         upcoming: up.data?.length ?? 0,
         pending: pending.data?.length ?? 0,
@@ -91,13 +102,18 @@ export default function DashboardOverviewPage() {
         .order("created_at", { ascending: false })
         .limit(5);
       if (!active) return;
+      if (recent.error) {
+        setError(recent.error.message || "Could not load dashboard data.");
+        setLoading(false);
+        return;
+      }
       setRecentTickets((recent.data ?? []) as SupportTicket[]);
       setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [supabase]);
+  }, [supabase, reloadKey]);
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "there";
 
@@ -110,7 +126,7 @@ export default function DashboardOverviewPage() {
           <>
             <Button variant="outline" asChild>
               <Link href="/dashboard/support">
-                <MessagesSquare className="h-4 w-4" /> Open Support
+                <MessagesSquare className="h-4 w-4" /> Support Inbox
               </Link>
             </Button>
             <Button asChild>
@@ -122,12 +138,24 @@ export default function DashboardOverviewPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Upcoming Appointments" value={stats.upcoming} icon={CalendarClock} delay={0} />
-        <StatCard label="Pending" value={stats.pending} icon={Clock} delay={0.05} />
-        <StatCard label="Open Support Tickets" value={stats.openTickets} icon={MessagesSquare} delay={0.1} />
-        <StatCard label="Completed" value={stats.completed} icon={CheckCircle2} delay={0.15} />
-      </div>
+      {error && (
+        <LoadError message={`${error} Counts are hidden until the data loads successfully.`} onRetry={() => setReloadKey((k) => k + 1)} />
+      )}
+
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+      ) : error ? null : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Upcoming Appointments" value={stats.upcoming} icon={CalendarClock} delay={0} />
+          <StatCard label="Pending" value={stats.pending} icon={Clock} delay={0.05} />
+          <StatCard label="Open Support Inbox" value={stats.openTickets} icon={MessagesSquare} delay={0.1} />
+          <StatCard label="Completed" value={stats.completed} icon={CheckCircle2} delay={0.15} />
+        </div>
+      )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* Recent appointments */}
@@ -150,6 +178,8 @@ export default function DashboardOverviewPage() {
               <Skeleton className="h-14" />
               <Skeleton className="h-14" />
             </div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load appointments.</p>
           ) : recentAppointments.length === 0 ? (
             <EmptyState
               icon={<CalendarPlus className="h-5 w-5" />}
@@ -189,7 +219,7 @@ export default function DashboardOverviewPage() {
         >
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
-              <MessagesSquare className="h-4 w-4 text-cyan-500" /> Recent Support Tickets
+              <MessagesSquare className="h-4 w-4 text-cyan-500" /> Support Inbox
             </h2>
             <Link href="/dashboard/support" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
               View all <ArrowRight className="h-3 w-3" />
@@ -200,12 +230,14 @@ export default function DashboardOverviewPage() {
               <Skeleton className="h-14" />
               <Skeleton className="h-14" />
             </div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load Support Inbox.</p>
           ) : recentTickets.length === 0 ? (
             <EmptyState
               icon={<MessagesSquare className="h-5 w-5" />}
-              text="No support tickets yet — we're here if you need us."
+              text="No Support Inbox tickets yet — start a private conversation anytime."
               href="/dashboard/support"
-              cta="Open Support"
+              cta="Open Support Inbox"
             />
           ) : (
             <ul className="space-y-2.5">

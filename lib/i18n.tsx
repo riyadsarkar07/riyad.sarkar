@@ -105,6 +105,10 @@ type Dictionary = {
     error: string;
     selectService: string;
     required: string;
+    pendingNote: string;
+    viewAppointments: string;
+    publicSavedNote: string;
+    signInCta: string;
   };
   contact: {
     title: string;
@@ -277,7 +281,7 @@ const en: Dictionary = {
       "Briefly describe your situation — the platform, what happened, and any details you can share.",
     submit: "Request Consultation",
     submitting: "Sending…",
-    success: "Request received",
+    success: "Booking Request Received",
     successSub: "Your preferred time has been saved. Keep the reference number — I will confirm availability shortly.",
     savedEmailFailed: "Your appointment was saved, but the notification email could not be delivered.",
     retryNotify: "Retry notification email",
@@ -286,6 +290,11 @@ const en: Dictionary = {
     error: "Something went wrong. Please try again or contact me directly.",
     selectService: "Select a service",
     required: "This field is required",
+    pendingNote: "Your request is pending confirmation. Preferred times are not held until I confirm.",
+    viewAppointments: "View My Appointments",
+    publicSavedNote:
+      "This public consultation request is reviewed separately and does not appear under My Appointments.",
+    signInCta: "Sign in",
   },
   contact: {
     title: "Let's Work Together",
@@ -474,7 +483,7 @@ const bn: Dictionary = {
     messagePlaceholder: "আপনার পরিস্থিতি সংক্ষেপে লিখুন — প্ল্যাটফর্ম, কী ঘটেছে এবং অন্যান্য তথ্য।",
     submit: "অনুরোধ পাঠান",
     submitting: "পাঠানো হচ্ছে…",
-    success: "অনুরোধ গৃহীত হয়েছে",
+    success: "বুকিং অনুরোধ গৃহীত হয়েছে",
     successSub: "আপনার পছন্দের সময় সংরক্ষণ করা হয়েছে। রেফারেন্স নম্বর রাখুন — উপলব্ধতা শীঘ্রই নিশ্চিত করা হবে।",
     savedEmailFailed: "আপনার অ্যাপয়েন্টমেন্ট সংরক্ষণ হয়েছে, কিন্তু নোটিফিকেশন ইমেইল পাঠানো যায়নি।",
     retryNotify: "নোটিফিকেশন ইমেইল আবার পাঠান",
@@ -483,6 +492,11 @@ const bn: Dictionary = {
     error: "কিছু সমস্যা হয়েছে। আবার চেষ্টা করুন বা সরাসরি যোগাযোগ করুন।",
     selectService: "সেবা নির্বাচন করুন",
     required: "এই ঘরটি পূরণ করা প্রয়োজন",
+    pendingNote: "আপনার অনুরোধ নিশ্চিতকরণের অপেক্ষায়। নিশ্চিত হওয়ার আগে পছন্দের সময় সংরক্ষিত থাকে না।",
+    viewAppointments: "আমার অ্যাপয়েন্টমেন্ট দেখুন",
+    publicSavedNote:
+      "এই পাবলিক কনসালটেশন অনুরোধ আলাদাভাবে পর্যালোচনা হয় এবং মাই অ্যাপয়েন্টমেন্টে দেখা যায় না।",
+    signInCta: "সাইন ইন",
   },
   contact: {
     title: "আসুন একসাথে কাজ করি",

@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { useAuth } from "@/lib/auth";
 import { PageHeader } from "@/components/portal/page-header";
 import { StatusBadge } from "@/components/portal/status-badge";
+import { LoadError } from "@/components/portal/load-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +20,8 @@ export default function MyAppointmentsPage() {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
 
@@ -26,19 +29,26 @@ export default function MyAppointmentsPage() {
     let active = true;
     if (!user) return;
     (async () => {
-      const { data } = await supabase
+      setLoading(true);
+      setLoadError(null);
+      const { data, error } = await supabase
         .from("appointments")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (!active) return;
-      setAppointments((data ?? []) as Appointment[]);
+      if (error) {
+        setLoadError(error.message || "Could not load appointments.");
+        setAppointments([]);
+      } else {
+        setAppointments((data ?? []) as Appointment[]);
+      }
       setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [supabase, user]);
+  }, [supabase, user, reloadKey]);
 
   const filtered = appointments.filter((a) => {
     const statusOk = filter === "all" || a.status === filter;
@@ -91,13 +101,17 @@ export default function MyAppointmentsPage() {
         </div>
       </div>
 
+      {loadError && (
+        <LoadError message={loadError} onRetry={() => setReloadKey((k) => k + 1)} />
+      )}
+
       {loading ? (
         <div className="space-y-3">
           <Skeleton className="h-16" />
           <Skeleton className="h-16" />
           <Skeleton className="h-16" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : loadError ? null : filtered.length === 0 ? (
         <div className="glass gradient-border flex flex-col items-center gap-4 rounded-3xl px-6 py-16 text-center">
           <CalendarPlus className="h-10 w-10 text-cyan-500" />
           <p className="max-w-sm text-sm text-muted-foreground">

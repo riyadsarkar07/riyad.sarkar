@@ -84,7 +84,7 @@ export default function TrackEnquiryPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyber-500">Project Enquiry</p>
         <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Track My Enquiry</h1>
         <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-          Enter the email you used and your ticket number. This is separate from live Support Inbox conversations and consultation bookings.
+          Enter the email you used and your ticket number. This is for project enquiries only — Support Inbox conversations and consultation bookings are tracked separately.
         </p>
 
         <form onSubmit={onLookup} className="glass gradient-border mt-6 space-y-4 rounded-[1.5rem] p-5 sm:p-7">

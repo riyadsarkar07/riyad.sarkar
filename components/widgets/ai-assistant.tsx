@@ -364,7 +364,7 @@ export function AIAssistant() {
                 href={user ? "/dashboard/support" : "/login?next=/dashboard/support"}
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-border/60 bg-primary/5 px-3 py-2 text-[11px] font-semibold text-foreground transition-colors hover:bg-primary/10"
               >
-                <Headset className="h-3.5 w-3.5" /> Open Support
+                <Headset className="h-3.5 w-3.5" /> Support Inbox
               </Link>
             </div>
 

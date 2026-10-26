@@ -16,8 +16,8 @@ import { PortalNav } from "@/components/portal/portal-nav";
 const items = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, end: true },
   { href: "/admin/appointments", label: "Appointments", icon: CalendarDays },
-  { href: "/admin/tickets", label: "Email Support Tickets", icon: Mail },
-  { href: "/admin/support", label: "Live Support Conversations", icon: MessagesSquare },
+  { href: "/admin/tickets", label: "Project Enquiries", icon: Mail },
+  { href: "/admin/support", label: "Support Inbox", icon: MessagesSquare },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/files", label: "Files", icon: FolderOpen },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },

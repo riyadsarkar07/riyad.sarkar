@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { services, consultationTimes } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
+import { useSession } from "@/hooks/use-session";
 import { useToast } from "@/lib/toast";
 import { Reveal } from "@/components/effects/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -52,6 +53,7 @@ interface ConsultationProps {
 /** Book a consultation — premium calendar picker + animated form. */
 export function Consultation({ variant = "section" }: ConsultationProps) {
   const { t } = useI18n();
+  const { user } = useSession();
   const { toast } = useToast();
   const reduceMotion = useReducedMotion();
   const [dates] = useState(() => nextDays(14));
@@ -329,6 +331,8 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                       <p className="mt-3 max-w-sm text-sm text-muted-foreground">
                         {emailWarning ? t.consultation.savedEmailFailed : t.consultation.successSub}
                       </p>
+                      <p className="mt-2 max-w-sm text-xs text-muted-foreground">{t.consultation.pendingNote}</p>
+                      <p className="mt-2 max-w-sm text-xs text-muted-foreground">{t.consultation.publicSavedNote}</p>
                       {emailWarning && (
                         <>
                           <p className="mt-2 max-w-sm text-xs text-amber-600 dark:text-amber-400">{emailWarning}</p>
@@ -350,6 +354,16 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
                           </Button>
                         </>
                       )}
+                      <div className="mt-6 flex flex-wrap justify-center gap-3">
+                        {!user && (
+                          <Button asChild>
+                            <Link href="/login">{t.consultation.signInCta}</Link>
+                          </Button>
+                        )}
+                        <Button variant="outline" asChild>
+                          <Link href="/#contact">{t.consultation.preferOther}</Link>
+                        </Button>
+                      </div>
                     </motion.div>
                   ) : (
                     <motion.form

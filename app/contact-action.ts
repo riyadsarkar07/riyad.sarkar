@@ -141,7 +141,7 @@ export async function submitContactAction(
       `Budget: ${safeBudget} · Timeline: ${safeTimeline}`,
       `Message:<br/>${safeMessage}`,
     ],
-    cta: { label: "Open Email Support Tickets", href: `${SITE_URL}/admin/tickets` },
+    cta: { label: "Open Project Enquiries", href: `${SITE_URL}/admin/tickets` },
   });
 
   const text = [

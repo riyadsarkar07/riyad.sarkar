@@ -115,6 +115,7 @@ export async function createAppointmentAction(input: {
     return { ok: false, error: insertError.message };
   }
   if (!appointment) return { ok: false, error: "Could not create appointment." };
+  if (!appointment.reference_id) return { ok: false, error: "Appointment saved without a reference. Please contact support." };
 
   for (const f of fileMetas) {
     await supabase.from("appointment_files").insert({
@@ -133,13 +134,13 @@ export async function createAppointmentAction(input: {
     userId: user.id,
     userEmail: d.email,
     userName: d.fullName,
-    referenceId: appointment.reference_id ?? "RS-????",
+    referenceId: appointment.reference_id,
     service: d.service,
     date: d.date,
     time: d.time,
   });
 
-  return { ok: true, referenceId: appointment.reference_id ?? undefined };
+  return { ok: true, referenceId: appointment.reference_id };
 }
 
 export async function requestRescheduleAction(id: string, date: string, time: string): Promise<ActionResult> {
@@ -425,7 +426,7 @@ export async function adminUpdateAppointmentAction(input: {
       userId: appointment.user_id,
       userEmail: profile?.email ?? appointment.email,
       userName: profile?.full_name ?? appointment.full_name,
-      referenceId: appointment.reference_id ?? "RS-????",
+      referenceId: appointment.reference_id ?? "",
       status: input.status,
     });
   }

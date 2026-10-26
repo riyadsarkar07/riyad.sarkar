@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { EMAIL_TICKET_STATUSES } from "@/lib/constants";
 import { adminUpdateEmailTicketAction } from "@/app/ticket-actions";
 import { PageHeader } from "@/components/portal/page-header";
+import { LoadError } from "@/components/portal/load-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,12 +19,20 @@ export default function AdminEmailTicketsPage() {
   const { toast } = useToast();
   const [tickets, setTickets] = useState<EmailTicket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [fStatus, setFStatus] = useState("all");
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("email_tickets").select("*").order("created_at", { ascending: false });
-    setTickets((data ?? []) as EmailTicket[]);
+    setLoading(true);
+    setLoadError(null);
+    const { data, error } = await supabase.from("email_tickets").select("*").order("created_at", { ascending: false });
+    if (error) {
+      setLoadError(error.message || "Could not load project enquiries.");
+      setTickets([]);
+    } else {
+      setTickets((data ?? []) as EmailTicket[]);
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -55,8 +64,8 @@ export default function AdminEmailTicketsPage() {
   return (
     <div>
       <PageHeader
-        title="Email Support Tickets"
-        subtitle="Project enquiries submitted by email. Separate from live conversations and appointments."
+        title="Project Enquiries"
+        subtitle="Website and security project requests submitted from the public contact form. Separate from Support Inbox and appointments."
       />
 
       <div className="glass gradient-border mb-6 rounded-2xl p-4">
@@ -77,15 +86,17 @@ export default function AdminEmailTicketsPage() {
         <p className="mt-3 text-xs text-muted-foreground">{filtered.length} tickets</p>
       </div>
 
+      {loadError && <LoadError message={loadError} onRetry={() => load()} />}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : loadError ? null : filtered.length === 0 ? (
         <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
-          No email support tickets yet.
+          No project enquiries yet.
         </div>
       ) : (
         <div className="glass gradient-border overflow-x-auto rounded-2xl">

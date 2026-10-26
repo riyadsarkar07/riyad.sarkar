@@ -103,7 +103,7 @@ export default function AdminEmailTicketDetailPage() {
   return (
     <div>
       <Link href="/admin/tickets" className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
-        <ArrowLeft className="h-4 w-4" /> Email Support Tickets
+        <ArrowLeft className="h-4 w-4" /> Project Enquiries
       </Link>
       <PageHeader
         title={ticket.reference_id ?? "Ticket"}

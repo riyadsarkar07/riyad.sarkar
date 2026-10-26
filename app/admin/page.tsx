@@ -180,8 +180,8 @@ export default function AdminOverviewPage() {
           <StatCard label="Confirmed" value={stats.confirmed} icon={CalendarCheck} delay={0.12} />
           <StatCard label="In Progress" value={stats.inProgress} icon={CalendarClock} delay={0.16} />
           <StatCard label="Completed" value={stats.completed} icon={CheckCircle2} delay={0.2} />
-          <StatCard label="Live Support Conversations" value={stats.openTickets} icon={MessagesSquare} delay={0.24} />
-          <StatCard label="Email Support Tickets" value={stats.emailTickets} icon={Mail} delay={0.28} />
+          <StatCard label="Support Inbox" value={stats.openTickets} icon={MessagesSquare} delay={0.24} />
+          <StatCard label="Project Enquiries" value={stats.emailTickets} icon={Mail} delay={0.28} />
           <StatCard label="Public Bookings" value={stats.publicBookings} icon={CalendarClock} delay={0.32} />
         </div>
       )}
@@ -225,10 +225,10 @@ export default function AdminOverviewPage() {
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass gradient-border rounded-2xl p-5">
           <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-base font-bold">
-                <MessagesSquare className="h-4 w-4 text-cyan-500" /> Live Support Conversations
+                <MessagesSquare className="h-4 w-4 text-cyan-500" /> Support Inbox
               </h2>
               <Link href="/admin/support" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                Open inbox <ArrowRight className="h-3 w-3" />
+                Open Support Inbox <ArrowRight className="h-3 w-3" />
               </Link>
           </div>
           {loading ? (
@@ -261,7 +261,7 @@ export default function AdminOverviewPage() {
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass gradient-border rounded-2xl p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
-              <Mail className="h-4 w-4 text-cyan-500" /> Email Support Tickets
+              <Mail className="h-4 w-4 text-cyan-500" /> Project Enquiries
             </h2>
             <Link href="/admin/tickets" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
               View all <ArrowRight className="h-3 w-3" />
@@ -270,9 +270,9 @@ export default function AdminOverviewPage() {
           {loading ? (
             <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
           ) : error ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load email tickets.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load project enquiries.</p>
           ) : recentEmailTickets.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No email tickets yet.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No project enquiries yet.</p>
           ) : (
             <ul className="space-y-2.5">
               {recentEmailTickets.map((t) => (

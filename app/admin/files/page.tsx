@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Download, FileText, ImageIcon } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { PageHeader } from "@/components/portal/page-header";
+import { LoadError } from "@/components/portal/load-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/lib/toast";
 import type { AppointmentFile, SupportFile } from "@/types/dashboard";
@@ -26,14 +27,24 @@ export default function AdminFilesPage() {
   const { toast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     const [a, s, aAppts, sTickets] = await Promise.all([
       supabase.from("appointment_files").select("*").order("created_at", { ascending: false }),
       supabase.from("support_files").select("*").order("created_at", { ascending: false }),
       supabase.from("appointments").select("id, reference_id"),
       supabase.from("support_tickets").select("id, reference_id"),
     ]);
+    const failed = [a, s, aAppts, sTickets].find((r) => r.error);
+    if (failed?.error) {
+      setLoadError(failed.error.message || "Could not load files.");
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     const apptRef: Record<string, string | null> = {};
     for (const row of aAppts.data ?? []) apptRef[row.id] = row.reference_id;
     const ticketRef: Record<string, string | null> = {};
@@ -91,13 +102,15 @@ export default function AdminFilesPage() {
         {rows.length} files · {(totalSize / (1024 * 1024)).toFixed(2)} MB total · PNG/JPG/JPEG/PDF only, ≤ 5 MB each
       </p>
 
+      {loadError && <LoadError message={loadError} onRetry={() => load()} />}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
-      ) : rows.length === 0 ? (
+      ) : loadError ? null : rows.length === 0 ? (
         <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
           No files uploaded yet.
         </div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Crown, Search, UserRound } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { PageHeader } from "@/components/portal/page-header";
+import { LoadError } from "@/components/portal/load-error";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Appointment, Profile, SupportTicket } from "@/types/dashboard";
@@ -14,14 +15,24 @@ export default function AdminUsersPage() {
   const supabase = useSupabase();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     const [p, a, t] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("appointments").select("user_id"),
       supabase.from("support_tickets").select("user_id"),
     ]);
+    const failed = [p, a, t].find((r) => r.error);
+    if (failed?.error) {
+      setLoadError(failed.error.message || "Could not load users.");
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     const apptCounts: Record<string, number> = {};
     for (const row of a.data ?? []) apptCounts[(row as Appointment).user_id] = (apptCounts[(row as Appointment).user_id] ?? 0) + 1;
     const ticketCounts: Record<string, number> = {};
@@ -65,13 +76,15 @@ export default function AdminUsersPage() {
         </span>
       </div>
 
+      {loadError && <LoadError message={loadError} onRetry={() => load()} />}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : loadError ? null : filtered.length === 0 ? (
         <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">No users found.</div>
       ) : (
         <div className="glass gradient-border overflow-x-auto rounded-2xl">
