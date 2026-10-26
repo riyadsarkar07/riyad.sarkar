@@ -27,12 +27,19 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 /** Compact row of social icon buttons. */
-export function SocialLinks({ size = "md" }: { size?: "sm" | "md" }) {
+export function SocialLinks({
+  size = "md",
+  compactGrid = false,
+}: {
+  size?: "sm" | "md";
+  compactGrid?: boolean;
+}) {
   const boxSize = size === "sm" ? "h-10 w-10" : "h-11 w-11";
+  const items = compactGrid ? socials.filter((social) => social.id !== "messenger") : socials;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {socials.map((social) => {
+    <div className={compactGrid ? "grid w-max grid-cols-4 gap-2" : "flex flex-wrap items-center gap-2"}>
+      {items.map((social) => {
         const Icon = iconMap[social.id] ?? Globe;
         return (
           <Magnetic key={social.id} strength={0.2}>

@@ -203,7 +203,7 @@ const en: Dictionary = {
     contact: "Contact",
   },
   hero: {
-    greeting: "Hello, I am",
+    greeting: "Based in Bangladesh · Serving clients worldwide",
     name: "Riyad Sarkar",
     role1: "Cyber Security Specialist",
     role2: "Digital Recovery Expert",
@@ -374,7 +374,7 @@ const en: Dictionary = {
     ],
   },
   blog: {
-    title: "Latest Insights",
+    title: "Featured Guides",
     subtitle: "Cyber security guides, recovery tutorials and digital protection strategies.",
     readTime: "min read",
     mins: "min read",
@@ -401,7 +401,7 @@ const bn: Dictionary = {
     contact: "যোগাযোগ",
   },
   hero: {
-    greeting: "আসসালামু আলাইকুম, আমি",
+    greeting: "বাংলাদেশকেন্দ্রিক · বিশ্বজুড়ে ক্লায়েন্টদের সেবা",
     name: "রিয়াদ সরকার",
     role1: "সাইবার সিকিউরিটি বিশেষজ্ঞ",
     role2: "ডিজিটাল রিকভারি বিশেষজ্ঞ",
@@ -571,7 +571,7 @@ const bn: Dictionary = {
     ],
   },
   blog: {
-    title: "সাম্প্রতিক লেখা",
+    title: "নির্বাচিত গাইড",
     subtitle: "সাইবার সিকিউরিটি গাইড, রিকভারি টিউটোরিয়াল এবং ডিজিটাল সুরক্ষা কৌশল।",
     readTime: "মিনিট পড়া",
     mins: "মিনিট",

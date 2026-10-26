@@ -12,10 +12,12 @@ export function useCountUp(target: number, duration = 2000, decimals = 0) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.25 });
   const reduceMotion = useReducedMotion();
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(target);
+  const started = useRef(false);
 
   useEffect(() => {
-    if (!inView) return;
+    if (!inView || started.current) return;
+    started.current = true;
 
     if (reduceMotion) {
       setValue(target);
@@ -24,6 +26,7 @@ export function useCountUp(target: number, duration = 2000, decimals = 0) {
 
     let frame = 0;
     let start: number | null = null;
+    setValue(0);
 
     const tick = (timestamp: number) => {
       if (start === null) start = timestamp;

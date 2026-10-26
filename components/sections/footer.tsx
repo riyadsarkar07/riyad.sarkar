@@ -9,7 +9,6 @@ import { useSession } from "@/hooks/use-session";
 import { useSectionNav } from "@/hooks/use-section-nav";
 import { Logo } from "@/components/ui/logo";
 import { SocialLinks } from "@/components/widgets/social-links";
-import { AvailabilityBadge } from "@/components/widgets/availability-badge";
 import { Button } from "@/components/ui/button";
 
 /** Premium footer with quick links, services and back-to-top. */
@@ -39,8 +38,8 @@ export function Footer() {
   return (
     <footer className="relative overflow-hidden border-t border-border/70 bg-gradient-to-b from-transparent to-sky-50/70 dark:to-slate-950/70">
       <div className="bg-mesh-blue pointer-events-none absolute inset-0" />
-      <div className="container relative pb-10 pt-16">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div className="container relative pb-28 pt-16 sm:pb-24 md:pb-12">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr] lg:items-start">
           {/* Brand */}
           <div>
             <a
@@ -60,10 +59,9 @@ export function Footer() {
               {t.footer.tagline}
             </p>
             <div className="mt-5">
-              <SocialLinks size="sm" />
+              <SocialLinks size="sm" compactGrid />
             </div>
-            <div className="mt-5 flex flex-col items-start gap-3">
-              <AvailabilityBadge compact />
+            <div className="mt-6">
               <Button size="sm" asChild>
                 <Link href="/consultation">{t.common.bookConsultation}</Link>
               </Button>
@@ -178,11 +176,11 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-14 flex flex-col items-center justify-between gap-5 border-t border-border/60 pt-7 sm:flex-row">
+        <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-7 text-center sm:flex-row sm:text-left">
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             © {year} {profile.name}. {t.footer.rights}
           </p>
-          <div className="flex items-center gap-5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
             <Link href="/privacy" className="transition-colors hover:text-primary">
               {t.footer.privacy}
             </Link>

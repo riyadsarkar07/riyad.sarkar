@@ -111,7 +111,7 @@ export function Certificates() {
         <SectionHeading
           eyebrow="Certifications"
           title="Validated Expertise"
-          description="Industry-recognized certifications that back every engagement with verified, up-to-date knowledge."
+          description="Professional credentials listed for reference. Use the verify link on each card to confirm current status."
         />
 
         <RevealGroup className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

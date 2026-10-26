@@ -86,13 +86,12 @@ export function Hero() {
             transition={{ duration: duration.slow, ease: easeOutExpo }}
             className="mb-4 flex flex-wrap items-center justify-center min-[390px]:mb-5 sm:mb-7 lg:justify-start"
           >
-            <span className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium min-[390px]:px-4 min-[390px]:py-2 min-[390px]:text-sm">
-              <span className="relative flex h-2 w-2">
+            <span className="glass inline-flex max-w-full items-center gap-2 rounded-full px-3 py-1.5 text-left text-[11px] font-medium leading-snug min-[390px]:px-4 min-[390px]:py-2 min-[390px]:text-xs sm:text-sm">
+              <span className="relative flex h-2 w-2 shrink-0">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              <span className="text-slate-300">{t.hero.greeting}</span>
-              <span className="font-semibold text-cyan-300">— {t.hero.location}</span>
+              <span className="text-slate-200">{t.hero.greeting}</span>
             </span>
           </motion.div>
 
@@ -105,13 +104,16 @@ export function Hero() {
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: duration.slow, delay: 0.42, ease: easeOutExpo }}
-            className="mt-3 flex min-h-[1.5em] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[0.98rem] font-medium min-[390px]:mt-4 min-[390px]:text-lg sm:mt-5 sm:text-2xl lg:justify-start"
+            className="mt-3 flex min-h-[2.6em] flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[0.98rem] font-medium leading-snug min-[390px]:mt-4 min-[390px]:min-h-[2.4em] min-[390px]:text-lg sm:mt-5 sm:min-h-[2.2em] sm:text-2xl lg:justify-start"
           >
-            <span className="hidden h-6 w-1 rounded-full bg-gradient-to-b from-sky-500 to-blue-600 sm:block" />
+            <span className="hidden h-6 w-1 shrink-0 rounded-full bg-gradient-to-b from-sky-500 to-blue-600 sm:block" />
             <span className="text-slate-300">{t.hero.role1}</span>
             <span className="hidden text-slate-500 sm:inline">·</span>
-            <span className="inline-flex items-center gap-1" style={{ opacity: isDeleting ? 0.45 : 1 }}>
-              <span className="text-gradient font-semibold">{typed}</span>
+            <span
+              className="inline-flex min-h-[1.35em] min-w-[11ch] items-center gap-1 sm:min-w-[16ch]"
+              style={{ opacity: isDeleting ? 0.55 : 1 }}
+            >
+              <span className="text-gradient font-semibold">{typed || "\u00a0"}</span>
               <span
                 className="ml-0.5 inline-block h-[1.1em] w-[2px] rounded-full bg-gradient-to-b from-sky-500 to-blue-600 animate-blink"
                 aria-hidden

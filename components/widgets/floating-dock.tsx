@@ -33,8 +33,11 @@ export function FloatingDock() {
   useEffect(() => {
     const update = () => {
       const hero = document.getElementById("home");
+      const footer = document.querySelector("footer");
       const threshold = hero ? hero.offsetHeight * 0.72 : window.innerHeight * 0.85;
-      setVisible(window.scrollY > threshold);
+      const footerTop = footer ? footer.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
+      const nearFooter = footerTop < window.innerHeight - 48;
+      setVisible(window.scrollY > threshold && !nearFooter);
     };
     update();
     window.addEventListener("scroll", update, { passive: true });

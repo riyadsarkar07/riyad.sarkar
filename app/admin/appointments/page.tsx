@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowUpDown, Eye, Search } from "lucide-react";
+import { ArrowUpDown, Eye, RefreshCw, Search } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { APPOINTMENT_STATUSES, PRIORITIES, PUBLIC_BOOKING_STATUSES } from "@/lib/constants";
 import { adminUpdateAppointmentAction } from "@/app/actions";
@@ -30,14 +30,24 @@ export default function AdminAppointmentsPage() {
   const [fDate, setFDate] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     const [portal, publicBookings] = await Promise.all([
       supabase.from("appointments").select("*").order(sortKey, { ascending: sortDir === "asc" }),
       supabase.from("consultation_bookings").select("*").order("created_at", { ascending: false }),
     ]);
-    setAppointments((portal.data ?? []) as Appointment[]);
-    setBookings((publicBookings.data ?? []) as ConsultationBooking[]);
+    const failed = portal.error || publicBookings.error;
+    if (failed) {
+      setLoadError(failed.message || "Could not load appointments.");
+      setAppointments([]);
+      setBookings([]);
+    } else {
+      setAppointments((portal.data ?? []) as Appointment[]);
+      setBookings((publicBookings.data ?? []) as ConsultationBooking[]);
+    }
     setLoading(false);
   }, [supabase, sortKey, sortDir]);
 
@@ -138,13 +148,22 @@ export default function AdminAppointmentsPage() {
         </div>
       </div>
 
+      {loadError && (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between" role="alert">
+          <p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
+          <Button size="sm" variant="outline" onClick={() => load()}>
+            <RefreshCw className="h-4 w-4" /> Retry
+          </Button>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(6)].map((_, i) => (
             <Skeleton key={i} className="h-16" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : loadError ? null : filtered.length === 0 ? (
         <div className="glass gradient-border rounded-2xl px-6 py-16 text-center text-sm text-muted-foreground">
           No appointments match your filters.
         </div>
@@ -227,7 +246,7 @@ export default function AdminAppointmentsPage() {
       </p>
       {loading ? (
         <Skeleton className="h-16" />
-      ) : bookings.length === 0 ? (
+      ) : loadError ? null : bookings.length === 0 ? (
         <div className="glass gradient-border rounded-2xl px-6 py-12 text-center text-sm text-muted-foreground">
           No public consultation bookings yet.
         </div>

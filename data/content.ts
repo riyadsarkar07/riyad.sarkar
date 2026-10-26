@@ -476,16 +476,14 @@ export const achievements: Achievement[] = [
 /* ------------------------------------------------------------------ */
 
 export const clientLogos = [
-  "Nova Commerce",
-  "Vertex Media",
-  "Crestline Group",
-  "Pinnacle Digital",
-  "Atlas Ventures",
-  "Quantum Brands",
-  "Lumina Studio",
-  "Orbit Systems",
-  "Helix Agency",
-  "Primex Trading",
+  "Account Recovery",
+  "Business Protection",
+  "Identity Security",
+  "Meta Platforms",
+  "Google Workspace",
+  "Brand Defense",
+  "Digital Forensics",
+  "Incident Response",
 ];
 
 /* ------------------------------------------------------------------ */

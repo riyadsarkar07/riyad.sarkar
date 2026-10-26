@@ -25,7 +25,7 @@ export default function BlogPage() {
             Insights
             <span className="h-px w-8 bg-gradient-to-l from-transparent to-cyber-500" />
           </div>
-          <h1 className="section-title">Latest Insights</h1>
+          <h1 className="section-title">Featured Guides</h1>
           <p className="mt-4 text-lg text-muted-foreground">
             Cyber security guides, recovery tutorials and digital protection strategies — written
             from real-world experience.

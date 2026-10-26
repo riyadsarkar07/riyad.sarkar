@@ -179,8 +179,26 @@ export function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, role: "assistant", text: t.ai.greeting },
   ]);
+  const [nearFooter, setNearFooter] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const update = () => {
+      const footer = document.querySelector("footer");
+      const footerTop = footer ? footer.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
+      const hidden = footerTop < window.innerHeight - 48;
+      setNearFooter(hidden);
+      if (hidden) setOpen(false);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -219,6 +237,8 @@ export function AIAssistant() {
   const restart = () => {
     setMessages([{ id: Date.now(), role: "assistant", text: t.ai.greeting }]);
   };
+
+  if (nearFooter) return null;
 
   return (
     <>

@@ -83,9 +83,10 @@ export function Gallery() {
                 {/* Caption */}
                 <div className="absolute inset-x-0 bottom-0 translate-y-1 p-5 opacity-100 sm:translate-y-2 sm:opacity-0 sm:transition-all sm:duration-500 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
                   <p className="text-xs font-semibold uppercase tracking-widest text-cyan-200">
-                    {item.category}
+                    {item.category} · Illustrative
                   </p>
                   <p className="font-display text-base font-bold text-white">{item.title}</p>
+                  <p className="mt-1 text-[11px] text-white/75">Generated artwork, not a live client dashboard.</p>
                 </div>
               </div>
             </RevealItem>

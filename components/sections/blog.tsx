@@ -9,9 +9,11 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { BlogCover } from "@/components/ui/blog-cover";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
-/** Blog section — latest insights grid. */
+/** Blog section — featured guides grid. */
 export function Blog() {
+  const { t } = useI18n();
   const posts = blogPosts.slice(0, 3);
 
   return (
@@ -19,8 +21,8 @@ export function Blog() {
       <div className="container">
         <SectionHeading
           eyebrow="Blog"
-          title="Latest Insights"
-          description="Cyber security guides, recovery tutorials and digital protection strategies."
+          title={t.blog.title}
+          description={t.blog.subtitle}
         />
 
         <RevealGroup className="mt-14 grid gap-6 md:grid-cols-3">

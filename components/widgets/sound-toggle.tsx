@@ -9,6 +9,24 @@ import { Button } from "@/components/ui/button";
 /** Sound effects toggle — lives in a small floating pill. */
 export function SoundToggle() {
   const { enabled, toggle, playClick } = useSound();
+  const [nearFooter, setNearFooter] = useState(false);
+
+  useEffect(() => {
+    const update = () => {
+      const footer = document.querySelector("footer");
+      const footerTop = footer ? footer.getBoundingClientRect().top : Number.POSITIVE_INFINITY;
+      setNearFooter(footerTop < window.innerHeight - 48);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  if (nearFooter) return null;
 
   return (
     <button

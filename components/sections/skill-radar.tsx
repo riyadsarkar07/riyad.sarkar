@@ -48,7 +48,7 @@ export function SkillRadar() {
   return (
     <div className="glass gradient-border rounded-[1.35rem] p-6 sm:p-8">
       <Reveal>
-        <h3 className="mb-1 text-2xl font-bold">Skill Radar</h3>
+        <h3 className="mb-1 text-2xl font-bold">Practice Areas</h3>
         <p className="mb-6 text-sm text-muted-foreground">
           Core capabilities across the security spectrum.
         </p>

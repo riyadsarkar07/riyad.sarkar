@@ -12,7 +12,7 @@ export function ClientLogos() {
     <section className="relative overflow-hidden py-16" aria-label="Trusted by clients">
       <Reveal>
         <p className="mb-10 text-center text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground">
-          Trusted by teams & businesses worldwide
+          Supporting individuals, creators and businesses worldwide
         </p>
       </Reveal>
 
