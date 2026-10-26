@@ -3,11 +3,12 @@
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 import { useMounted } from "@/hooks/use-mounted";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /** Dark / light mode toggle. */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useMounted();
 
@@ -19,7 +20,7 @@ export function ThemeToggle() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-10 w-10 sm:h-11 sm:w-11"
+          className={cn("h-10 w-10 sm:h-11 sm:w-11", className)}
           onClick={() => setTheme(isDark ? "light" : "dark")}
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
         >

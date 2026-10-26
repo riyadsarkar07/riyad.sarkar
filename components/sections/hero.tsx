@@ -67,11 +67,12 @@ export function Hero() {
     <section
       id="home"
       ref={sectionRef}
-      className="relative flex items-center overflow-hidden pt-[4.5rem] sm:pt-24 lg:min-h-[92dvh] lg:pt-28"
+      className="hero-cinematic relative flex items-center overflow-hidden pt-[4.5rem] sm:pt-24 lg:min-h-[92dvh] lg:pt-28"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute inset-0 bg-[radial-gradient(900px_420px_at_78%_18%,rgba(14,165,233,0.14),transparent_58%),radial-gradient(720px_360px_at_12%_8%,rgba(15,23,42,0.08),transparent_62%)] dark:bg-[radial-gradient(900px_420px_at_78%_18%,rgba(14,165,233,0.16),transparent_58%),radial-gradient(720px_360px_at_12%_8%,rgba(2,6,23,0.55),transparent_62%)]" />
-        <div className="bg-grid absolute inset-0 opacity-20 dark:opacity-[0.14] [mask-image:radial-gradient(ellipse_at_center,black_18%,transparent_72%)]" />
+        <div className="hero-cinematic-bg absolute inset-0" />
+        <div className="hero-cinematic-ambient absolute right-[6%] top-[10%] h-[340px] w-[340px] rounded-full blur-3xl sm:h-[420px] sm:w-[420px]" />
+        <div className="bg-grid absolute inset-0 opacity-[0.1] [mask-image:radial-gradient(ellipse_at_center,black_18%,transparent_72%)]" />
       </div>
 
       <motion.div
@@ -90,12 +91,12 @@ export function Hero() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              <span className="text-muted-foreground">{t.hero.greeting}</span>
-              <span className="font-semibold text-primary">— {t.hero.location}</span>
+              <span className="text-slate-300">{t.hero.greeting}</span>
+              <span className="font-semibold text-cyan-300">— {t.hero.location}</span>
             </span>
           </motion.div>
 
-          <h1 className="flex flex-wrap justify-center gap-x-[0.32em] text-[2.15rem] font-bold leading-[1.05] tracking-tight min-[390px]:text-[2.45rem] min-[430px]:text-5xl sm:text-6xl md:text-7xl lg:justify-start lg:text-[4.6rem]">
+          <h1 className="flex flex-wrap justify-center gap-x-[0.32em] text-[2.15rem] font-bold leading-[1.05] tracking-tight text-white min-[390px]:text-[2.45rem] min-[430px]:text-5xl sm:text-6xl md:text-7xl lg:justify-start lg:text-[4.6rem]">
             <TextReveal text={t.hero.name.split(" ")[0]} delay={0.08} />
             <TextReveal text={lastName} delay={0.18} gradientWords={lastName.split(" ")} />
           </h1>
@@ -107,8 +108,8 @@ export function Hero() {
             className="mt-3 flex min-h-[1.5em] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[0.98rem] font-medium min-[390px]:mt-4 min-[390px]:text-lg sm:mt-5 sm:text-2xl lg:justify-start"
           >
             <span className="hidden h-6 w-1 rounded-full bg-gradient-to-b from-sky-500 to-blue-600 sm:block" />
-            <span className="text-muted-foreground">{t.hero.role1}</span>
-            <span className="hidden text-muted-foreground/50 sm:inline">·</span>
+            <span className="text-slate-300">{t.hero.role1}</span>
+            <span className="hidden text-slate-500 sm:inline">·</span>
             <span className="inline-flex items-center gap-1" style={{ opacity: isDeleting ? 0.45 : 1 }}>
               <span className="text-gradient font-semibold">{typed}</span>
               <span
@@ -121,7 +122,7 @@ export function Hero() {
 
         <div className="relative order-2 mx-auto flex h-[220px] w-[220px] items-center justify-center min-[390px]:h-[248px] min-[390px]:w-[248px] min-[430px]:h-[268px] min-[430px]:w-[268px] sm:h-[340px] sm:w-[340px] md:h-[380px] md:w-[380px] lg:order-none lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-[400px] lg:w-[400px] lg:self-center">
           <div
-            className="pointer-events-none absolute inset-[-4%] rounded-[32px] bg-cyan-400/10 blur-2xl dark:bg-cyan-400/16"
+            className="pointer-events-none absolute inset-[-6%] rounded-[32px] bg-cyan-400/20 blur-3xl"
             aria-hidden
           />
           <div className="relative z-10 h-full w-full">
@@ -130,7 +131,7 @@ export function Hero() {
         </div>
 
         <div className="order-3 text-center lg:col-start-1 lg:row-start-2 lg:text-left">
-          <p className="mx-auto mt-1 max-w-xl text-pretty text-[0.95rem] leading-relaxed text-muted-foreground min-[390px]:text-base sm:mt-0 md:text-lg lg:mx-0">
+          <p className="mx-auto mt-1 max-w-xl text-pretty text-[0.95rem] leading-relaxed text-slate-300 min-[390px]:text-base sm:mt-0 md:text-lg lg:mx-0">
             <LineReveal delay={0.52}>{t.hero.tagline}</LineReveal>
           </p>
 
@@ -168,7 +169,7 @@ export function Hero() {
             transition={{ duration: duration.slow, delay: 0.74, ease: easeOutExpo }}
             className="mt-5 flex flex-wrap items-center justify-center gap-1.5 min-[390px]:mt-6 sm:mt-8 sm:gap-2 lg:justify-start"
           >
-            <span className="mr-0.5 hidden text-xs font-medium uppercase tracking-widest text-muted-foreground min-[430px]:inline">
+            <span className="mr-0.5 hidden text-xs font-medium uppercase tracking-widest text-slate-400 min-[430px]:inline">
               Reach me
             </span>
             {socials.map((social, index) => {
@@ -183,7 +184,7 @@ export function Hero() {
                     initial={{ opacity: 0, scale: 0.7 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.78 + index * 0.04, type: "spring", stiffness: 320, damping: 18 }}
-                    className="glass flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:border-primary/30 hover:text-primary hover:shadow-glass sm:h-10 sm:w-10"
+                    className="glass flex h-9 w-9 items-center justify-center rounded-full text-slate-300 transition-colors duration-200 hover:border-cyan-300/40 hover:text-cyan-300 hover:shadow-glass sm:h-10 sm:w-10"
                   >
                     <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
                   </motion.a>
@@ -200,8 +201,8 @@ export function Hero() {
           >
             <BadgeCheck className="h-6 w-6 shrink-0 text-cyan-500 sm:h-8 sm:w-8" />
             <div className="text-left">
-              <p className="text-xs font-semibold sm:text-sm">{t.hero.verified}</p>
-              <p className="text-[11px] text-muted-foreground sm:text-xs">{t.hero.verifiedSub}</p>
+              <p className="text-xs font-semibold text-white sm:text-sm">{t.hero.verified}</p>
+              <p className="text-[11px] text-slate-400 sm:text-xs">{t.hero.verifiedSub}</p>
             </div>
           </motion.div>
         </div>
@@ -209,7 +210,7 @@ export function Hero() {
 
       <motion.div
         style={reduceMotion ? undefined : { opacity: fadeOpacity }}
-        className="hero-fade pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-28 sm:h-36"
+        className="hero-fade pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-32 sm:h-44"
         aria-hidden
       />
 
@@ -218,7 +219,7 @@ export function Hero() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.25, duration: 0.6 }}
-        className="absolute bottom-6 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 text-muted-foreground transition-colors hover:text-primary md:flex"
+        className="absolute bottom-6 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 text-slate-400 transition-colors hover:text-cyan-300 md:flex"
         aria-label={t.hero.scroll}
       >
         <span className="text-[11px] font-medium uppercase tracking-[0.3em]">{t.hero.scroll}</span>

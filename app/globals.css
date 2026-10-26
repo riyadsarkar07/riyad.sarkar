@@ -308,6 +308,57 @@
     background: linear-gradient(to bottom, transparent, hsl(var(--background)));
   }
 
+  .hero-cinematic {
+    color: #f8fafc;
+    background-color: #020617;
+  }
+
+  .hero-cinematic-bg {
+    background:
+      radial-gradient(ellipse 820px 560px at 78% 22%, #082f49 0%, transparent 62%),
+      radial-gradient(ellipse 900px 640px at 12% 6%, #020617 0%, transparent 58%),
+      radial-gradient(ellipse 1100px 780px at 48% 44%, #071629 0%, transparent 72%),
+      linear-gradient(168deg, #020617 0%, #071629 46%, #082f49 100%);
+  }
+
+  .hero-cinematic-ambient {
+    background: radial-gradient(
+      circle at center,
+      rgba(34, 211, 238, 0.16) 0%,
+      rgba(8, 47, 73, 0.1) 42%,
+      transparent 70%
+    );
+  }
+
+  .hero-cinematic .hero-fade {
+    background: linear-gradient(
+      to bottom,
+      rgba(7, 22, 41, 0) 0%,
+      rgba(7, 22, 41, 0.28) 32%,
+      hsl(var(--background) / 0.88) 74%,
+      hsl(var(--background)) 100%
+    );
+  }
+
+  .hero-cinematic .glass {
+    background: rgba(8, 18, 34, 0.55);
+    border-color: rgba(125, 211, 252, 0.16);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 12px 32px rgba(0, 0, 0, 0.28);
+  }
+
+  .hero-cinematic .btn-outline-glow {
+    color: #e2e8f0;
+    border-color: rgba(125, 211, 252, 0.3);
+  }
+
+  .hero-cinematic .btn-outline-glow:hover {
+    color: #fff;
+    border-color: rgba(56, 189, 248, 0.5);
+    background-color: rgba(14, 165, 233, 0.12);
+  }
+
   .profile-3d {
     transform-style: preserve-3d;
   }

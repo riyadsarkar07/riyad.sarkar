@@ -8,10 +8,11 @@ import { navItems } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { useSession } from "@/hooks/use-session";
 import { useSectionNav } from "@/hooks/use-section-nav";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 /** Slide-in glass drawer for small screens. */
-export function MobileMenu() {
+export function MobileMenu({ triggerClassName }: { triggerClassName?: string }) {
   const { t } = useI18n();
   const { user } = useSession();
   const { go, hrefFor } = useSectionNav();
@@ -27,7 +28,7 @@ export function MobileMenu() {
       <Button
         variant="ghost"
         size="icon"
-        className="h-10 w-10 sm:h-11 sm:w-11"
+        className={cn("h-10 w-10 sm:h-11 sm:w-11", triggerClassName)}
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}

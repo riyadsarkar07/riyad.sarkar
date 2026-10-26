@@ -2,6 +2,7 @@
 
 import { Languages } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,13 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 /** English / বাংলা language toggle. */
-export function LanguageToggle() {
+export function LanguageToggle({ className }: { className?: string }) {
   const { lang, setLang } = useI18n();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-11 sm:w-11" aria-label="Change language">
+        <Button variant="ghost" size="icon" className={cn("h-10 w-10 sm:h-11 sm:w-11", className)} aria-label="Change language">
           <Languages className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>

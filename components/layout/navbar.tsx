@@ -23,22 +23,42 @@ export function Navbar() {
   const { t } = useI18n();
   const { user, loading: sessionLoading } = useSession();
   const { go, hrefFor, pathname } = useSectionNav();
-  const [scrolled, setScrolled] = useState(false);
-  const active = useScrollSpy(sectionIds);
   const onHome = pathname === "/";
+  const [scrolled, setScrolled] = useState(false);
+  const [overHero, setOverHero] = useState(onHome);
+  const active = useScrollSpy(sectionIds);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 24);
+      if (!onHome) {
+        setOverHero(false);
+        return;
+      }
+      const hero = document.getElementById("home");
+      const threshold = hero ? Math.max(hero.offsetHeight - 96, 160) : window.innerHeight * 0.72;
+      setOverHero(y < threshold);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [onHome]);
+
+  const overDarkHero = onHome && overHero;
+  const onHeroControl = overDarkHero
+    ? "text-slate-100 hover:bg-white/10 hover:text-white"
+    : undefined;
 
   return (
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-[100] transition-all duration-500",
-        scrolled
+        scrolled && !overDarkHero
           ? "glass-strong border-b border-sky-200/50 shadow-glass dark:border-white/10"
           : "border-b border-transparent bg-transparent",
       )}
@@ -62,7 +82,12 @@ export function Navbar() {
           aria-label="Go to home"
         >
           <Logo className="h-8 w-8 sm:h-10 sm:w-10" />
-          <span className="truncate font-display text-[0.95rem] font-bold tracking-tight sm:text-lg">
+          <span
+            className={cn(
+              "truncate font-display text-[0.95rem] font-bold tracking-tight sm:text-lg",
+              overDarkHero && "text-white",
+            )}
+          >
             Riyad <span className="text-gradient">Sarkar</span>
           </span>
         </Link>
@@ -82,7 +107,11 @@ export function Navbar() {
                   }}
                   className={cn(
                     "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors duration-200 xl:px-3.5",
-                    isActive ? "text-primary" : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
+                    isActive
+                      ? "text-primary"
+                      : overDarkHero
+                        ? "text-slate-200 hover:bg-white/10 hover:text-white"
+                        : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
                   )}
                 >
                   {label}
@@ -100,25 +129,33 @@ export function Navbar() {
         </ul>
 
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-          <ThemeToggle />
-          <LanguageToggle />
+          <ThemeToggle className={onHeroControl} />
+          <LanguageToggle className={onHeroControl} />
           {sessionLoading ? (
             <div className="hidden h-9 w-16 animate-pulse rounded-full bg-primary/10 md:block" />
           ) : user ? (
             <>
-              <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
+              <Button asChild size="sm" variant="ghost" className={cn("hidden md:inline-flex", onHeroControl)}>
                 <Link href="/dashboard/support">{t.common.supportInbox}</Link>
               </Button>
-              <Button asChild size="sm" variant="outline" className="hidden md:inline-flex">
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "hidden md:inline-flex",
+                  overDarkHero && "border-white/25 text-slate-100 hover:border-cyan-300/50 hover:text-white",
+                )}
+              >
                 <Link href="/dashboard">{t.common.dashboard}</Link>
               </Button>
             </>
           ) : (
             <>
-              <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
+              <Button asChild size="sm" variant="ghost" className={cn("hidden md:inline-flex", onHeroControl)}>
                 <Link href="/login?next=/dashboard/support">{t.common.supportInbox}</Link>
               </Button>
-              <Button asChild size="sm" variant="ghost" className="hidden md:inline-flex">
+              <Button asChild size="sm" variant="ghost" className={cn("hidden md:inline-flex", onHeroControl)}>
                 <Link href="/login">{t.common.login}</Link>
               </Button>
             </>
@@ -126,7 +163,7 @@ export function Navbar() {
           <Button asChild size="sm" className="hidden md:inline-flex">
             <Link href="/consultation">{t.common.bookConsultation}</Link>
           </Button>
-          <MobileMenu />
+          <MobileMenu triggerClassName={onHeroControl} />
         </div>
       </nav>
     </header>
