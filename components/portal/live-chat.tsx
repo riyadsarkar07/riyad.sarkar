@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { useSupabase } from "@/hooks/use-supabase";
 import {
   closeChatSessionAction,
+  joinChatSessionAction,
   loadLiveChatInboxAction,
   loadLiveChatMessagesAction,
   markChatReadAction,
@@ -38,6 +39,14 @@ function fmtTime(d: string) {
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function senderLabel(m: ChatMessage, session: ChatSession | null, mode: "user" | "admin") {
+  if (m.sender_role === "admin") {
+    return m.sender_name || session?.assigned_admin_name || "Support";
+  }
+  if (mode === "user") return "You";
+  return m.sender_name || "Client";
 }
 
 function mergeChatMessages(prev: ChatMessage[], next: ChatMessage[]): ChatMessage[] {
@@ -83,6 +92,7 @@ export function LiveChat({
   const loadSeq = useRef(0);
   const lastMsgIdRef = useRef<string | null>(null);
   const bootstrapped = useRef(false);
+  const joiningRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -283,12 +293,30 @@ export function LiveChat({
     [sessions, selectedId],
   );
 
+  useEffect(() => {
+    if (mode !== "admin" || !selectedId || !selected) return;
+    if (selected.status === "closed") return;
+    if (selected.assigned_admin_id && selected.welcome_sent_at) return;
+    if (joiningRef.current.has(selectedId)) return;
+    joiningRef.current.add(selectedId);
+    void (async () => {
+      const res = await joinChatSessionAction(selectedId);
+      if (!res.ok) {
+        joiningRef.current.delete(selectedId);
+        return;
+      }
+      await loadSessions();
+      await loadMessages(selectedId, { showLoader: false });
+    })();
+  }, [mode, selectedId, selected, loadSessions, loadMessages]);
+
   const filtered = sessions.filter((s) => {
     const q = query.toLowerCase();
     const matchQ =
       !q ||
       (s.reference_id ?? "").toLowerCase().includes(q) ||
       (s.last_message_preview ?? "").toLowerCase().includes(q) ||
+      (s.assigned_admin_name ?? "").toLowerCase().includes(q) ||
       (profiles[s.user_id] ?? "").toLowerCase().includes(q);
     if (!matchQ) return false;
     if (fStatus === "all") return true;
@@ -535,7 +563,13 @@ export function LiveChat({
               <div className="min-w-0 flex-1">
                 <p className="truncate font-display text-sm font-bold">{selected.reference_id ?? "Session"}</p>
                 <p className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  {mode === "admin" ? profiles[selected.user_id] ?? "Client" : "Support team"}
+                  {mode === "admin"
+                    ? profiles[selected.user_id] ?? "Client"
+                    : selected.assigned_admin_name
+                      ? `Connected with ${selected.assigned_admin_name}`
+                      : selected.status === "waiting"
+                        ? "Waiting for an agent"
+                        : "Support team"}
                   <span className="inline-flex items-center gap-1">
                     {connected ? <Radio className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3" />}
                     {connected ? "Realtime connected" : "Refreshing…"}
@@ -549,6 +583,12 @@ export function LiveChat({
                 </Button>
               )}
             </div>
+
+            {mode === "user" && selected.assigned_admin_name && selected.status !== "closed" && (
+              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-5 py-2.5 text-xs text-emerald-700 dark:text-emerald-300">
+                {selected.assigned_admin_name} has joined this chat.
+              </div>
+            )}
 
             {mode === "user" && agentOnline === false && selected.status !== "closed" && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-xs text-amber-700 dark:text-amber-300">
@@ -601,15 +641,21 @@ export function LiveChat({
                             )}
                           >
                             {!mine && (
-                              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-cyan-500">
-                                {mode === "admin" ? "Client" : "Support Team"}
+                              <p className="mb-1 text-[10px] font-semibold tracking-wide text-cyan-500">
+                                {senderLabel(m, selected, mode)}
+                              </p>
+                            )}
+                            {mine && m.sender_role === "admin" && (
+                              <p className="mb-1 text-[10px] font-semibold tracking-wide text-white/80">
+                                {senderLabel(m, selected, mode)}
                               </p>
                             )}
                             <p className="whitespace-pre-line">{m.message}</p>
                           </div>
                           <p className={cn("mt-1 text-[10px] text-muted-foreground", mine ? "text-right" : "text-left")}>
                             {fmtTime(m.created_at)}
-                            {m.sender_role === "user" ? " · You" : " · Support"}
+                            {" · "}
+                            {senderLabel(m, selected, mode)}
                           </p>
                         </div>
                       </motion.div>

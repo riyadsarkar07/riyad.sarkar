@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
   notifyAppointmentCreated,
   notifyAppointmentStatus,
+  notifyChatJoined,
   notifyChatMessage,
   notifyChatStarted,
   notifySupportReply,
@@ -21,6 +22,35 @@ import {
 import type { ChatMessage, ChatSession } from "@/types/dashboard";
 
 type ActionResult = { ok: boolean; error?: string; referenceId?: string };
+
+type ChatJoinResult = {
+  ok?: boolean;
+  joined?: boolean;
+  welcome?: boolean;
+  status?: string;
+  admin_name?: string | null;
+  reference_id?: string | null;
+  user_id?: string | null;
+};
+
+async function runJoinChatSession(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sessionId: string,
+): Promise<{ ok: true; result: ChatJoinResult } | { ok: false; error: string }> {
+  const { data, error } = await supabase.rpc("join_chat_session", {
+    p_session_id: sessionId,
+  });
+  if (error) return { ok: false, error: error.message };
+  const result = (data ?? {}) as ChatJoinResult;
+  if (result.joined && result.user_id && result.admin_name && result.reference_id) {
+    await notifyChatJoined({
+      userId: result.user_id,
+      adminName: result.admin_name,
+      referenceId: result.reference_id,
+    });
+  }
+  return { ok: true, result };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Shared helpers                                                     */
@@ -613,6 +643,33 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
   return { ok: true, referenceId: session.reference_id, sessionId: session.id };
 }
 
+export async function joinChatSessionAction(sessionId: string): Promise<
+  ActionResult & {
+    joined?: boolean;
+    welcome?: boolean;
+    adminName?: string | null;
+    status?: string;
+  }
+> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  const joined = await runJoinChatSession(supabase, sessionId);
+  if (!joined.ok) return { ok: false, error: joined.error };
+
+  revalidatePath("/dashboard/chat");
+  revalidatePath("/admin/chat");
+  return {
+    ok: true,
+    joined: !!joined.result.joined,
+    welcome: !!joined.result.welcome,
+    adminName: joined.result.admin_name ?? null,
+    status: joined.result.status,
+    referenceId: joined.result.reference_id ?? undefined,
+  };
+}
+
 export async function sendChatMessageAction(input: {
   sessionId: string;
   message: string;
@@ -636,11 +693,17 @@ export async function sendChatMessageAction(input: {
   if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
   const role: "user" | "admin" = isAdmin ? "admin" : "user";
 
+  if (isAdmin && session.status !== "closed") {
+    const joined = await runJoinChatSession(supabase, session.id);
+    if (!joined.ok) return { ok: false, error: joined.error };
+  }
+
   const { error: msgError } = await supabase.from("chat_messages").insert({
     session_id: session.id,
     sender_id: user.id,
     sender_role: role,
     message: text,
+    kind: "message",
   });
   if (msgError) return { ok: false, error: msgError.message };
 
