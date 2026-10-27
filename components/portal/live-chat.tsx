@@ -9,6 +9,7 @@ import {
   Loader2,
   MessageCircle,
   Radio,
+  RefreshCw,
   Search,
   Send,
   WifiOff,
@@ -17,6 +18,9 @@ import { useAuth } from "@/lib/auth";
 import { useSupabase } from "@/hooks/use-supabase";
 import {
   closeChatSessionAction,
+  loadLiveChatInboxAction,
+  loadLiveChatMessagesAction,
+  markChatReadAction,
   sendChatMessageAction,
   startChatSessionAction,
 } from "@/app/actions";
@@ -26,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { ChatMessage, ChatSession, Profile } from "@/types/dashboard";
+import type { ChatMessage, ChatSession } from "@/types/dashboard";
 
 function fmtTime(d: string) {
   return new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -43,7 +47,7 @@ export function LiveChat({
   mode: "user" | "admin";
   initialSessionId?: string | null;
 }) {
-  const { user } = useAuth();
+  const { user, isLoaded } = useAuth();
   const supabase = useSupabase();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -63,121 +67,122 @@ export function LiveChat({
   const [agentOnline, setAgentOnline] = useState<boolean | null>(null);
   const [connected, setConnected] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const selectedIdRef = useRef<string | null>(null);
+  const bootstrapped = useRef(false);
 
-  const loadPresence = useCallback(async () => {
-    const { data, error } = await supabase.rpc("admin_online_count");
-    if (error) {
-      setAgentOnline(null);
-      return;
-    }
-    setAgentOnline(typeof data === "number" ? data > 0 : Number(data) > 0);
-  }, [supabase]);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
 
   const loadSessions = useCallback(async () => {
-    let q = supabase.from("chat_sessions").select("*").order("updated_at", { ascending: false });
-    if (mode === "user" && user) q = q.eq("user_id", user.id);
-    const { data, error } = await q;
-    if (error) {
-      setListErr(error.message || "Could not load live chat sessions.");
+    const res = await loadLiveChatInboxAction();
+    if (!res.ok) {
+      setListErr(res.error || "Could not load live chat sessions.");
       setLoadingList(false);
       return [] as ChatSession[];
     }
-    const list = (data ?? []) as ChatSession[];
+    const list = res.sessions ?? [];
     setSessions(list);
     setListErr(null);
     setLoadingList(false);
-    if (mode === "admin") {
-      const ids = Array.from(new Set(list.map((s) => s.user_id)));
-      if (ids.length > 0) {
-        const { data: rows } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
-        const map: Record<string, string> = {};
-        for (const row of rows ?? []) {
-          const p = row as Profile;
-          map[p.id] = p.full_name || p.email || "Client";
-        }
-        setProfiles(map);
-      }
-    }
+    if (res.profiles) setProfiles((prev) => ({ ...prev, ...res.profiles }));
+    if (res.unread) setUnread(res.unread);
+    if (res.agentOnline !== undefined) setAgentOnline(res.agentOnline ?? null);
     return list;
-  }, [supabase, mode, user]);
-
-  const loadUnread = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase.from("chat_messages").select("session_id, sender_role, read");
-    const rows = (data ?? []) as ChatMessage[];
-    const counts: Record<string, number> = {};
-    for (const r of rows) {
-      const incoming = mode === "admin" ? r.sender_role === "user" : r.sender_role === "admin";
-      if (incoming && !r.read) counts[r.session_id] = (counts[r.session_id] ?? 0) + 1;
-    }
-    setUnread(counts);
-  }, [supabase, mode, user]);
+  }, []);
 
   useEffect(() => {
+    if (!isLoaded) return;
+    if (!user) {
+      setLoadingList(false);
+      setListErr("Not signed in");
+      return;
+    }
+    let active = true;
     (async () => {
       const list = await loadSessions();
-      await loadUnread();
-      await loadPresence();
+      if (!active) return;
       if (initialSessionId) setSelectedId(initialSessionId);
-      else if (mode === "user") {
+      else if (mode === "user" && !bootstrapped.current) {
         const open = list.find((s) => s.status === "waiting" || s.status === "active");
         if (open) setSelectedId(open.id);
       }
+      bootstrapped.current = true;
     })();
-  }, [loadSessions, loadUnread, loadPresence, initialSessionId, mode]);
+    return () => {
+      active = false;
+    };
+  }, [isLoaded, user, loadSessions, initialSessionId, mode]);
 
   useEffect(() => {
+    if (!user) return;
     const channel = supabase
-      .channel("live-chat-list")
-      .on("postgres_changes", { event: "*", schema: "public", table: "chat_sessions" }, () => {
-        loadSessions();
+      .channel(`live-chat-list-${mode}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_sessions" }, (payload) => {
+        const s = payload.new as ChatSession;
+        if (mode === "user" && s.user_id !== user.id) return;
+        setSessions((prev) => (prev.some((x) => x.id === s.id) ? prev : [s, ...prev]));
+        void loadSessions();
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, () => {
-        loadUnread();
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_sessions" }, (payload) => {
+        const s = payload.new as ChatSession;
+        if (mode === "user" && s.user_id !== user.id) return;
+        setSessions((prev) => {
+          const exists = prev.some((x) => x.id === s.id);
+          if (!exists) return [s, ...prev];
+          return prev.map((x) => (x.id === s.id ? s : x)).sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
+        });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+        const msg = payload.new as ChatMessage;
+        const incoming = mode === "admin" ? msg.sender_role === "user" : msg.sender_role === "admin";
+        if (incoming && msg.session_id !== selectedIdRef.current) {
+          setUnread((prev) => ({ ...prev, [msg.session_id]: (prev[msg.session_id] ?? 0) + 1 }));
+        }
+        void loadSessions();
       })
       .subscribe((status) => {
         setConnected(status === "SUBSCRIBED");
       });
-    const ping = window.setInterval(loadPresence, 30_000);
+
+    const ping = window.setInterval(() => {
+      void loadSessions();
+    }, 8_000);
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") void loadSessions();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
     return () => {
       supabase.removeChannel(channel);
       window.clearInterval(ping);
+      document.removeEventListener("visibilitychange", onVis);
     };
-  }, [supabase, loadSessions, loadUnread, loadPresence]);
+  }, [supabase, loadSessions, mode, user]);
 
-  const loadMessages = useCallback(
-    async (sessionId: string) => {
-      setLoadingMsgs(true);
-      const { data, error } = await supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true });
-      if (error) {
-        setChatErr(error.message || "Could not load messages.");
-        setMessages([]);
-      } else {
-        setChatErr(null);
-        setMessages((data ?? []) as ChatMessage[]);
-      }
-      setLoadingMsgs(false);
-    },
-    [supabase],
-  );
+  const loadMessages = useCallback(async (sessionId: string) => {
+    setLoadingMsgs(true);
+    const res = await loadLiveChatMessagesAction(sessionId);
+    if (!res.ok) {
+      setChatErr(res.error || "Could not load messages.");
+      setMessages([]);
+    } else {
+      setChatErr(null);
+      setMessages(res.messages ?? []);
+    }
+    setLoadingMsgs(false);
+  }, []);
 
-  const markRead = useCallback(
-    async (sessionId: string) => {
-      const incomingRole = mode === "admin" ? "user" : "admin";
-      await supabase
-        .from("chat_messages")
-        .update({ read: true })
-        .eq("session_id", sessionId)
-        .eq("sender_role", incomingRole)
-        .eq("read", false);
-      loadUnread();
-    },
-    [supabase, mode, loadUnread],
-  );
+  const markRead = useCallback(async (sessionId: string) => {
+    await markChatReadAction(sessionId);
+    setUnread((prev) => {
+      if (!prev[sessionId]) return prev;
+      const next = { ...prev };
+      delete next[sessionId];
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -204,8 +209,12 @@ export function LiveChat({
         },
       )
       .subscribe();
+    const refresh = window.setInterval(() => {
+      loadMessages(selectedId);
+    }, 8_000);
     return () => {
       supabase.removeChannel(channel);
+      window.clearInterval(refresh);
     };
   }, [selectedId, supabase, loadMessages, markRead, mode]);
 
@@ -244,13 +253,15 @@ export function LiveChat({
     const list = await loadSessions();
     const created = list.find((s) => s.id === res.sessionId) ?? list.find((s) => s.reference_id === res.referenceId);
     if (created) setSelectedId(created.id);
+    else setSelectedId(res.sessionId);
   };
 
   const sendReply = async () => {
     if (!selectedId || !reply.trim() || sending) return;
     setSending(true);
     setChatErr(null);
-    const res = await sendChatMessageAction({ sessionId: selectedId, message: reply.trim() });
+    const text = reply.trim();
+    const res = await sendChatMessageAction({ sessionId: selectedId, message: text });
     setSending(false);
     if (!res.ok) {
       setChatErr(res.error ?? "Failed to send");
@@ -259,6 +270,8 @@ export function LiveChat({
     setReply("");
     setSendOk(true);
     window.setTimeout(() => setSendOk(false), 2500);
+    await loadMessages(selectedId);
+    await loadSessions();
   };
 
   const closeSession = async () => {
@@ -266,6 +279,7 @@ export function LiveChat({
     const res = await closeChatSessionAction(selectedId);
     if (res.ok) {
       setSessions((prev) => prev.map((s) => (s.id === selectedId ? { ...s, status: "closed" as const } : s)));
+      await loadSessions();
     } else {
       setChatErr(res.error ?? "Could not close session");
     }
@@ -286,12 +300,25 @@ export function LiveChat({
               {presenceLabel}
             </p>
           </div>
-          {mode === "user" && (
-            <Button size="sm" onClick={startChat} disabled={starting}>
-              {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-              New chat
+          <div className="flex items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setLoadingList(true);
+                void loadSessions();
+              }}
+              aria-label="Refresh sessions"
+            >
+              <RefreshCw className="h-4 w-4" />
             </Button>
-          )}
+            {mode === "user" && (
+              <Button size="sm" onClick={startChat} disabled={starting}>
+                {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                New chat
+              </Button>
+            )}
+          </div>
         </div>
         <div className="space-y-2 border-b border-border/60 px-3 py-3">
           <div className="relative">
@@ -299,7 +326,7 @@ export function LiveChat({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search session ID…"
+              placeholder={mode === "admin" ? "Search client or session ID…" : "Search session ID…"}
               className="h-9 pl-9 text-xs"
             />
           </div>
@@ -332,7 +359,7 @@ export function LiveChat({
                 variant="outline"
                 onClick={() => {
                   setLoadingList(true);
-                  loadSessions();
+                  void loadSessions();
                 }}
               >
                 Retry
@@ -353,6 +380,7 @@ export function LiveChat({
               {filtered.map((s) => {
                 const active = s.id === selectedId;
                 const unreadCount = unread[s.id] ?? 0;
+                const isNew = s.status === "waiting";
                 return (
                   <li key={s.id}>
                     <button
@@ -364,16 +392,30 @@ export function LiveChat({
                     >
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-semibold">{s.reference_id ?? "Pending ID"}</span>
-                          {unreadCount > 0 && (
-                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1.5 text-[10px] font-bold text-white">
-                              {unreadCount}
-                            </span>
-                          )}
+                          <span className="truncate text-sm font-semibold">
+                            {mode === "admin" ? profiles[s.user_id] ?? "Client" : s.reference_id ?? "Pending ID"}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1">
+                            {isNew && (
+                              <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                                New
+                              </span>
+                            )}
+                            {unreadCount > 0 && (
+                              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1.5 text-[10px] font-bold text-white">
+                                {unreadCount}
+                              </span>
+                            )}
+                          </span>
                         </span>
-                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                          {mode === "admin" ? profiles[s.user_id] ?? "Client" : s.last_message_preview || "No messages yet"}
+                        <span className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">
+                          {mode === "admin" ? s.reference_id ?? "Pending ID" : s.last_message_preview || "No messages yet"}
                         </span>
+                        {mode === "admin" && (
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                            {s.last_message_preview || "Waiting for first message"}
+                          </span>
+                        )}
                         <span className="mt-1 flex items-center gap-2">
                           <StatusBadge status={s.status} />
                           <span className="text-[10px] text-muted-foreground">
@@ -440,7 +482,7 @@ export function LiveChat({
                   {mode === "admin" ? profiles[selected.user_id] ?? "Client" : "Support team"}
                   <span className="inline-flex items-center gap-1">
                     {connected ? <Radio className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3" />}
-                    {connected ? "Realtime connected" : "Reconnecting"}
+                    {connected ? "Realtime connected" : "Refreshing…"}
                   </span>
                 </p>
               </div>

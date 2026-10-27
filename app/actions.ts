@@ -18,6 +18,7 @@ import {
   MAX_FILE_SIZE,
   TICKET_CATEGORIES,
 } from "@/lib/constants";
+import type { ChatMessage, ChatSession } from "@/types/dashboard";
 
 type ActionResult = { ok: boolean; error?: string; referenceId?: string };
 
@@ -471,6 +472,88 @@ export async function adminUpdateTicketAction(input: {
 /* ------------------------------------------------------------------ */
 /*  Live chat                                                          */
 /* ------------------------------------------------------------------ */
+
+export async function loadLiveChatInboxAction(): Promise<{
+  ok: boolean;
+  error?: string;
+  sessions?: ChatSession[];
+  profiles?: Record<string, string>;
+  unread?: Record<string, number>;
+  agentOnline?: boolean | null;
+}> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const isAdmin = await isAdminUser();
+  let q = supabase.from("chat_sessions").select("*").order("updated_at", { ascending: false });
+  if (!isAdmin) q = q.eq("user_id", user.id);
+  const { data, error: qErr } = await q;
+  if (qErr) return { ok: false, error: qErr.message };
+
+  const sessions = (data ?? []) as ChatSession[];
+  const profiles: Record<string, string> = {};
+  if (isAdmin && sessions.length > 0) {
+    const ids = Array.from(new Set(sessions.map((s) => s.user_id)));
+    const { data: rows } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
+    for (const row of rows ?? []) {
+      const p = row as { id: string; full_name: string | null; email: string | null };
+      profiles[p.id] = p.full_name || p.email || "Client";
+    }
+  }
+
+  const { data: msgRows } = await supabase.from("chat_messages").select("session_id, sender_role, read");
+  const unread: Record<string, number> = {};
+  for (const r of (msgRows ?? []) as { session_id: string; sender_role: string; read: boolean }[]) {
+    const incoming = isAdmin ? r.sender_role === "user" : r.sender_role === "admin";
+    if (incoming && !r.read) unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
+  }
+
+  const { data: onlineCount, error: onlineErr } = await supabase.rpc("admin_online_count");
+  const agentOnline = onlineErr
+    ? null
+    : typeof onlineCount === "number"
+      ? onlineCount > 0
+      : Number(onlineCount) > 0;
+
+  return { ok: true, sessions, profiles, unread, agentOnline };
+}
+
+export async function loadLiveChatMessagesAction(sessionId: string): Promise<{
+  ok: boolean;
+  error?: string;
+  messages?: ChatMessage[];
+}> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data: session } = await supabase.from("chat_sessions").select("id, user_id").eq("id", sessionId).maybeSingle();
+  if (!session) return { ok: false, error: "Chat session not found." };
+  const isAdmin = await isAdminUser();
+  if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
+
+  const { data, error: qErr } = await supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true });
+  if (qErr) return { ok: false, error: qErr.message };
+  return { ok: true, messages: (data ?? []) as ChatMessage[] };
+}
+
+export async function markChatReadAction(sessionId: string): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const isAdmin = await isAdminUser();
+  const incomingRole = isAdmin ? "user" : "admin";
+  const { error: updErr } = await supabase
+    .from("chat_messages")
+    .update({ read: true })
+    .eq("session_id", sessionId)
+    .eq("sender_role", incomingRole)
+    .eq("read", false);
+  if (updErr) return { ok: false, error: updErr.message };
+  return { ok: true };
+}
 
 export async function startChatSessionAction(): Promise<ActionResult & { sessionId?: string }> {
   const { supabase, user, error } = await requireUser();
