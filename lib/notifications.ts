@@ -174,6 +174,60 @@ export async function notifySupportReply(input: {
   }
 }
 
+export async function notifyChatStarted(input: {
+  userId: string;
+  userEmail: string;
+  userName: string;
+  referenceId: string;
+}) {
+  await notifyUser(
+    input.userId,
+    "Live chat started",
+    `Your live chat session ${input.referenceId} is waiting for an agent.`,
+    "chat",
+  );
+  await sendEmail({
+    to: adminInbox(),
+    subject: `New live chat — ${input.referenceId}`,
+    html: renderEmail({
+      greeting: "New live chat session",
+      lines: [`<strong>${input.referenceId}</strong> — ${input.userName} (${input.userEmail})`],
+      cta: { label: "Open Live Chat", href: `${SITE_URL}/admin/chat` },
+    }),
+    text: `New live chat ${input.referenceId} from ${input.userName}.`,
+  });
+}
+
+export async function notifyChatMessage(input: {
+  userId: string | null;
+  userEmail: string;
+  userName: string;
+  referenceId: string;
+  senderRole: "user" | "admin";
+  preview: string;
+}) {
+  const snippet = input.preview.slice(0, 140);
+  if (input.senderRole === "admin" && input.userId) {
+    await notifyUser(
+      input.userId,
+      "Live chat reply",
+      `Support replied in ${input.referenceId}: "${snippet}"`,
+      "chat",
+    );
+  } else {
+    await sendEmail({
+      to: adminInbox(),
+      subject: `Live chat message — ${input.referenceId}`,
+      html: renderEmail({
+        greeting: "New live chat message",
+        lines: [`<strong>${input.referenceId}</strong> — ${input.userName}`, p(snippet)],
+        cta: { label: "Open Live Chat", href: `${SITE_URL}/admin/chat` },
+      }),
+      text: `New live chat message on ${input.referenceId}`,
+    });
+  }
+}
+
 const p = (text: string) => `<p style="margin:8px 0;padding:10px 12px;background:#0b1220;border-radius:8px">${text}</p>`;
 const badge = (text: string) =>
   `<span style="display:inline-block;padding:2px 8px;border-radius:999px;background:#1e293b;font-size:12px">${text}</span>`;

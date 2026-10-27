@@ -104,6 +104,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase, loadProfile]);
 
+  useEffect(() => {
+    if (!supabase || !user) return;
+    const ping = () => {
+      supabase.rpc("touch_last_activity").then(() => undefined);
+    };
+    ping();
+    const timer = window.setInterval(ping, 45_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") ping();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [supabase, user]);
+
   const signUp = useCallback(
     async (data: { fullName: string; email: string; phone: string; password: string }) => {
       if (!supabase) return { needsEmailConfirmation: false, ...UNAVAILABLE };

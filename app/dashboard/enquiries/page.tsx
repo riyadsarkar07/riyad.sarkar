@@ -51,7 +51,7 @@ export default function MyEnquiriesPage() {
         subtitle="Website and security project requests you submitted from the contact form. Live Support Inbox conversations are separate."
         actions={
           <Button asChild variant="outline">
-            <Link href="/track">Track with ticket number</Link>
+            <Link href="/track">Track with enquiry number</Link>
           </Button>
         }
       />

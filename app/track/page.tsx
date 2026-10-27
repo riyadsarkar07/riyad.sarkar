@@ -84,7 +84,7 @@ export default function TrackEnquiryPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyber-500">Project Enquiry</p>
         <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Track My Enquiry</h1>
         <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-          Enter the email you used and your ticket number. This is for project enquiries only — Support Inbox conversations and consultation bookings are tracked separately.
+          Enter the email you used and your enquiry number. This is for project enquiries only — Support Inbox cases, live chat, and consultation bookings are tracked separately.
         </p>
 
         <form onSubmit={onLookup} className="glass gradient-border mt-6 space-y-4 rounded-[1.5rem] p-5 sm:p-7">
@@ -101,12 +101,12 @@ export default function TrackEnquiryPage() {
               />
             </div>
             <div>
-              <Label htmlFor="track-ref">Ticket number</Label>
+              <Label htmlFor="track-ref">Enquiry number</Label>
               <Input
                 id="track-ref"
                 value={referenceId}
                 onChange={(e) => setReferenceId(e.target.value)}
-                placeholder="TKT-2026-0001"
+                placeholder="ENQ-YYYY-NNNN"
                 required
               />
             </div>
@@ -118,7 +118,7 @@ export default function TrackEnquiryPage() {
           )}
           <Button type="submit" disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            Look up ticket
+            Look up enquiry
           </Button>
         </form>
 

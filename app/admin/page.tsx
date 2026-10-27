@@ -10,7 +10,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
-  Loader2,
+  Headset,
   Mail,
   MessagesSquare,
   RefreshCw,
@@ -23,7 +23,7 @@ import { PageHeader } from "@/components/portal/page-header";
 import { StatCard } from "@/components/portal/stat-card";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Appointment, ConsultationBooking, EmailTicket, SupportTicket } from "@/types/dashboard";
+import type { Appointment, ChatSession, ConsultationBooking, EmailTicket, SupportTicket } from "@/types/dashboard";
 
 function fmtDate(d: string) {
   return new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleString("en-US", {
@@ -46,12 +46,14 @@ export default function AdminOverviewPage() {
     completed: 0,
     openTickets: 0,
     emailTickets: 0,
+    liveChats: 0,
     publicBookings: 0,
   });
   const [recentAppointments, setRecentAppointments] = useState<Appointment[]>([]);
   const [recentTickets, setRecentTickets] = useState<SupportTicket[]>([]);
   const [recentEmailTickets, setRecentEmailTickets] = useState<EmailTicket[]>([]);
   const [recentBookings, setRecentBookings] = useState<ConsultationBooking[]>([]);
+  const [recentChats, setRecentChats] = useState<ChatSession[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -71,11 +73,13 @@ export default function AdminOverviewPage() {
           completed,
           openTickets,
           emailTickets,
+          liveChats,
           publicBookings,
           recentAppts,
           recentTkts,
           recentEmail,
           recentPublic,
+          recentChat,
         ] = await Promise.all([
           supabase.from("profiles").select("id"),
           supabase.from("profiles").select("id").gte("created_at", monthAgo),
@@ -85,11 +89,13 @@ export default function AdminOverviewPage() {
           supabase.from("appointments").select("id").eq("status", "completed"),
           supabase.from("support_tickets").select("id").in("status", ["open", "pending", "in_progress"]),
           supabase.from("email_tickets").select("id").in("status", ["open", "in_progress", "awaiting_reply"]),
+          supabase.from("chat_sessions").select("id").in("status", ["waiting", "active"]),
           supabase.from("consultation_bookings").select("id").in("status", ["pending", "confirmed"]),
           supabase.from("appointments").select("*").order("created_at", { ascending: false }).limit(5),
           supabase.from("support_tickets").select("*").order("created_at", { ascending: false }).limit(5),
           supabase.from("email_tickets").select("*").order("created_at", { ascending: false }).limit(5),
           supabase.from("consultation_bookings").select("*").order("created_at", { ascending: false }).limit(5),
+          supabase.from("chat_sessions").select("*").order("updated_at", { ascending: false }).limit(5),
         ]);
         if (!active) return;
         const failed = [
@@ -101,11 +107,13 @@ export default function AdminOverviewPage() {
           completed,
           openTickets,
           emailTickets,
+          liveChats,
           publicBookings,
           recentAppts,
           recentTkts,
           recentEmail,
           recentPublic,
+          recentChat,
         ].find((r) => r.error);
         if (failed?.error) {
           setError(failed.error.message || "Could not load dashboard data.");
@@ -121,12 +129,14 @@ export default function AdminOverviewPage() {
           completed: completed.data?.length ?? 0,
           openTickets: openTickets.data?.length ?? 0,
           emailTickets: emailTickets.data?.length ?? 0,
+          liveChats: liveChats.data?.length ?? 0,
           publicBookings: publicBookings.data?.length ?? 0,
         });
         setRecentAppointments((recentAppts.data ?? []) as Appointment[]);
         setRecentTickets((recentTkts.data ?? []) as SupportTicket[]);
         setRecentEmailTickets((recentEmail.data ?? []) as EmailTicket[]);
         setRecentBookings((recentPublic.data ?? []) as ConsultationBooking[]);
+        setRecentChats((recentChat.data ?? []) as ChatSession[]);
         setLoading(false);
       } catch (err) {
         if (!active) return;
@@ -181,6 +191,7 @@ export default function AdminOverviewPage() {
           <StatCard label="In Progress" value={stats.inProgress} icon={CalendarClock} delay={0.16} />
           <StatCard label="Completed" value={stats.completed} icon={CheckCircle2} delay={0.2} />
           <StatCard label="Support Inbox" value={stats.openTickets} icon={MessagesSquare} delay={0.24} />
+          <StatCard label="Live Chat" value={stats.liveChats} icon={Headset} delay={0.26} />
           <StatCard label="Project Enquiries" value={stats.emailTickets} icon={Mail} delay={0.28} />
           <StatCard label="Public Bookings" value={stats.publicBookings} icon={CalendarClock} delay={0.32} />
         </div>
@@ -325,7 +336,41 @@ export default function AdminOverviewPage() {
         </motion.section>
       </div>
 
-      {loading && !error && <Loader2 className="mx-auto mt-10 h-6 w-6 animate-spin text-cyan-500" />}
+      <div className="mt-6">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass gradient-border rounded-2xl p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-display text-base font-bold">
+              <Headset className="h-4 w-4 text-cyan-500" /> Live Chat
+            </h2>
+            <Link href="/admin/chat" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+              Open Live Chat <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {loading ? (
+            <div className="space-y-3"><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+          ) : error ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Unable to load live chat.</p>
+          ) : recentChats.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No live chat sessions yet.</p>
+          ) : (
+            <ul className="space-y-2.5">
+              {recentChats.map((s) => (
+                <li key={s.id}>
+                  <Link href="/admin/chat" className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{s.reference_id ?? "Session"}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {s.last_message_preview || "No messages yet"} · {fmtDate(s.updated_at)}
+                      </p>
+                    </div>
+                    <StatusBadge status={s.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </motion.section>
+      </div>
     </div>
   );
 }

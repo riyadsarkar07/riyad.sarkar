@@ -7,6 +7,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
   notifyAppointmentCreated,
   notifyAppointmentStatus,
+  notifyChatMessage,
+  notifyChatStarted,
   notifySupportReply,
   notifyTicketCreated,
 } from "@/lib/notifications";
@@ -228,6 +230,9 @@ export async function createTicketAction(input: {
 
   if (insertError) return { ok: false, error: insertError.message };
   if (!ticket) return { ok: false, error: "Could not create ticket." };
+  if (!ticket.reference_id) {
+    return { ok: false, error: "Ticket saved without a case ID. Please contact support." };
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -276,11 +281,11 @@ export async function createTicketAction(input: {
     userId: user.id,
     userEmail: profile?.email ?? d.subject,
     userName: profile?.full_name ?? "Client",
-    referenceId: ticket.reference_id ?? "SUP-????",
+    referenceId: ticket.reference_id,
     subject: d.subject,
   });
 
-  return { ok: true, referenceId: ticket.reference_id ?? undefined };
+  return { ok: true, referenceId: ticket.reference_id };
 }
 
 export async function sendMessageAction(input: {
@@ -290,6 +295,9 @@ export async function sendMessageAction(input: {
 }): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
+  const text = input.message.trim();
+  if (text.length < 1) return { ok: false, error: "Message cannot be empty." };
+  if (text.length > 4000) return { ok: false, error: "Message is too long." };
 
   const { data: ticket } = await supabase
     .from("support_tickets")
@@ -299,6 +307,8 @@ export async function sendMessageAction(input: {
   if (!ticket) return { ok: false, error: "Ticket not found" };
 
   const isAdmin = await isAdminUser();
+  if (!isAdmin && ticket.user_id !== user.id) return { ok: false, error: "Not authorized" };
+  if (ticket.status === "closed") return { ok: false, error: "This case is closed." };
   const role: "user" | "admin" = isAdmin ? "admin" : "user";
 
   let fileId: string | null = null;
@@ -324,7 +334,7 @@ export async function sendMessageAction(input: {
     ticket_id: ticket.id,
     sender_id: user.id,
     sender_role: role,
-    message: input.message,
+    message: text,
     attachment_file_id: fileId,
   });
 
@@ -332,6 +342,8 @@ export async function sendMessageAction(input: {
 
   if (role === "user" && ticket.status === "open") {
     await supabase.from("support_tickets").update({ status: "pending" }).eq("id", ticket.id);
+  } else {
+    await supabase.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", ticket.id);
   }
 
   revalidatePath("/dashboard");
@@ -347,12 +359,12 @@ export async function sendMessageAction(input: {
     userId: role === "admin" ? ticket.user_id : null,
     userEmail: profile?.email ?? "",
     userName: profile?.full_name ?? "Client",
-    referenceId: ticket.reference_id ?? "SUP-????",
+    referenceId: ticket.reference_id ?? "",
     senderRole: role,
-    preview: input.message,
+    preview: text,
   });
 
-  return { ok: true };
+  return { ok: true, referenceId: ticket.reference_id ?? undefined };
 }
 
 export async function closeTicketAction(id: string): Promise<ActionResult> {
@@ -454,6 +466,140 @@ export async function adminUpdateTicketAction(input: {
   revalidatePath("/admin");
   revalidatePath("/dashboard");
   return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Live chat                                                          */
+/* ------------------------------------------------------------------ */
+
+export async function startChatSessionAction(): Promise<ActionResult & { sessionId?: string }> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data: existing } = await supabase
+    .from("chat_sessions")
+    .select("*")
+    .eq("user_id", user.id)
+    .in("status", ["waiting", "active"])
+    .order("created_at", { ascending: false })
+    .maybeSingle();
+
+  if (existing) {
+    if (!existing.reference_id) return { ok: false, error: "Chat session is missing a session ID." };
+    return { ok: true, referenceId: existing.reference_id, sessionId: existing.id };
+  }
+
+  const { data: session, error: insertError } = await supabase
+    .from("chat_sessions")
+    .insert({ user_id: user.id, status: "waiting" })
+    .select("*")
+    .maybeSingle();
+
+  if (insertError) {
+    if (insertError.code === "23505") {
+      const { data: raced } = await supabase
+        .from("chat_sessions")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["waiting", "active"])
+        .maybeSingle();
+      if (raced?.reference_id) {
+        return { ok: true, referenceId: raced.reference_id, sessionId: raced.id };
+      }
+    }
+    return { ok: false, error: insertError.message };
+  }
+  if (!session) return { ok: false, error: "Could not start a live chat session." };
+  if (!session.reference_id) return { ok: false, error: "Chat saved without a session ID. Please try again." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  await notifyChatStarted({
+    userId: user.id,
+    userEmail: profile?.email ?? user.email ?? "",
+    userName: profile?.full_name ?? "Client",
+    referenceId: session.reference_id,
+  });
+
+  revalidatePath("/dashboard/chat");
+  revalidatePath("/admin/chat");
+  return { ok: true, referenceId: session.reference_id, sessionId: session.id };
+}
+
+export async function sendChatMessageAction(input: {
+  sessionId: string;
+  message: string;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const text = input.message.trim();
+  if (text.length < 1) return { ok: false, error: "Message cannot be empty." };
+  if (text.length > 4000) return { ok: false, error: "Message is too long." };
+
+  const { data: session } = await supabase
+    .from("chat_sessions")
+    .select("*")
+    .eq("id", input.sessionId)
+    .maybeSingle();
+  if (!session) return { ok: false, error: "Chat session not found." };
+  if (session.status === "closed") return { ok: false, error: "This chat session is closed." };
+
+  const isAdmin = await isAdminUser();
+  if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
+  const role: "user" | "admin" = isAdmin ? "admin" : "user";
+
+  const { error: msgError } = await supabase.from("chat_messages").insert({
+    session_id: session.id,
+    sender_id: user.id,
+    sender_role: role,
+    message: text,
+  });
+  if (msgError) return { ok: false, error: msgError.message };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", session.user_id)
+    .maybeSingle();
+
+  await notifyChatMessage({
+    userId: role === "admin" ? session.user_id : null,
+    userEmail: profile?.email ?? "",
+    userName: profile?.full_name ?? "Client",
+    referenceId: session.reference_id ?? "",
+    senderRole: role,
+    preview: text,
+  });
+
+  revalidatePath("/dashboard/chat");
+  revalidatePath("/admin/chat");
+  return { ok: true, referenceId: session.reference_id ?? undefined };
+}
+
+export async function closeChatSessionAction(id: string): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const { data: session } = await supabase
+    .from("chat_sessions")
+    .select("user_id, reference_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!session) return { ok: false, error: "Chat session not found." };
+  const isAdmin = await isAdminUser();
+  if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
+  const { error: updateError } = await supabase
+    .from("chat_sessions")
+    .update({ status: "closed" })
+    .eq("id", id);
+  if (updateError) return { ok: false, error: updateError.message };
+  revalidatePath("/dashboard/chat");
+  revalidatePath("/admin/chat");
+  return { ok: true, referenceId: session.reference_id ?? undefined };
 }
 
 export async function markNotificationsReadAction(): Promise<ActionResult> {

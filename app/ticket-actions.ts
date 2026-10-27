@@ -43,7 +43,7 @@ export async function lookupEmailTicketAction(input: {
   referenceId: string;
 }): Promise<{ ok: true; ticket: TrackedTicket } | { ok: false; error: string }> {
   const parsed = lookupSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Enter a valid email and ticket number." };
+  if (!parsed.success) return { ok: false, error: "Enter a valid email and enquiry number." };
   if (!isSupabaseConfigured()) return { ok: false, error: "Tracking is not available right now." };
 
   const supabase = await createActionClient();
@@ -60,13 +60,13 @@ export async function lookupEmailTicketAction(input: {
     );
     if (error) {
       logPersistFailure("ticket-lookup", error);
-      return { ok: false, error: "Unable to look up this ticket right now." };
+      return { ok: false, error: "Unable to look up this enquiry right now." };
     }
-    if (!data) return { ok: false, error: "No ticket matched that email and reference number." };
+    if (!data) return { ok: false, error: "No enquiry matched that email and reference number." };
     return { ok: true, ticket: data as TrackedTicket };
   } catch (error) {
     if (isTimeoutError(error)) return { ok: false, error: "The lookup timed out. Please try again." };
-    return { ok: false, error: "Unable to look up this ticket right now." };
+    return { ok: false, error: "Unable to look up this enquiry right now." };
   }
 }
 

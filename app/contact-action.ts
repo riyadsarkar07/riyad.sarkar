@@ -133,7 +133,7 @@ export async function submitContactAction(
   const safeRef = escapeHtml(referenceId);
 
   const html = renderEmail({
-    greeting: "New support ticket",
+    greeting: "New project enquiry",
     lines: [
       `<strong>${safeRef}</strong> · ${safeName} (${safeEmail})`,
       `Issue type: ${safeType}`,
@@ -145,7 +145,7 @@ export async function submitContactAction(
   });
 
   const text = [
-    `New Support Ticket ${referenceId} — ${data.projectType}`,
+    `New Project Enquiry ${referenceId} — ${data.projectType}`,
     `From: ${data.name} <${data.email}>`,
     `Phone: ${phone}`,
     `Budget: ${budget}`,
@@ -158,7 +158,7 @@ export async function submitContactAction(
     ? { ok: true, skipped: false as boolean, code: undefined as undefined }
     : await sendEmail({
         to: adminInbox(),
-        subject: `New Support Ticket [${referenceId}] — ${data.projectType}`,
+        subject: `New Project Enquiry [${referenceId}] — ${data.projectType}`,
         html,
         text,
         replyTo: data.email,
@@ -198,13 +198,13 @@ export async function submitContactAction(
   if (emailDelivered && !alreadySaved) {
     await sendEmail({
       to: data.email,
-      subject: `Support ticket opened — ${referenceId}`,
+      subject: `Project enquiry received — ${referenceId}`,
       html: renderEmail({
         greeting: `Hi ${safeName},`,
         lines: [
-          `Your enquiry has been received as ticket <strong>${safeRef}</strong>.`,
+          `Your project enquiry has been received as <strong>${safeRef}</strong>.`,
           `Issue type: ${safeType}`,
-          "You can track status and replies with your email and ticket number.",
+          "You can track status and replies with your email and enquiry number.",
         ],
         cta: { label: "Track My Enquiry", href: `${SITE_URL}/track` },
       }),

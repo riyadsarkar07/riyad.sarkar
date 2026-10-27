@@ -15,6 +15,7 @@ import {
   Mail,
   MessageSquarePlus,
   Paperclip,
+  Search,
   Send,
   X,
 } from "lucide-react";
@@ -85,6 +86,10 @@ export function SupportMessenger({
   const [listErr, setListErr] = useState<string | null>(null);
   const [sendOk, setSendOk] = useState(false);
   const [appointmentRef, setAppointmentRef] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [fStatus, setFStatus] = useState("all");
+  const [fPriority, setFPriority] = useState("all");
+  const [latestPreview, setLatestPreview] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
   /* ------------------------------------------------------------------ */
@@ -95,7 +100,7 @@ export function SupportMessenger({
     let q = supabase
       .from("support_tickets")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
     if (mode === "user" && user) q = q.eq("user_id", user.id);
     const { data, error } = await q;
     if (error) {
@@ -107,6 +112,19 @@ export function SupportMessenger({
     setTickets(list);
     setListErr(null);
     setLoadingList(false);
+    if (list.length > 0) {
+      const { data: msgs } = await supabase
+        .from("support_messages")
+        .select("ticket_id, message, created_at")
+        .in("ticket_id", list.map((t) => t.id))
+        .order("created_at", { ascending: false });
+      const previews: Record<string, string> = {};
+      for (const row of msgs ?? []) {
+        const m = row as { ticket_id: string; message: string };
+        if (!previews[m.ticket_id]) previews[m.ticket_id] = m.message;
+      }
+      setLatestPreview(previews);
+    }
     return list;
   }, [supabase, mode, user]);
 
@@ -248,6 +266,21 @@ export function SupportMessenger({
     [tickets, selectedId],
   );
 
+  const filteredTickets = useMemo(() => {
+    const q = query.toLowerCase();
+    return tickets.filter((t) => {
+      const matchQ =
+        !q ||
+        (t.reference_id ?? "").toLowerCase().includes(q) ||
+        t.subject.toLowerCase().includes(q) ||
+        t.category.toLowerCase().includes(q) ||
+        (latestPreview[t.id] ?? "").toLowerCase().includes(q);
+      const matchStatus = fStatus === "all" || t.status === fStatus;
+      const matchPriority = fPriority === "all" || t.priority === fPriority;
+      return matchQ && matchStatus && matchPriority;
+    });
+  }, [tickets, query, fStatus, fPriority, latestPreview]);
+
   /* ------------------------------------------------------------------ */
   /*  Actions                                                            */
   /* ------------------------------------------------------------------ */
@@ -370,12 +403,51 @@ export function SupportMessenger({
       {/* Ticket list */}
       <aside className={cn("flex w-full flex-col border-b border-border/60 lg:w-80 lg:border-b-0 lg:border-r", selectedId ? "hidden lg:flex" : "")}>
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-          <h2 className="font-display text-sm font-bold">Tickets</h2>
+          <h2 className="font-display text-sm font-bold">Cases</h2>
           {mode === "user" && (
             <Button size="sm" onClick={() => setShowNew(true)}>
-              <MessageSquarePlus className="h-4 w-4" /> New Ticket
+              <MessageSquarePlus className="h-4 w-4" /> New Case
             </Button>
           )}
+        </div>
+        <div className="space-y-2 border-b border-border/60 px-3 py-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search case ID, subject…"
+              className="h-9 pl-9 text-xs"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={fStatus}
+              onChange={(e) => setFStatus(e.target.value)}
+              className="h-9 rounded-xl border border-input bg-white/60 px-2 text-xs dark:bg-white/5"
+              aria-label="Filter status"
+            >
+              <option value="all">All statuses</option>
+              {TICKET_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+            <select
+              value={fPriority}
+              onChange={(e) => setFPriority(e.target.value)}
+              className="h-9 rounded-xl border border-input bg-white/60 px-2 text-xs dark:bg-white/5"
+              aria-label="Filter priority"
+            >
+              <option value="all">All priorities</option>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORITY_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {loadingList ? (
@@ -385,17 +457,17 @@ export function SupportMessenger({
               <p className="text-sm text-red-500">{listErr}</p>
               <Button size="sm" variant="outline" onClick={() => { setLoadingList(true); loadTickets(); }}>Retry</Button>
             </div>
-          ) : tickets.length === 0 ? (
+          ) : filteredTickets.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
               <Mail className="h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">No tickets yet.</p>
-              {mode === "user" && (
-                <Button size="sm" variant="outline" onClick={() => setShowNew(true)}>Create a ticket</Button>
+              <p className="text-sm text-muted-foreground">{tickets.length === 0 ? "No support cases yet." : "No cases match your filters."}</p>
+              {mode === "user" && tickets.length === 0 && (
+                <Button size="sm" variant="outline" onClick={() => setShowNew(true)}>Create a case</Button>
               )}
             </div>
           ) : (
             <ul>
-              {tickets.map((t) => {
+              {filteredTickets.map((t) => {
                 const active = t.id === selectedId;
                 const unreadCount = unread[t.id] ?? 0;
                 return (
@@ -422,13 +494,18 @@ export function SupportMessenger({
                             </span>
                           )}
                         </span>
-                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                          {t.reference_id} · {CATEGORY_LABELS[t.category]}
+                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                          {t.reference_id} · {CATEGORY_LABELS[t.category]} · {PRIORITY_LABELS[t.priority]}
                         </span>
+                        {latestPreview[t.id] && (
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">
+                            {latestPreview[t.id]}
+                          </span>
+                        )}
                         <span className="mt-1 flex items-center gap-2">
                           <StatusBadge status={t.status} />
                           <span className="text-[10px] text-muted-foreground">
-                            {fmtTime(t.updated_at)}
+                            {new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {fmtTime(t.updated_at)}
                           </span>
                         </span>
                       </span>
@@ -451,11 +528,11 @@ export function SupportMessenger({
             {mode === "user" ? (
               <>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  Select a ticket or create a new one to start a private conversation with the support team.
-                </p>
-                <Button onClick={() => setShowNew(true)}>
-                  <MessageSquarePlus className="h-4 w-4" /> New Ticket
-                </Button>
+                    Select a case or create a new one. Each case gets a permanent Case ID from the database.
+                  </p>
+                  <Button onClick={() => setShowNew(true)}>
+                    <MessageSquarePlus className="h-4 w-4" /> New Case
+                  </Button>
               </>
             ) : (
               <p className="max-w-sm text-sm text-muted-foreground">
@@ -472,7 +549,7 @@ export function SupportMessenger({
                 onClick={() => setSelectedId(null)}
                 aria-label="Back to tickets"
               >
-                <ChevronLeft className="h-4 w-4" /> Inbox
+                <ChevronLeft className="h-4 w-4" /> Cases
               </button>
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 truncate font-display text-sm font-bold">
@@ -480,8 +557,9 @@ export function SupportMessenger({
                   {selectedTicket.subject}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {selectedTicket.reference_id} · {CATEGORY_LABELS[selectedTicket.category]} ·{" "}
-                  <span className="capitalize">{PRIORITY_LABELS[selectedTicket.priority]}</span> priority
+                    {selectedTicket.reference_id} · {CATEGORY_LABELS[selectedTicket.category]} ·{" "}
+                    <span className="capitalize">{PRIORITY_LABELS[selectedTicket.priority]}</span> priority · opened{" "}
+                    {new Date(selectedTicket.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </p>
               </div>
               <StatusBadge status={selectedTicket.status} />
@@ -627,7 +705,7 @@ export function SupportMessenger({
                   </button>
                 ) : (
                   <button className="font-semibold text-primary hover:underline" onClick={() => setShowNew(true)}>
-                    Create a new ticket
+                    Create a new case
                   </button>
                 )}
               </div>
@@ -732,7 +810,7 @@ export function SupportMessenger({
                 </Field>
                 <FileInput label="Attachment (optional)" onChange={setNewFile} />
                 <Button className="w-full" onClick={createTicket} disabled={sending}>
-                  {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />} Create Ticket
+                  {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />} Create Case
                 </Button>
               </div>
             </motion.div>

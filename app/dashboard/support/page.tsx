@@ -14,7 +14,7 @@ function SupportInbox() {
     <div>
       <PageHeader
         title="Support Inbox"
-        subtitle="Your private tickets with live replies, reference IDs, and status. Project enquiries and consultation bookings are tracked separately."
+        subtitle="Persistent support cases with a unique Case ID, history, replies, and status. Live chat and project enquiries stay in their own workflows."
       />
       <SupportMessenger
         mode="user"

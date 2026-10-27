@@ -8,7 +8,7 @@ export default function AdminSupportPage() {
     <div>
       <PageHeader
         title="Support Inbox"
-        subtitle="Client tickets with live replies, reference IDs, unread counts, and status. Project enquiries and appointments live in their own sections."
+        subtitle="Client support cases with Case IDs, replies, unread counts, and status. Live chat, project enquiries, and appointments stay separate."
       />
       <SupportMessenger mode="admin" />
     </div>

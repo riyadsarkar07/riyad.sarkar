@@ -53,6 +53,9 @@ export type TicketStatus = (typeof TICKET_STATUSES)[number];
 export const EMAIL_TICKET_STATUSES = ["open", "in_progress", "awaiting_reply", "resolved"] as const;
 export type EmailTicketStatus = (typeof EMAIL_TICKET_STATUSES)[number];
 
+export const CHAT_SESSION_STATUSES = ["waiting", "active", "closed"] as const;
+export type ChatSessionStatus = (typeof CHAT_SESSION_STATUSES)[number];
+
 export const PUBLIC_BOOKING_STATUSES = ["pending", "confirmed", "completed", "cancelled"] as const;
 export type PublicBookingStatus = (typeof PUBLIC_BOOKING_STATUSES)[number];
 
@@ -111,6 +114,8 @@ export const STATUS_LABELS: Record<string, string> = {
   closed: "Closed",
   awaiting_reply: "Awaiting Reply",
   resolved: "Resolved",
+  waiting: "Waiting",
+  active: "Active",
 };
 
 export const PRIORITY_LABELS: Record<string, string> = {

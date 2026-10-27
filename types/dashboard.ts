@@ -1,5 +1,6 @@
 import type {
   AppointmentStatus,
+  ChatSessionStatus,
   ContactMethod,
   Priority,
   TicketCategory,
@@ -137,6 +138,27 @@ export interface ConsultationBooking {
   status: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChatSession {
+  id: string;
+  reference_id: string | null;
+  user_id: string;
+  status: ChatSessionStatus;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  sender_id: string | null;
+  sender_role: "user" | "admin";
+  message: string;
+  read: boolean;
+  created_at: string;
 }
 
 export interface DashboardStats {

@@ -11,6 +11,7 @@ import {
   CalendarPlus,
   CheckCircle2,
   Clock,
+  Headset,
   MessagesSquare,
   Sparkles,
 } from "lucide-react";
@@ -127,6 +128,11 @@ export default function DashboardOverviewPage() {
             <Button variant="outline" asChild>
               <Link href="/dashboard/support">
                 <MessagesSquare className="h-4 w-4" /> Support Inbox
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/chat">
+                <Headset className="h-4 w-4" /> Live Chat
               </Link>
             </Button>
             <Button asChild>
