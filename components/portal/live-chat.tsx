@@ -40,6 +40,17 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function mergeChatMessages(prev: ChatMessage[], next: ChatMessage[]): ChatMessage[] {
+  if (next.length === 0) return prev;
+  const byId = new Map<string, ChatMessage>();
+  for (const m of prev) byId.set(m.id, m);
+  for (const m of next) byId.set(m.id, m);
+  return Array.from(byId.values()).sort((a, b) => {
+    const t = +new Date(a.created_at) - +new Date(b.created_at);
+    return t !== 0 ? t : a.id.localeCompare(b.id);
+  });
+}
+
 export function LiveChat({
   mode,
   initialSessionId,
@@ -68,6 +79,9 @@ export function LiveChat({
   const [connected, setConnected] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
+  const messagesSessionRef = useRef<string | null>(null);
+  const loadSeq = useRef(0);
+  const lastMsgIdRef = useRef<string | null>(null);
   const bootstrapped = useRef(false);
 
   useEffect(() => {
@@ -161,16 +175,39 @@ export function LiveChat({
     };
   }, [supabase, loadSessions, mode, user]);
 
-  const loadMessages = useCallback(async (sessionId: string) => {
-    setLoadingMsgs(true);
+  const loadMessages = useCallback(async (sessionId: string, opts?: { showLoader?: boolean }) => {
+    const seq = ++loadSeq.current;
+    const showLoader = opts?.showLoader === true;
+    if (showLoader) setLoadingMsgs(true);
     const res = await loadLiveChatMessagesAction(sessionId);
+    if (seq !== loadSeq.current || selectedIdRef.current !== sessionId) return;
     if (!res.ok) {
       setChatErr(res.error || "Could not load messages.");
-      setMessages([]);
-    } else {
-      setChatErr(null);
-      setMessages(res.messages ?? []);
+      if (showLoader) setLoadingMsgs(false);
+      return;
     }
+    messagesSessionRef.current = sessionId;
+    setChatErr(null);
+    const incoming = res.messages ?? [];
+    setMessages((prev) => {
+      const merged = mergeChatMessages(
+        prev.filter((m) => m.session_id === sessionId),
+        incoming,
+      );
+      if (
+        merged.length === prev.length &&
+        merged.every(
+          (m, i) =>
+            m.id === prev[i]?.id &&
+            m.message === prev[i]?.message &&
+            m.read === prev[i]?.read &&
+            m.created_at === prev[i]?.created_at,
+        )
+      ) {
+        return prev;
+      }
+      return merged;
+    });
     setLoadingMsgs(false);
   }, []);
 
@@ -185,24 +222,40 @@ export function LiveChat({
   }, []);
 
   useEffect(() => {
-    if (!selectedId) return;
-    loadMessages(selectedId);
-    markRead(selectedId);
+    if (!selectedId) {
+      setMessages([]);
+      setLoadingMsgs(false);
+      setChatErr(null);
+      messagesSessionRef.current = null;
+      lastMsgIdRef.current = null;
+      return;
+    }
+    const sessionId = selectedId;
+    const isSwitch = messagesSessionRef.current !== sessionId;
+    if (isSwitch) {
+      setMessages([]);
+      setChatErr(null);
+      setLoadingMsgs(true);
+      lastMsgIdRef.current = null;
+    }
+    void loadMessages(sessionId, { showLoader: isSwitch });
+    void markRead(sessionId);
     const channel = supabase
-      .channel(`chat-${selectedId}`)
+      .channel(`chat-thread-${sessionId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_messages", filter: `session_id=eq.${selectedId}` },
+        { event: "INSERT", schema: "public", table: "chat_messages", filter: `session_id=eq.${sessionId}` },
         (payload) => {
           const msg = payload.new as ChatMessage;
+          if (msg.session_id !== selectedIdRef.current) return;
           setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
           const incoming = mode === "admin" ? msg.sender_role === "user" : msg.sender_role === "admin";
-          if (incoming) markRead(selectedId);
+          if (incoming) void markRead(sessionId);
         },
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "chat_sessions", filter: `id=eq.${selectedId}` },
+        { event: "UPDATE", schema: "public", table: "chat_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
           const s = payload.new as ChatSession;
           setSessions((prev) => prev.map((x) => (x.id === s.id ? s : x)));
@@ -210,7 +263,7 @@ export function LiveChat({
       )
       .subscribe();
     const refresh = window.setInterval(() => {
-      loadMessages(selectedId);
+      void loadMessages(sessionId, { showLoader: false });
     }, 8_000);
     return () => {
       supabase.removeChannel(channel);
@@ -219,8 +272,11 @@ export function LiveChat({
   }, [selectedId, supabase, loadMessages, markRead, mode]);
 
   useEffect(() => {
+    const last = messages[messages.length - 1]?.id ?? null;
+    if (!last || last === lastMsgIdRef.current) return;
+    lastMsgIdRef.current = last;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loadingMsgs]);
+  }, [messages]);
 
   const selected = useMemo(
     () => sessions.find((s) => s.id === selectedId) ?? null,
@@ -504,10 +560,23 @@ export function LiveChat({
             )}
 
             <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-5">
-              {loadingMsgs ? (
+              {loadingMsgs && messages.length === 0 ? (
                 <div className="space-y-3">
                   <Skeleton className="h-12 w-2/3" />
                   <Skeleton className="ml-auto h-12 w-1/2" />
+                </div>
+              ) : chatErr && messages.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-8 text-center">
+                  <p className="text-sm text-red-500">{chatErr}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void loadMessages(selected.id, { showLoader: true });
+                    }}
+                  >
+                    Retry
+                  </Button>
                 </div>
               ) : messages.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">No messages yet. Say hello.</p>
