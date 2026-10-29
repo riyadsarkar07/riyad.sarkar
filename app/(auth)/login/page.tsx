@@ -30,14 +30,18 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error: err } = await signIn(email, password);
+    const { error: err, isAdmin } = await signIn(email, password);
     setSubmitting(false);
     if (err) {
       setError(err);
       return;
     }
     const next = safeNextPath(searchParams.get("next"));
-    router.push(next ?? "/dashboard");
+    const dest =
+      isAdmin && (!next || next === "/dashboard" || next.startsWith("/dashboard/chat"))
+        ? "/admin"
+        : next ?? "/dashboard";
+    router.push(dest);
     router.refresh();
   };
 

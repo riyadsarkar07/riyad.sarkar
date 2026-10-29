@@ -198,6 +198,19 @@ export async function notifyChatStarted(input: {
   });
 }
 
+export async function notifyChatJoined(input: {
+  userId: string;
+  adminName: string;
+  referenceId: string;
+}) {
+  await notifyUser(
+    input.userId,
+    "Agent joined your live chat",
+    `${input.adminName} has joined your live chat. Reference ID: ${input.referenceId}.`,
+    "chat",
+  );
+}
+
 export async function notifyChatMessage(input: {
   userId: string | null;
   userEmail: string;

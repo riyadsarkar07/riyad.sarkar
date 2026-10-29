@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import {
   notifyAppointmentCreated,
   notifyAppointmentStatus,
+  notifyChatJoined,
   notifyChatMessage,
   notifyChatStarted,
   notifySupportReply,
@@ -21,6 +22,36 @@ import {
 import type { ChatMessage, ChatSession } from "@/types/dashboard";
 
 type ActionResult = { ok: boolean; error?: string; referenceId?: string };
+
+type ChatJoinResult = {
+  ok?: boolean;
+  joined?: boolean;
+  welcome?: boolean;
+  status?: string;
+  admin_name?: string | null;
+  assigned_admin_id?: string | null;
+  reference_id?: string | null;
+  user_id?: string | null;
+};
+
+async function runJoinChatSession(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sessionId: string,
+): Promise<{ ok: true; result: ChatJoinResult } | { ok: false; error: string }> {
+  const { data, error } = await supabase.rpc("join_chat_session", {
+    p_session_id: sessionId,
+  });
+  if (error) return { ok: false, error: error.message };
+  const result = (data ?? {}) as ChatJoinResult;
+  if (result.joined && result.user_id && result.admin_name && result.reference_id) {
+    await notifyChatJoined({
+      userId: result.user_id,
+      adminName: result.admin_name,
+      referenceId: result.reference_id,
+    });
+  }
+  return { ok: true, result };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Shared helpers                                                     */
@@ -473,7 +504,7 @@ export async function adminUpdateTicketAction(input: {
 /*  Live chat                                                          */
 /* ------------------------------------------------------------------ */
 
-export async function loadLiveChatInboxAction(): Promise<{
+export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"): Promise<{
   ok: boolean;
   error?: string;
   sessions?: ChatSession[];
@@ -485,14 +516,16 @@ export async function loadLiveChatInboxAction(): Promise<{
   if (!supabase || !user) return { ok: false, error };
 
   const isAdmin = await isAdminUser();
+  if (scope === "admin" && !isAdmin) return { ok: false, error: "Not authorized" };
+  const asAdmin = scope === "admin" && isAdmin;
   let q = supabase.from("chat_sessions").select("*").order("updated_at", { ascending: false });
-  if (!isAdmin) q = q.eq("user_id", user.id);
+  if (!asAdmin) q = q.eq("user_id", user.id);
   const { data, error: qErr } = await q;
   if (qErr) return { ok: false, error: qErr.message };
 
   const sessions = (data ?? []) as ChatSession[];
   const profiles: Record<string, string> = {};
-  if (isAdmin && sessions.length > 0) {
+  if (asAdmin && sessions.length > 0) {
     const ids = Array.from(new Set(sessions.map((s) => s.user_id)));
     const { data: rows } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
     for (const row of rows ?? []) {
@@ -501,11 +534,12 @@ export async function loadLiveChatInboxAction(): Promise<{
     }
   }
 
-  const { data: msgRows } = await supabase.from("chat_messages").select("session_id, sender_role, read");
+  let unreadQ = supabase.from("chat_messages").select("session_id").eq("read", false);
+  unreadQ = unreadQ.eq("sender_role", asAdmin ? "user" : "admin");
+  const { data: msgRows } = await unreadQ;
   const unread: Record<string, number> = {};
-  for (const r of (msgRows ?? []) as { session_id: string; sender_role: string; read: boolean }[]) {
-    const incoming = isAdmin ? r.sender_role === "user" : r.sender_role === "admin";
-    if (incoming && !r.read) unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
+  for (const r of (msgRows ?? []) as { session_id: string }[]) {
+    unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
   }
 
   const { data: onlineCount, error: onlineErr } = await supabase.rpc("admin_online_count");
@@ -586,14 +620,33 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
         .eq("user_id", user.id)
         .in("status", ["waiting", "active"])
         .maybeSingle();
-      if (raced?.reference_id) {
-        return { ok: true, referenceId: raced.reference_id, sessionId: raced.id };
+      if (raced?.id) {
+        return { ok: true, referenceId: raced.reference_id ?? undefined, sessionId: raced.id };
       }
     }
-    return { ok: false, error: insertError.message };
+    console.error("[live-chat] start session insert failed", {
+      code: insertError.code ?? "unknown",
+      hint: insertError.hint ?? null,
+      message: insertError.message ? "present" : "none",
+    });
+    const msg = (insertError.message ?? "").toLowerCase();
+    if (
+      insertError.code === "42883" ||
+      insertError.code === "42501" ||
+      msg.includes("gen_random_bytes") ||
+      msg.includes("function") ||
+      msg.includes("permission") ||
+      msg.includes("does not exist")
+    ) {
+      return {
+        ok: false,
+        error: "Live chat case IDs could not be created on the server. Apply the latest database migration, then retry.",
+      };
+    }
+    return { ok: false, error: insertError.message || "Could not start a live chat session. Please retry." };
   }
-  if (!session) return { ok: false, error: "Could not start a live chat session." };
-  if (!session.reference_id) return { ok: false, error: "Chat saved without a session ID. Please try again." };
+  if (!session) return { ok: false, error: "Could not start a live chat session. Please retry." };
+  if (!session.reference_id) return { ok: false, error: "Chat saved without a case ID. Please retry." };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -611,6 +664,49 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
   return { ok: true, referenceId: session.reference_id, sessionId: session.id };
+}
+
+export async function joinChatSessionAction(sessionId: string): Promise<
+  ActionResult & {
+    joined?: boolean;
+    welcome?: boolean;
+    adminName?: string | null;
+    status?: string;
+    assignedAdminId?: string | null;
+  }
+> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  const joined = await runJoinChatSession(supabase, sessionId);
+  if (!joined.ok) {
+    const msg = (joined.error ?? "").toLowerCase();
+    if (
+      msg.includes("join_chat_session") ||
+      msg.includes("does not exist") ||
+      msg.includes("schema cache") ||
+      msg.includes("function")
+    ) {
+      return {
+        ok: false,
+        error: "Admin join is not available on the server. Apply the live chat join migration, then retry.",
+      };
+    }
+    return { ok: false, error: joined.error };
+  }
+
+  revalidatePath("/dashboard/chat");
+  revalidatePath("/admin/chat");
+  return {
+    ok: true,
+    joined: !!joined.result.joined,
+    welcome: !!joined.result.welcome,
+    adminName: joined.result.admin_name ?? null,
+    status: joined.result.status,
+    assignedAdminId: joined.result.assigned_admin_id ?? null,
+    referenceId: joined.result.reference_id ?? undefined,
+  };
 }
 
 export async function sendChatMessageAction(input: {
@@ -636,11 +732,16 @@ export async function sendChatMessageAction(input: {
   if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
   const role: "user" | "admin" = isAdmin ? "admin" : "user";
 
+  if (isAdmin && session.status !== "closed" && !session.assigned_admin_id) {
+    return { ok: false, error: "Join this session before sending a reply." };
+  }
+
   const { error: msgError } = await supabase.from("chat_messages").insert({
     session_id: session.id,
     sender_id: user.id,
     sender_role: role,
     message: text,
+    kind: "message",
   });
   if (msgError) return { ok: false, error: msgError.message };
 

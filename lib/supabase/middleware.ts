@@ -12,7 +12,7 @@ export async function updateSession(request: NextRequest) {
   const key = getSupabaseAnonKey();
 
   if (!url || !key) {
-    return { supabaseResponse, user: null };
+    return { supabaseResponse, user: null, isAdmin: false };
   }
 
   const supabase = createServerClient(url, key, {
@@ -36,5 +36,11 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { supabaseResponse, user };
+  let isAdmin = false;
+  if (user) {
+    const { data } = await supabase.rpc("is_admin");
+    isAdmin = !!data;
+  }
+
+  return { supabaseResponse, user, isAdmin };
 }

@@ -145,6 +145,10 @@ export interface ChatSession {
   reference_id: string | null;
   user_id: string;
   status: ChatSessionStatus;
+  assigned_admin_id?: string | null;
+  assigned_admin_name?: string | null;
+  joined_at?: string | null;
+  welcome_sent_at?: string | null;
   last_message_at: string | null;
   last_message_preview: string | null;
   created_at: string;
@@ -156,6 +160,8 @@ export interface ChatMessage {
   session_id: string;
   sender_id: string | null;
   sender_role: "user" | "admin";
+  sender_name?: string | null;
+  kind?: "message" | "welcome";
   message: string;
   read: boolean;
   created_at: string;

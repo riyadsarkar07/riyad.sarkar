@@ -34,7 +34,7 @@ function formatDate(d: string) {
 }
 
 export default function DashboardOverviewPage() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const supabase = useSupabase();
   const [stats, setStats] = useState({
     upcoming: 0,
@@ -131,7 +131,7 @@ export default function DashboardOverviewPage() {
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/dashboard/chat">
+              <Link href={isAdmin ? "/admin/chat" : "/dashboard/chat"}>
                 <Headset className="h-4 w-4" /> Live Chat
               </Link>
             </Button>

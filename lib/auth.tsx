@@ -27,7 +27,7 @@ interface AuthContextValue {
     phone: string;
     password: string;
   }) => Promise<{ needsEmailConfirmation: boolean; error: string | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; isAdmin?: boolean }>;
   signOut: () => Promise<void>;
   sendRecoveryCode: (email: string) => Promise<{ error: string | null }>;
   verifyRecoveryCode: (email: string, token: string) => Promise<{ error: string | null }>;
@@ -142,9 +142,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      if (!supabase) return UNAVAILABLE;
+      if (!supabase) return { ...UNAVAILABLE, isAdmin: false };
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return { error: error?.message ?? null };
+      if (error) return { error: error.message, isAdmin: false };
+      const { data } = await supabase.rpc("is_admin");
+      const admin = !!data;
+      setIsAdmin(admin);
+      return { error: null, isAdmin: admin };
     },
     [supabase],
   );

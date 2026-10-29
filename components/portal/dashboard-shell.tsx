@@ -24,7 +24,7 @@ function DashboardNav() {
     { href: "/dashboard/appointments/new", label: "Book Appointment", icon: CalendarPlus },
     { href: "/dashboard/enquiries", label: "Project Enquiries", icon: Mail },
     { href: "/dashboard/support", label: "Support Inbox", icon: MessagesSquare },
-    { href: "/dashboard/chat", label: "Live Chat", icon: Headset },
+    { href: isAdmin ? "/admin/chat" : "/dashboard/chat", label: "Live Chat", icon: Headset },
     { href: "/dashboard/profile", label: "Profile", icon: UserRound },
     { href: "/dashboard/account", label: "Account Settings", icon: Settings },
     { href: "/dashboard/account#change-password", label: "Change Password", icon: Lock },
