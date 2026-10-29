@@ -91,8 +91,8 @@ export function LiveChat({
   const loadSeq = useRef(0);
   const lastMsgIdRef = useRef<string | null>(null);
   const bootstrapped = useRef(false);
-  const joiningRef = useRef<Set<string>>(new Set());
   const sessionsRef = useRef<ChatSession[]>([]);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -103,7 +103,7 @@ export function LiveChat({
   }, [sessions]);
 
   const loadSessions = useCallback(async () => {
-    const res = await loadLiveChatInboxAction();
+    const res = await loadLiveChatInboxAction(mode);
     if (!res.ok) {
       setListErr(res.error || "Could not load live chat sessions.");
       setLoadingList(false);
@@ -117,7 +117,7 @@ export function LiveChat({
     if (res.unread) setUnread(res.unread);
     if (res.agentOnline !== undefined) setAgentOnline(res.agentOnline ?? null);
     return list;
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -157,7 +157,20 @@ export function LiveChat({
         setSessions((prev) => {
           const exists = prev.some((x) => x.id === s.id);
           if (!exists) return [s, ...prev];
-          return prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)).sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
+          return prev
+            .map((x) =>
+              x.id === s.id
+                ? {
+                    ...x,
+                    ...s,
+                    assigned_admin_id: s.assigned_admin_id ?? x.assigned_admin_id,
+                    assigned_admin_name: s.assigned_admin_name ?? x.assigned_admin_name,
+                    welcome_sent_at: s.welcome_sent_at ?? x.welcome_sent_at,
+                    joined_at: s.joined_at ?? x.joined_at,
+                  }
+                : x,
+            )
+            .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
         });
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
@@ -282,7 +295,20 @@ export function LiveChat({
         { event: "UPDATE", schema: "public", table: "chat_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
           const s = payload.new as ChatSession;
-          setSessions((prev) => prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)));
+          setSessions((prev) =>
+            prev.map((x) =>
+              x.id === s.id
+                ? {
+                    ...x,
+                    ...s,
+                    assigned_admin_id: s.assigned_admin_id ?? x.assigned_admin_id,
+                    assigned_admin_name: s.assigned_admin_name ?? x.assigned_admin_name,
+                    welcome_sent_at: s.welcome_sent_at ?? x.welcome_sent_at,
+                    joined_at: s.joined_at ?? x.joined_at,
+                  }
+                : x,
+            ),
+          );
         },
       )
       .subscribe();
@@ -303,21 +329,34 @@ export function LiveChat({
     [sessions, selectedId],
   );
 
-  useEffect(() => {
-    if (mode !== "admin" || !selectedId || !selected) return;
-    if (selected.status === "closed") return;
-    if (selected.assigned_admin_id && selected.welcome_sent_at) return;
-    if (joiningRef.current.has(selectedId)) return;
-    joiningRef.current.add(selectedId);
-    void (async () => {
-      const res = await joinChatSessionAction(selectedId);
-      if (!res.ok) {
-        joiningRef.current.delete(selectedId);
-        return;
-      }
-      await loadMessages(selectedId, { showLoader: false });
-    })();
-  }, [mode, selectedId, selected, loadMessages]);
+  const joinSession = async () => {
+    if (mode !== "admin" || !selectedId || joining) return;
+    setJoining(true);
+    setChatErr(null);
+    const res = await joinChatSessionAction(selectedId);
+    if (!res.ok) {
+      setJoining(false);
+      setChatErr(res.error ?? "Could not join this session. Please retry.");
+      return;
+    }
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === selectedId
+          ? {
+              ...s,
+              status: (res.status as ChatSession["status"]) ?? "active",
+              assigned_admin_name: res.adminName ?? s.assigned_admin_name,
+              assigned_admin_id: res.assignedAdminId ?? user?.id ?? s.assigned_admin_id,
+              welcome_sent_at: res.welcome ? new Date().toISOString() : s.welcome_sent_at,
+              joined_at: s.joined_at ?? new Date().toISOString(),
+            }
+          : s,
+      ),
+    );
+    await loadMessages(selectedId, { showLoader: false });
+    await loadSessions();
+    setJoining(false);
+  };
 
   const filtered = sessions.filter((s) => {
     const q = query.toLowerCase();
@@ -389,7 +428,7 @@ export function LiveChat({
       <aside className={cn("flex w-full flex-col border-b border-border/60 lg:w-80 lg:border-b-0 lg:border-r", selectedId ? "hidden lg:flex" : "")}>
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <div>
-            <h2 className="font-display text-sm font-bold">Live sessions</h2>
+            <h2 className="font-display text-sm font-bold">{mode === "admin" ? "Client sessions" : "Your sessions"}</h2>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className={cn("h-1.5 w-1.5 rounded-full", agentOnline ? "bg-emerald-500" : "bg-slate-400")} />
               {presenceLabel}
@@ -596,7 +635,9 @@ export function LiveChat({
                 </div>
               </>
             ) : (
-              <p className="max-w-sm text-sm text-muted-foreground">Select a live session to join the conversation.</p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Admin console. Select a client session, then Join session to take the case. Opening the list does not join.
+              </p>
             )}
           </div>
         ) : (
@@ -610,15 +651,30 @@ export function LiveChat({
                 <ChevronLeft className="h-4 w-4" /> Sessions
               </button>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-sm font-bold">{selected.reference_id ?? "Session"}</p>
-                <p className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <p className="truncate font-display text-sm font-bold">
                   {mode === "admin"
                     ? profiles[selected.user_id] ?? "Client"
-                    : selected.assigned_admin_name
-                      ? `Connected with ${selected.assigned_admin_name}`
-                      : selected.status === "waiting"
-                        ? "Waiting for an agent"
-                        : "Support team"}
+                    : selected.reference_id ?? "Session"}
+                </p>
+                <p className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  {mode === "admin" ? (
+                    <>
+                      <span>Case {selected.reference_id ?? "pending"}</span>
+                      {selected.assigned_admin_name ? (
+                        <span>Joined as {selected.assigned_admin_name}</span>
+                      ) : selected.status === "waiting" ? (
+                        <span>Waiting — join to take this case</span>
+                      ) : (
+                        <span>Not joined</span>
+                      )}
+                    </>
+                  ) : selected.assigned_admin_name ? (
+                    `Connected with ${selected.assigned_admin_name}`
+                  ) : selected.status === "waiting" ? (
+                    "Waiting for an agent"
+                  ) : (
+                    "Support team"
+                  )}
                   <span className="inline-flex items-center gap-1">
                     {connected ? <Radio className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3" />}
                     {connected ? "Realtime connected" : "Refreshing…"}
@@ -626,16 +682,24 @@ export function LiveChat({
                 </p>
               </div>
               <StatusBadge status={selected.status} />
-              {selected.status !== "closed" && (
+              {mode === "admin" && selected.status !== "closed" && !selected.assigned_admin_id && (
+                <Button size="sm" onClick={joinSession} disabled={joining}>
+                  {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Join session
+                </Button>
+              )}
+              {selected.status !== "closed" && (mode === "user" || selected.assigned_admin_id) && (
                 <Button size="sm" variant="outline" onClick={closeSession}>
                   End session
                 </Button>
               )}
             </div>
 
-            {mode === "user" && selected.assigned_admin_name && selected.status !== "closed" && (
+            {selected.assigned_admin_name && selected.status !== "closed" && (
               <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-5 py-2.5 text-xs text-emerald-700 dark:text-emerald-300">
-                {selected.assigned_admin_name} has joined this chat.
+                {mode === "admin"
+                  ? `You joined as ${selected.assigned_admin_name}. The client can see your name and welcome message.`
+                  : `${selected.assigned_admin_name} has joined this chat.`}
               </div>
             )}
 
@@ -718,7 +782,12 @@ export function LiveChat({
               <div className="border-t border-border/60 p-4">
                 {chatErr && (
                   <p className="mb-2 text-xs text-red-500" role="alert">
-                    {chatErr}
+                    {chatErr}{" "}
+                    {mode === "admin" && !selected.assigned_admin_id ? (
+                      <button className="font-semibold underline" onClick={() => void joinSession()}>
+                        Retry join
+                      </button>
+                    ) : null}
                   </p>
                 )}
                 {sendOk && (
@@ -726,26 +795,36 @@ export function LiveChat({
                     Message sent
                   </p>
                 )}
-                <div className="flex items-end gap-2">
-                  <textarea
-                    value={reply}
-                    onChange={(e) => setReply(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendReply();
-                      }
-                    }}
-                    placeholder={mode === "user" ? "Message the support team…" : "Reply as agent…"}
-                    rows={2}
-                    className="flex-1 rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
-                    aria-label="Live chat message"
-                  />
-                  <Button size="sm" onClick={sendReply} disabled={sending || !reply.trim()}>
-                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Send
-                  </Button>
-                </div>
+                {mode === "admin" && !selected.assigned_admin_id ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">Join this waiting session to send the welcome message and reply as support.</p>
+                    <Button size="sm" onClick={joinSession} disabled={joining}>
+                      {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Join session
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendReply();
+                        }
+                      }}
+                      placeholder={mode === "user" ? "Message the support team…" : "Reply as agent…"}
+                      rows={2}
+                      className="flex-1 rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
+                      aria-label="Live chat message"
+                    />
+                    <Button size="sm" onClick={sendReply} disabled={sending || !reply.trim()}>
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      Send
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="border-t border-border/60 p-4 text-center text-sm text-muted-foreground">

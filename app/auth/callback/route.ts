@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { safeNextPath } from "@/lib/safe-path";
 
 /**
  * Handles email verification + password recovery redirects from Supabase.
@@ -9,13 +10,18 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = safeNextPath(searchParams.get("next"));
 
   if (code && isSupabaseConfigured()) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const { data: admin } = await supabase.rpc("is_admin");
+      const dest =
+        admin && (!next || next === "/dashboard" || next.startsWith("/dashboard/chat"))
+          ? "/admin"
+          : next ?? "/dashboard";
+      return NextResponse.redirect(`${origin}${dest}`);
     }
   }
 

@@ -29,6 +29,7 @@ type ChatJoinResult = {
   welcome?: boolean;
   status?: string;
   admin_name?: string | null;
+  assigned_admin_id?: string | null;
   reference_id?: string | null;
   user_id?: string | null;
 };
@@ -503,7 +504,7 @@ export async function adminUpdateTicketAction(input: {
 /*  Live chat                                                          */
 /* ------------------------------------------------------------------ */
 
-export async function loadLiveChatInboxAction(): Promise<{
+export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"): Promise<{
   ok: boolean;
   error?: string;
   sessions?: ChatSession[];
@@ -515,14 +516,16 @@ export async function loadLiveChatInboxAction(): Promise<{
   if (!supabase || !user) return { ok: false, error };
 
   const isAdmin = await isAdminUser();
+  if (scope === "admin" && !isAdmin) return { ok: false, error: "Not authorized" };
+  const asAdmin = scope === "admin" && isAdmin;
   let q = supabase.from("chat_sessions").select("*").order("updated_at", { ascending: false });
-  if (!isAdmin) q = q.eq("user_id", user.id);
+  if (!asAdmin) q = q.eq("user_id", user.id);
   const { data, error: qErr } = await q;
   if (qErr) return { ok: false, error: qErr.message };
 
   const sessions = (data ?? []) as ChatSession[];
   const profiles: Record<string, string> = {};
-  if (isAdmin && sessions.length > 0) {
+  if (asAdmin && sessions.length > 0) {
     const ids = Array.from(new Set(sessions.map((s) => s.user_id)));
     const { data: rows } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
     for (const row of rows ?? []) {
@@ -532,7 +535,7 @@ export async function loadLiveChatInboxAction(): Promise<{
   }
 
   let unreadQ = supabase.from("chat_messages").select("session_id").eq("read", false);
-  unreadQ = unreadQ.eq("sender_role", isAdmin ? "user" : "admin");
+  unreadQ = unreadQ.eq("sender_role", asAdmin ? "user" : "admin");
   const { data: msgRows } = await unreadQ;
   const unread: Record<string, number> = {};
   for (const r of (msgRows ?? []) as { session_id: string }[]) {
@@ -669,6 +672,7 @@ export async function joinChatSessionAction(sessionId: string): Promise<
     welcome?: boolean;
     adminName?: string | null;
     status?: string;
+    assignedAdminId?: string | null;
   }
 > {
   const { supabase, user, error } = await requireUser();
@@ -676,7 +680,21 @@ export async function joinChatSessionAction(sessionId: string): Promise<
   if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
 
   const joined = await runJoinChatSession(supabase, sessionId);
-  if (!joined.ok) return { ok: false, error: joined.error };
+  if (!joined.ok) {
+    const msg = (joined.error ?? "").toLowerCase();
+    if (
+      msg.includes("join_chat_session") ||
+      msg.includes("does not exist") ||
+      msg.includes("schema cache") ||
+      msg.includes("function")
+    ) {
+      return {
+        ok: false,
+        error: "Admin join is not available on the server. Apply the live chat join migration, then retry.",
+      };
+    }
+    return { ok: false, error: joined.error };
+  }
 
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
@@ -686,6 +704,7 @@ export async function joinChatSessionAction(sessionId: string): Promise<
     welcome: !!joined.result.welcome,
     adminName: joined.result.admin_name ?? null,
     status: joined.result.status,
+    assignedAdminId: joined.result.assigned_admin_id ?? null,
     referenceId: joined.result.reference_id ?? undefined,
   };
 }
@@ -713,9 +732,8 @@ export async function sendChatMessageAction(input: {
   if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
   const role: "user" | "admin" = isAdmin ? "admin" : "user";
 
-  if (isAdmin && session.status !== "closed") {
-    const joined = await runJoinChatSession(supabase, session.id);
-    if (!joined.ok) return { ok: false, error: joined.error };
+  if (isAdmin && session.status !== "closed" && !session.assigned_admin_id) {
+    return { ok: false, error: "Join this session before sending a reply." };
   }
 
   const { error: msgError } = await supabase.from("chat_messages").insert({

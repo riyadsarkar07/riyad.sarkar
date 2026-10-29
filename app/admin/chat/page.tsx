@@ -7,8 +7,8 @@ export default function AdminChatPage() {
   return (
     <div>
       <PageHeader
-        title="Live Chat"
-        subtitle="Realtime client sessions. Separate from Support Inbox cases, project enquiries, and appointments."
+        title="Admin Live Chat"
+        subtitle="All client sessions. Join a waiting chat to take it as support. Separate from Support Inbox, project enquiries, and appointments."
       />
       <LiveChat mode="admin" />
     </div>

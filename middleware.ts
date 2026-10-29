@@ -11,7 +11,7 @@ import { safeNextPath } from "@/lib/safe-path";
  *    complete the OTP password-recovery flow (e.g. from the profile page).
  */
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request);
+  const { supabaseResponse, user, isAdmin } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
   if (!user) {
@@ -36,10 +36,17 @@ export async function middleware(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     const next = safeNextPath(request.nextUrl.searchParams.get("next"));
-    if (next) {
+    if (next && !(isAdmin && (next === "/dashboard" || next.startsWith("/dashboard/chat")))) {
       return NextResponse.redirect(new URL(next, request.url));
     }
-    url.pathname = "/dashboard";
+    url.pathname = isAdmin ? "/admin" : "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (isAdmin && pathname === "/dashboard/chat") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin/chat";
     url.search = "";
     return NextResponse.redirect(url);
   }
