@@ -531,11 +531,12 @@ export async function loadLiveChatInboxAction(): Promise<{
     }
   }
 
-  const { data: msgRows } = await supabase.from("chat_messages").select("session_id, sender_role, read");
+  let unreadQ = supabase.from("chat_messages").select("session_id").eq("read", false);
+  unreadQ = unreadQ.eq("sender_role", isAdmin ? "user" : "admin");
+  const { data: msgRows } = await unreadQ;
   const unread: Record<string, number> = {};
-  for (const r of (msgRows ?? []) as { session_id: string; sender_role: string; read: boolean }[]) {
-    const incoming = isAdmin ? r.sender_role === "user" : r.sender_role === "admin";
-    if (incoming && !r.read) unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
+  for (const r of (msgRows ?? []) as { session_id: string }[]) {
+    unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
   }
 
   const { data: onlineCount, error: onlineErr } = await supabase.rpc("admin_online_count");

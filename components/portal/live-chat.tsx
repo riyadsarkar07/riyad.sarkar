@@ -25,7 +25,6 @@ import {
   sendChatMessageAction,
   startChatSessionAction,
 } from "@/app/actions";
-import { CHAT_SESSION_STATUSES } from "@/lib/constants";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,17 +92,22 @@ export function LiveChat({
   const lastMsgIdRef = useRef<string | null>(null);
   const bootstrapped = useRef(false);
   const joiningRef = useRef<Set<string>>(new Set());
+  const sessionsRef = useRef<ChatSession[]>([]);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
   const loadSessions = useCallback(async () => {
     const res = await loadLiveChatInboxAction();
     if (!res.ok) {
       setListErr(res.error || "Could not load live chat sessions.");
       setLoadingList(false);
-      return [] as ChatSession[];
+      return sessionsRef.current;
     }
     const list = res.sessions ?? [];
     setSessions(list);
@@ -146,7 +150,6 @@ export function LiveChat({
         const s = payload.new as ChatSession;
         if (mode === "user" && s.user_id !== user.id) return;
         setSessions((prev) => (prev.some((x) => x.id === s.id) ? prev : [s, ...prev]));
-        void loadSessions();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_sessions" }, (payload) => {
         const s = payload.new as ChatSession;
@@ -154,7 +157,7 @@ export function LiveChat({
         setSessions((prev) => {
           const exists = prev.some((x) => x.id === s.id);
           if (!exists) return [s, ...prev];
-          return prev.map((x) => (x.id === s.id ? s : x)).sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
+          return prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)).sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
         });
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
@@ -163,15 +166,17 @@ export function LiveChat({
         if (incoming && msg.session_id !== selectedIdRef.current) {
           setUnread((prev) => ({ ...prev, [msg.session_id]: (prev[msg.session_id] ?? 0) + 1 }));
         }
-        void loadSessions();
+        setSessions((prev) =>
+          prev.map((x) =>
+            x.id === msg.session_id
+              ? { ...x, last_message_at: msg.created_at, last_message_preview: msg.message.slice(0, 140), updated_at: msg.created_at }
+              : x,
+          ),
+        );
       })
       .subscribe((status) => {
         setConnected(status === "SUBSCRIBED");
       });
-
-    const ping = window.setInterval(() => {
-      void loadSessions();
-    }, 8_000);
 
     const onVis = () => {
       if (document.visibilityState === "visible") void loadSessions();
@@ -180,7 +185,6 @@ export function LiveChat({
 
     return () => {
       supabase.removeChannel(channel);
-      window.clearInterval(ping);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [supabase, loadSessions, mode, user]);
@@ -220,6 +224,16 @@ export function LiveChat({
     });
     setLoadingMsgs(false);
   }, []);
+
+  useEffect(() => {
+    if (!user || connected) return;
+    const ping = window.setInterval(() => {
+      void loadSessions();
+      const sid = selectedIdRef.current;
+      if (sid) void loadMessages(sid, { showLoader: false });
+    }, 20_000);
+    return () => window.clearInterval(ping);
+  }, [user, connected, loadSessions, loadMessages]);
 
   const markRead = useCallback(async (sessionId: string) => {
     await markChatReadAction(sessionId);
@@ -268,16 +282,12 @@ export function LiveChat({
         { event: "UPDATE", schema: "public", table: "chat_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
           const s = payload.new as ChatSession;
-          setSessions((prev) => prev.map((x) => (x.id === s.id ? s : x)));
+          setSessions((prev) => prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)));
         },
       )
       .subscribe();
-    const refresh = window.setInterval(() => {
-      void loadMessages(sessionId, { showLoader: false });
-    }, 8_000);
     return () => {
       supabase.removeChannel(channel);
-      window.clearInterval(refresh);
     };
   }, [selectedId, supabase, loadMessages, markRead, mode]);
 
@@ -305,10 +315,9 @@ export function LiveChat({
         joiningRef.current.delete(selectedId);
         return;
       }
-      await loadSessions();
       await loadMessages(selectedId, { showLoader: false });
     })();
-  }, [mode, selectedId, selected, loadSessions, loadMessages]);
+  }, [mode, selectedId, selected, loadMessages]);
 
   const filtered = sessions.filter((s) => {
     const q = query.toLowerCase();
@@ -336,6 +345,7 @@ export function LiveChat({
     }
     const list = await loadSessions();
     const created = list.find((s) => s.id === res.sessionId) ?? list.find((s) => s.reference_id === res.referenceId);
+    setFStatus("open");
     if (created) setSelectedId(created.id);
     else setSelectedId(res.sessionId);
     setChatErr(null);
@@ -356,8 +366,7 @@ export function LiveChat({
     setReply("");
     setSendOk(true);
     window.setTimeout(() => setSendOk(false), 2500);
-    await loadMessages(selectedId);
-    await loadSessions();
+    await loadMessages(selectedId, { showLoader: false });
   };
 
   const closeSession = async () => {
@@ -365,7 +374,7 @@ export function LiveChat({
     const res = await closeChatSessionAction(selectedId);
     if (res.ok) {
       setSessions((prev) => prev.map((s) => (s.id === selectedId ? { ...s, status: "closed" as const } : s)));
-      await loadSessions();
+      if (fStatus === "open") setFStatus("closed");
     } else {
       setChatErr(res.error ?? "Could not close session");
     }
@@ -391,7 +400,7 @@ export function LiveChat({
               size="sm"
               variant="outline"
               onClick={() => {
-                setLoadingList(true);
+                if (sessions.length === 0) setLoadingList(true);
                 void loadSessions();
               }}
               aria-label="Refresh sessions"
@@ -423,13 +432,17 @@ export function LiveChat({
             aria-label="Filter sessions"
           >
             <option value="open">Open sessions</option>
+            <option value="closed">Closed sessions</option>
             <option value="all">All sessions</option>
-            {CHAT_SESSION_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
           </select>
+          {listErr && sessions.length > 0 && (
+            <p className="text-xs text-red-500" role="alert">
+              {listErr}{" "}
+              <button className="font-semibold underline" onClick={() => void loadSessions()}>
+                Retry
+              </button>
+            </p>
+          )}
           {chatErr && !selectedId && (
             <p className="text-xs text-red-500" role="alert">
               {chatErr}
@@ -437,12 +450,12 @@ export function LiveChat({
           )}
         </div>
         <div className="flex-1 overflow-y-auto">
-          {loadingList ? (
+          {loadingList && sessions.length === 0 ? (
             <div className="space-y-3 p-4">
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
             </div>
-          ) : listErr ? (
+          ) : listErr && sessions.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
               <p className="text-sm text-red-500">{listErr}</p>
               <Button
@@ -459,16 +472,32 @@ export function LiveChat({
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
               <Headset className="h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">No live chat sessions yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {fStatus === "closed"
+                  ? "No closed live chat sessions yet."
+                  : fStatus === "open" && sessions.length > 0
+                    ? "No open sessions. Closed cases are under Closed sessions."
+                    : "No live chat sessions yet."}
+              </p>
               {chatErr && (
                 <p className="text-sm text-red-500" role="alert">
                   {chatErr}
                 </p>
               )}
-              {mode === "user" && (
+              {mode === "user" && fStatus !== "closed" && (
                 <Button size="sm" variant="outline" onClick={startChat} disabled={starting}>
                   {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {chatErr ? "Retry live chat" : "Start a live chat"}
+                </Button>
+              )}
+              {fStatus === "closed" && sessions.some((s) => s.status === "waiting" || s.status === "active") && (
+                <Button size="sm" variant="outline" onClick={() => setFStatus("open")}>
+                  View open sessions
+                </Button>
+              )}
+              {fStatus === "open" && sessions.some((s) => s.status === "closed") && (
+                <Button size="sm" variant="outline" onClick={() => setFStatus("closed")}>
+                  View closed sessions
                 </Button>
               )}
             </div>
@@ -516,7 +545,9 @@ export function LiveChat({
                         <span className="mt-1 flex items-center gap-2">
                           <StatusBadge status={s.status} />
                           <span className="text-[10px] text-muted-foreground">
-                            {fmtDate(s.updated_at)} {fmtTime(s.updated_at)}
+                            {s.status === "closed"
+                              ? `Opened ${fmtDate(s.created_at)}`
+                              : `${fmtDate(s.updated_at)} ${fmtTime(s.updated_at)}`}
                           </span>
                         </span>
                       </span>
@@ -718,13 +749,13 @@ export function LiveChat({
               </div>
             ) : (
               <div className="border-t border-border/60 p-4 text-center text-sm text-muted-foreground">
-                This live session is closed.{" "}
+                This session is closed. History and case ID are kept.{" "}
                 {mode === "user" ? (
                   <>
                     <button className="font-semibold text-primary hover:underline" onClick={startChat}>
                       Start a new chat
                     </button>
-                    {" or "}
+                    {" with a new case ID, or "}
                     <Link href={supportHref} className="font-semibold text-primary hover:underline">
                       open a support case
                     </Link>
