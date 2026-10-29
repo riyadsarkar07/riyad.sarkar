@@ -616,14 +616,33 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
         .eq("user_id", user.id)
         .in("status", ["waiting", "active"])
         .maybeSingle();
-      if (raced?.reference_id) {
-        return { ok: true, referenceId: raced.reference_id, sessionId: raced.id };
+      if (raced?.id) {
+        return { ok: true, referenceId: raced.reference_id ?? undefined, sessionId: raced.id };
       }
     }
-    return { ok: false, error: insertError.message };
+    console.error("[live-chat] start session insert failed", {
+      code: insertError.code ?? "unknown",
+      hint: insertError.hint ?? null,
+      message: insertError.message ? "present" : "none",
+    });
+    const msg = (insertError.message ?? "").toLowerCase();
+    if (
+      insertError.code === "42883" ||
+      insertError.code === "42501" ||
+      msg.includes("gen_random_bytes") ||
+      msg.includes("function") ||
+      msg.includes("permission") ||
+      msg.includes("does not exist")
+    ) {
+      return {
+        ok: false,
+        error: "Live chat case IDs could not be created on the server. Apply the latest database migration, then retry.",
+      };
+    }
+    return { ok: false, error: insertError.message || "Could not start a live chat session. Please retry." };
   }
-  if (!session) return { ok: false, error: "Could not start a live chat session." };
-  if (!session.reference_id) return { ok: false, error: "Chat saved without a session ID. Please try again." };
+  if (!session) return { ok: false, error: "Could not start a live chat session. Please retry." };
+  if (!session.reference_id) return { ok: false, error: "Chat saved without a case ID. Please retry." };
 
   const { data: profile } = await supabase
     .from("profiles")

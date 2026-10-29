@@ -1,8 +1,6 @@
 -- Live chat: long numeric case IDs, admin join, one-time welcome.
 -- Additive. Does not merge chat, tickets, enquiries, or bookings.
 
-create extension if not exists pgcrypto;
-
 -- ------------------------------------------------------------------
 -- 1. Session assignment + welcome bookkeeping
 -- ------------------------------------------------------------------
@@ -38,31 +36,39 @@ create unique index if not exists chat_messages_one_welcome_idx
 -- 2. Long numeric case reference (16 digits, unique, insert-only)
 -- ------------------------------------------------------------------
 
+create sequence if not exists public.chat_sessions_case_seq;
+
 create or replace function public.generate_live_chat_case_id()
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_catalog
 as $$
 declare
   candidate text;
   n int := 0;
-  raw bytea;
-  num numeric := 0;
-  i int;
+  mix numeric;
 begin
   loop
     n := n + 1;
-    raw := gen_random_bytes(8);
-    num := 0;
-    for i in 0..7 loop
-      num := num * 256 + get_byte(raw, i);
-    end loop;
-    candidate := (1000000000000000::numeric + mod(num, 9000000000000000::numeric))::bigint::text;
-    exit when not exists (
-      select 1 from public.chat_sessions s where s.reference_id = candidate
-    );
-    if n >= 16 then
+    mix :=
+      1000000000000000::numeric
+      + mod(
+          (extract(epoch from clock_timestamp()) * 1000000)::numeric
+          + nextval('public.chat_sessions_case_seq')::numeric * 1009,
+          9000000000000000::numeric
+        );
+    candidate := trunc(mix)::text;
+    if length(candidate) < 16 then
+      candidate := lpad(candidate, 16, '0');
+    elsif length(candidate) > 16 then
+      candidate := right(candidate, 16);
+    end if;
+    exit when candidate ~ '^[0-9]{16}$'
+      and not exists (
+        select 1 from public.chat_sessions s where s.reference_id = candidate
+      );
+    if n >= 32 then
       raise exception 'could not allocate a unique live chat reference id';
     end if;
   end loop;
@@ -74,7 +80,7 @@ create or replace function public.assign_chat_session_ref()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_catalog
 as $$
 begin
   if not public.is_admin() then
@@ -319,6 +325,8 @@ $$;
 
 revoke all on function public.generate_live_chat_case_id() from public;
 revoke all on function public.generate_live_chat_case_id() from anon, authenticated;
+revoke all on sequence public.chat_sessions_case_seq from public;
+revoke all on sequence public.chat_sessions_case_seq from anon, authenticated;
 revoke all on function public.join_chat_session(uuid) from public;
 revoke all on function public.join_chat_session(uuid) from anon;
 grant execute on function public.join_chat_session(uuid) to authenticated;

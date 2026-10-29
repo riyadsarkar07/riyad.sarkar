@@ -329,15 +329,17 @@ export function LiveChat({
     setStarting(true);
     setChatErr(null);
     const res = await startChatSessionAction();
-    setStarting(false);
     if (!res.ok || !res.sessionId) {
-      setChatErr(res.error ?? "Could not start live chat.");
+      setStarting(false);
+      setChatErr(res.error ?? "Could not start live chat. Please retry.");
       return;
     }
     const list = await loadSessions();
     const created = list.find((s) => s.id === res.sessionId) ?? list.find((s) => s.reference_id === res.referenceId);
     if (created) setSelectedId(created.id);
     else setSelectedId(res.sessionId);
+    setChatErr(null);
+    setStarting(false);
   };
 
   const sendReply = async () => {
@@ -428,6 +430,11 @@ export function LiveChat({
               </option>
             ))}
           </select>
+          {chatErr && !selectedId && (
+            <p className="text-xs text-red-500" role="alert">
+              {chatErr}
+            </p>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
           {loadingList ? (
@@ -453,9 +460,15 @@ export function LiveChat({
             <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
               <Headset className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">No live chat sessions yet.</p>
+              {chatErr && (
+                <p className="text-sm text-red-500" role="alert">
+                  {chatErr}
+                </p>
+              )}
               {mode === "user" && (
                 <Button size="sm" variant="outline" onClick={startChat} disabled={starting}>
-                  Start a live chat
+                  {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {chatErr ? "Retry live chat" : "Start a live chat"}
                 </Button>
               )}
             </div>
@@ -536,10 +549,15 @@ export function LiveChat({
                     Agents are offline right now. You can still start a session, or open a support case instead.
                   </p>
                 )}
+                {chatErr && (
+                  <p className="max-w-sm text-sm text-red-500" role="alert">
+                    {chatErr}
+                  </p>
+                )}
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button onClick={startChat} disabled={starting}>
                     {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-                    Start live chat
+                    {chatErr ? "Retry live chat" : "Start live chat"}
                   </Button>
                   <Button variant="outline" asChild>
                     <Link href={supportHref}>Open a support case</Link>
