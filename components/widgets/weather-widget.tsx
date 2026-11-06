@@ -65,7 +65,19 @@ export function WeatherWidget() {
     );
   }
 
-  if (!weather) return null;
+  if (!weather) {
+    return (
+      <div className="glass flex h-full min-h-[88px] items-center gap-3 rounded-[1.2rem] px-5 py-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-muted-foreground">
+          <CloudSun className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="font-display text-sm font-bold leading-none">Weather unavailable</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Dhaka · live data offline</p>
+        </div>
+      </div>
+    );
+  }
 
   const Icon =
     weather.condition === "clear"

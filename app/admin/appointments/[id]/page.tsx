@@ -239,7 +239,7 @@ export default function AdminAppointmentDetailPage() {
               <ul className="space-y-2">
                 {tickets.map((t) => (
                   <li key={t.id}>
-                    <Link href="/admin/support" className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-white/40 px-3 py-2.5 transition-colors hover:border-primary/40 dark:bg-white/5">
+                    <Link href={`/admin/support?ticket=${t.id}`} className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-white/40 px-3 py-2.5 transition-colors hover:border-primary/40 dark:bg-white/5">
                       <span className="min-w-0 truncate text-sm font-medium">
                         <span className="text-primary">{t.reference_id}</span> · {t.subject}
                       </span>

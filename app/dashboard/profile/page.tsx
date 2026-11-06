@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Mail, Phone, Save, ShieldCheck, UserRound } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { TIMEZONES } from "@/lib/constants";
+import { TIMEZONES, matchTimezoneOption } from "@/lib/constants";
 import { PageHeader } from "@/components/portal/page-header";
 import { ChangePasswordForm } from "@/components/portal/change-password-form";
 import { Field } from "@/components/auth/auth-shell";
@@ -16,9 +16,21 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [fullName, setFullName] = useState(profile?.full_name ?? "");
   const [phone, setPhone] = useState(profile?.phone ?? "");
-  const [timezone, setTimezone] = useState(profile?.timezone ?? "Asia/Dhaka (GMT+6)");
+  const [timezone, setTimezone] = useState(
+    matchTimezoneOption(profile?.timezone) ?? "Asia/Dhaka (GMT+6)",
+  );
   const [saving, setSaving] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
+  const hydratedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!profile) return;
+    if (hydratedFor.current === profile.id) return;
+    hydratedFor.current = profile.id;
+    setFullName(profile.full_name ?? "");
+    setPhone(profile.phone ?? "");
+    setTimezone(matchTimezoneOption(profile.timezone) ?? "Asia/Dhaka (GMT+6)");
+  }, [profile]);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -76,7 +76,10 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
     message: string;
   };
 
-  const lastPayload = useRef<FormValues | null>(null);
+  const lastPayload = useRef<
+    | (FormValues & { date: string; time: string; timezone: string })
+    | null
+  >(null);
 
   const schema = useMemo(
     () =>
@@ -126,7 +129,12 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
         "consultation",
       );
       if (result.ok) {
-        lastPayload.current = data;
+        lastPayload.current = {
+          ...data,
+          date: toIsoDate(selectedDate),
+          time: selectedTime,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        };
         setReferenceId(result.referenceId);
         setEmailWarning(result.emailWarning ?? null);
         setSent(true);
@@ -159,10 +167,14 @@ export function Consultation({ variant = "section" }: ConsultationProps) {
     try {
       const result = await withClientTimeout(
         submitConsultationAction({
-          ...data,
-          date: toIsoDate(selectedDate),
-          time: selectedTime,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          service: data.service,
+          message: data.message,
+          date: data.date,
+          time: data.time,
+          timezone: data.timezone,
           startedAt: Date.now() - 5000,
           submissionId: submissionId.current,
           website: "",

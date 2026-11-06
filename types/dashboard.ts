@@ -145,14 +145,34 @@ export interface ChatSession {
   reference_id: string | null;
   user_id: string;
   status: ChatSessionStatus;
+  priority?: Priority;
   assigned_admin_id?: string | null;
   assigned_admin_name?: string | null;
   joined_at?: string | null;
   welcome_sent_at?: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
   last_message_at: string | null;
   last_message_preview: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChatCustomer {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface ChatAgentEvent {
+  id: string;
+  session_id: string;
+  author_id: string | null;
+  author_name: string | null;
+  kind: "note" | "escalation";
+  body: string;
+  created_at: string;
 }
 
 export interface ChatMessage {

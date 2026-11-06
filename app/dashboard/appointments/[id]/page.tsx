@@ -25,7 +25,7 @@ import { StatusBadge } from "@/components/portal/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TIME_SLOTS } from "@/lib/constants";
+import { APPOINTMENT_CLIENT_COLUMNS, TIME_SLOTS } from "@/lib/constants";
 import type { Appointment, AppointmentFile } from "@/types/dashboard";
 
 function fmt(d: string) {
@@ -53,7 +53,7 @@ function AppointmentDetail() {
     (async () => {
       const { data, error } = await supabase
         .from("appointments")
-        .select("*")
+        .select(APPOINTMENT_CLIENT_COLUMNS)
         .eq("id", params.id)
         .maybeSingle();
       if (!active) return;

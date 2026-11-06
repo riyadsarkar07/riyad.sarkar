@@ -81,16 +81,16 @@ export default function AdminOverviewPage() {
           recentPublic,
           recentChat,
         ] = await Promise.all([
-          supabase.from("profiles").select("id"),
-          supabase.from("profiles").select("id").gte("created_at", monthAgo),
-          supabase.from("appointments").select("id").eq("status", "pending"),
-          supabase.from("appointments").select("id").eq("status", "confirmed"),
-          supabase.from("appointments").select("id").eq("status", "in_progress"),
-          supabase.from("appointments").select("id").eq("status", "completed"),
-          supabase.from("support_tickets").select("id").in("status", ["open", "pending", "in_progress"]),
-          supabase.from("email_tickets").select("id").in("status", ["open", "in_progress", "awaiting_reply"]),
-          supabase.from("chat_sessions").select("id").in("status", ["waiting", "active"]),
-          supabase.from("consultation_bookings").select("id").in("status", ["pending", "confirmed"]),
+          supabase.from("profiles").select("*", { count: "exact", head: true }),
+          supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", monthAgo),
+          supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "pending"),
+          supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
+          supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
+          supabase.from("appointments").select("*", { count: "exact", head: true }).eq("status", "completed"),
+          supabase.from("support_tickets").select("*", { count: "exact", head: true }).in("status", ["open", "pending", "in_progress"]),
+          supabase.from("email_tickets").select("*", { count: "exact", head: true }).in("status", ["open", "in_progress", "awaiting_reply"]),
+          supabase.from("chat_sessions").select("*", { count: "exact", head: true }).in("status", ["waiting", "active"]),
+          supabase.from("consultation_bookings").select("*", { count: "exact", head: true }).in("status", ["pending", "confirmed"]),
           supabase.from("appointments").select("*").order("created_at", { ascending: false }).limit(5),
           supabase.from("support_tickets").select("*").order("created_at", { ascending: false }).limit(5),
           supabase.from("email_tickets").select("*").order("created_at", { ascending: false }).limit(5),
@@ -121,16 +121,16 @@ export default function AdminOverviewPage() {
           return;
         }
         setStats({
-          totalUsers: users.data?.length ?? 0,
-          newUsers: newUsers.data?.length ?? 0,
-          pending: pending.data?.length ?? 0,
-          confirmed: confirmed.data?.length ?? 0,
-          inProgress: inProgress.data?.length ?? 0,
-          completed: completed.data?.length ?? 0,
-          openTickets: openTickets.data?.length ?? 0,
-          emailTickets: emailTickets.data?.length ?? 0,
-          liveChats: liveChats.data?.length ?? 0,
-          publicBookings: publicBookings.data?.length ?? 0,
+          totalUsers: users.count ?? 0,
+          newUsers: newUsers.count ?? 0,
+          pending: pending.count ?? 0,
+          confirmed: confirmed.count ?? 0,
+          inProgress: inProgress.count ?? 0,
+          completed: completed.count ?? 0,
+          openTickets: openTickets.count ?? 0,
+          emailTickets: emailTickets.count ?? 0,
+          liveChats: liveChats.count ?? 0,
+          publicBookings: publicBookings.count ?? 0,
         });
         setRecentAppointments((recentAppts.data ?? []) as Appointment[]);
         setRecentTickets((recentTkts.data ?? []) as SupportTicket[]);
@@ -252,7 +252,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentTickets.map((t) => (
                 <li key={t.id}>
-                  <Link href="/admin/support" className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/support?ticket=${t.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.subject}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -356,7 +356,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentChats.map((s) => (
                 <li key={s.id}>
-                  <Link href="/admin/chat" className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/chat?session=${s.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{s.reference_id ?? "Session"}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">

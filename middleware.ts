@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
   if (isAdmin && pathname === "/dashboard/chat") {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/chat";
-    url.search = "";
+    url.search = request.nextUrl.search;
     return NextResponse.redirect(url);
   }
 

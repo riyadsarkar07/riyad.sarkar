@@ -2,6 +2,13 @@
 /*  Shared constants for appointments, support and admin               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Client-facing appointment columns. Deliberately excludes admin_notes so
+ * private staff notes never reach the browser via `select("*")`.
+ */
+export const APPOINTMENT_CLIENT_COLUMNS =
+  "id, reference_id, user_id, full_name, email, phone, service, appointment_date, appointment_time, timezone, priority, problem_description, additional_details, preferred_contact, status, created_at, updated_at" as const;
+
 export const APPOINTMENT_SERVICES = [
   "Facebook Account Recovery",
   "Facebook Page Recovery",
@@ -102,6 +109,19 @@ export const TIME_SLOTS = [
 
 export const ALLOWED_FILE_TYPES = ["image/png", "image/jpeg", "application/pdf"];
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+/**
+ * Maps a stored timezone value to one of the TIMEZONES options.
+ * The database stores bare IANA names ("Asia/Dhaka") while the UI options
+ * include a GMT label ("Asia/Dhaka (GMT+6)"), so both forms must match.
+ */
+export function matchTimezoneOption(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  return (TIMEZONES as readonly string[]).find(
+    (tz) => tz === trimmed || tz.split(" ")[0] === trimmed,
+  );
+}
 
 export const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",

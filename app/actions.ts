@@ -16,12 +16,16 @@ import {
 import {
   ALLOWED_FILE_TYPES,
   APPOINTMENT_SERVICES,
+  APPOINTMENT_STATUSES,
   MAX_FILE_SIZE,
+  PRIORITIES,
   TICKET_CATEGORIES,
+  TICKET_STATUSES,
+  TIME_SLOTS,
 } from "@/lib/constants";
-import type { ChatMessage, ChatSession } from "@/types/dashboard";
+import type { ChatAgentEvent, ChatCustomer, ChatMessage, ChatSession } from "@/types/dashboard";
 
-type ActionResult = { ok: boolean; error?: string; referenceId?: string };
+type ActionResult = { ok: boolean; error?: string; referenceId?: string; status?: string };
 
 type ChatJoinResult = {
   ok?: boolean;
@@ -89,8 +93,11 @@ const appointmentSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(6),
   service: z.enum(APPOINTMENT_SERVICES),
-  date: z.string().min(8),
-  time: z.string().min(1),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date.")
+    .refine((value) => value >= new Date().toISOString().slice(0, 10), "Choose a future date."),
+  time: z.string().refine((value) => (TIME_SLOTS as readonly string[]).includes(value), "Choose a valid time."),
   timezone: z.string().default("Asia/Dhaka (GMT+6)"),
   priority: z.enum(["low", "normal", "high", "urgent"]),
   problemDescription: z.string().min(10),
@@ -174,12 +181,28 @@ export async function createAppointmentAction(input: {
     time: d.time,
   });
 
-  return { ok: true, referenceId: appointment.reference_id };
+  return { ok: true, referenceId: appointment.reference_id, status: appointment.status ?? "pending" };
 }
 
 export async function requestRescheduleAction(id: string, date: string, time: string): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Choose a valid date." };
+  if (!(TIME_SLOTS as readonly string[]).includes(time)) return { ok: false, error: "Choose a valid time." };
+  const today = new Date().toISOString().slice(0, 10);
+  if (date < today) return { ok: false, error: "Choose a future date." };
+
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select("status")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!appointment) return { ok: false, error: "Appointment not found." };
+  if (appointment.status === "cancelled" || appointment.status === "completed") {
+    return { ok: false, error: "This appointment can no longer be rescheduled." };
+  }
+
   const { error: updateError } = await supabase
     .from("appointments")
     .update({ appointment_date: date, appointment_time: time, status: "reschedule_requested" })
@@ -193,6 +216,19 @@ export async function requestRescheduleAction(id: string, date: string, time: st
 export async function requestCancellationAction(id: string): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
+
+  const { data: appointment } = await supabase
+    .from("appointments")
+    .select("status")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!appointment) return { ok: false, error: "Appointment not found." };
+  if (appointment.status === "cancelled") return { ok: true };
+  if (appointment.status === "completed") {
+    return { ok: false, error: "Completed appointments cannot be cancelled." };
+  }
+
   const { error: updateError } = await supabase
     .from("appointments")
     .update({ status: "cancelled" })
@@ -272,6 +308,7 @@ export async function createTicketAction(input: {
     .eq("id", user.id)
     .maybeSingle();
 
+  let firstFileId: string | null = null;
   for (const f of fileMetas) {
     const { data: fileRow } = await supabase
       .from("support_files")
@@ -286,26 +323,16 @@ export async function createTicketAction(input: {
       .select("id")
       .maybeSingle();
 
-    if (fileRow) {
-      await supabase
-        .from("support_messages")
-        .insert({
-          ticket_id: ticket.id,
-          sender_id: user.id,
-          sender_role: "user",
-          message: d.message,
-          attachment_file_id: fileRow.id,
-        });
-    }
+    if (fileRow?.id && !firstFileId) firstFileId = fileRow.id;
   }
-  if (fileMetas.length === 0) {
-    await supabase.from("support_messages").insert({
-      ticket_id: ticket.id,
-      sender_id: user.id,
-      sender_role: "user",
-      message: d.message,
-    });
-  }
+
+  await supabase.from("support_messages").insert({
+    ticket_id: ticket.id,
+    sender_id: user.id,
+    sender_role: "user",
+    message: d.message,
+    attachment_file_id: firstFileId,
+  });
 
   revalidatePath("/dashboard");
 
@@ -443,6 +470,13 @@ export async function adminUpdateAppointmentAction(input: {
   const supabase = await createClient();
   if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
 
+  if (input.status && !(APPOINTMENT_STATUSES as readonly string[]).includes(input.status)) {
+    return { ok: false, error: "Invalid status" };
+  }
+  if (input.priority && !(PRIORITIES as readonly string[]).includes(input.priority)) {
+    return { ok: false, error: "Invalid priority" };
+  }
+
   const patch: Record<string, unknown> = {};
   if (input.status) patch.status = input.status;
   if (input.priority) patch.priority = input.priority;
@@ -489,6 +523,13 @@ export async function adminUpdateTicketAction(input: {
   const supabase = await createClient();
   if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
 
+  if (input.status && !(TICKET_STATUSES as readonly string[]).includes(input.status)) {
+    return { ok: false, error: "Invalid status" };
+  }
+  if (input.priority && !(PRIORITIES as readonly string[]).includes(input.priority)) {
+    return { ok: false, error: "Invalid priority" };
+  }
+
   const patch: Record<string, unknown> = {};
   if (input.status) patch.status = input.status;
   if (input.priority) patch.priority = input.priority;
@@ -509,6 +550,7 @@ export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"):
   error?: string;
   sessions?: ChatSession[];
   profiles?: Record<string, string>;
+  customers?: Record<string, ChatCustomer>;
   unread?: Record<string, number>;
   agentOnline?: boolean | null;
 }> {
@@ -525,21 +567,39 @@ export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"):
 
   const sessions = (data ?? []) as ChatSession[];
   const profiles: Record<string, string> = {};
+  const customers: Record<string, ChatCustomer> = {};
   if (asAdmin && sessions.length > 0) {
     const ids = Array.from(new Set(sessions.map((s) => s.user_id)));
-    const { data: rows } = await supabase.from("profiles").select("id, full_name, email").in("id", ids);
+    const { data: rows } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, phone")
+      .in("id", ids);
     for (const row of rows ?? []) {
-      const p = row as { id: string; full_name: string | null; email: string | null };
-      profiles[p.id] = p.full_name || p.email || "Client";
+      const p = row as {
+        id: string;
+        full_name: string | null;
+        email: string | null;
+        phone: string | null;
+      };
+      const name = p.full_name?.trim() || p.email || "Client";
+      profiles[p.id] = name;
+      customers[p.id] = { id: p.id, name, email: p.email, phone: p.phone };
     }
   }
 
-  let unreadQ = supabase.from("chat_messages").select("session_id").eq("read", false);
-  unreadQ = unreadQ.eq("sender_role", asAdmin ? "user" : "admin");
-  const { data: msgRows } = await unreadQ;
+  const sessionIds = sessions.map((s) => s.id);
   const unread: Record<string, number> = {};
-  for (const r of (msgRows ?? []) as { session_id: string }[]) {
-    unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
+  if (sessionIds.length > 0) {
+    const unreadQ = supabase
+      .from("chat_messages")
+      .select("session_id")
+      .eq("read", false)
+      .eq("sender_role", asAdmin ? "user" : "admin")
+      .in("session_id", sessionIds);
+    const { data: msgRows } = await unreadQ;
+    for (const r of (msgRows ?? []) as { session_id: string }[]) {
+      unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
+    }
   }
 
   const { data: onlineCount, error: onlineErr } = await supabase.rpc("admin_online_count");
@@ -549,7 +609,12 @@ export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"):
       ? onlineCount > 0
       : Number(onlineCount) > 0;
 
-  return { ok: true, sessions, profiles, unread, agentOnline };
+  const safeSessions = sessions.map((s) => ({
+    ...s,
+    resolved_by: asAdmin ? s.resolved_by ?? null : null,
+  }));
+
+  return { ok: true, sessions: safeSessions, profiles, customers, unread, agentOnline };
 }
 
 export async function loadLiveChatMessagesAction(sessionId: string): Promise<{
@@ -736,13 +801,25 @@ export async function sendChatMessageAction(input: {
     return { ok: false, error: "Join this session before sending a reply." };
   }
 
-  const { error: msgError } = await supabase.from("chat_messages").insert({
+  const insertPayload = {
     session_id: session.id,
     sender_id: user.id,
     sender_role: role,
     message: text,
     kind: "message",
-  });
+  };
+
+  let { error: msgError } = await supabase.from("chat_messages").insert(insertPayload);
+  if (msgError && msgError.code === "PGRST204") {
+    // sender_name / kind not present on older projects — retry with the core columns.
+    const retry = await supabase.from("chat_messages").insert({
+      session_id: session.id,
+      sender_id: user.id,
+      sender_role: role,
+      message: text,
+    });
+    msgError = retry.error;
+  }
   if (msgError) return { ok: false, error: msgError.message };
 
   const { data: profile } = await supabase
@@ -784,6 +861,148 @@ export async function closeChatSessionAction(id: string): Promise<ActionResult> 
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
   return { ok: true, referenceId: session.reference_id ?? undefined };
+}
+
+export async function loadChatAgentEventsAction(sessionId: string): Promise<{
+  ok: boolean;
+  error?: string;
+  events?: ChatAgentEvent[];
+  unavailable?: boolean;
+}> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  const { data, error: qErr } = await supabase
+    .from("chat_agent_events")
+    .select("*")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true });
+  if (qErr) {
+    if (qErr.code === "42P01" || qErr.code === "PGRST205") {
+      return { ok: true, events: [], unavailable: true };
+    }
+    return { ok: false, error: qErr.message };
+  }
+  return { ok: true, events: (data ?? []) as ChatAgentEvent[] };
+}
+
+export async function addChatInternalNoteAction(input: {
+  sessionId: string;
+  body: string;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  const body = input.body.trim();
+  if (body.length < 2) return { ok: false, error: "Add a note before saving." };
+  if (body.length > 4000) return { ok: false, error: "Note is too long." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .maybeSingle();
+  const authorName =
+    (profile as { full_name?: string | null; email?: string | null } | null)?.full_name ||
+    (profile as { email?: string | null } | null)?.email ||
+    "Support Agent";
+
+  const { error: insertError } = await supabase.from("chat_agent_events").insert({
+    session_id: input.sessionId,
+    author_id: user.id,
+    author_name: authorName,
+    kind: "note",
+    body,
+  });
+  if (insertError) {
+    if (insertError.code === "42P01" || insertError.code === "PGRST205") {
+      return {
+        ok: false,
+        error: "Internal notes need the latest database migration before they can be saved.",
+      };
+    }
+    return { ok: false, error: insertError.message };
+  }
+  return { ok: true };
+}
+
+export async function escalateChatSessionAction(input: {
+  sessionId: string;
+  reason: string;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  const reason = input.reason.trim();
+  if (reason.length < 3) return { ok: false, error: "Record a reason before escalating." };
+  if (reason.length > 2000) return { ok: false, error: "Escalation reason is too long." };
+
+  const { data: session } = await supabase
+    .from("chat_sessions")
+    .select("id, status, reference_id")
+    .eq("id", input.sessionId)
+    .maybeSingle();
+  if (!session) return { ok: false, error: "Chat session not found." };
+  if ((session as { status?: string }).status === "closed") {
+    return { ok: false, error: "This case is already resolved." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .maybeSingle();
+  const authorName =
+    (profile as { full_name?: string | null; email?: string | null } | null)?.full_name ||
+    (profile as { email?: string | null } | null)?.email ||
+    "Support Agent";
+
+  const { error: insertError } = await supabase.from("chat_agent_events").insert({
+    session_id: input.sessionId,
+    author_id: user.id,
+    author_name: authorName,
+    kind: "escalation",
+    body: reason,
+  });
+  if (insertError) {
+    if (insertError.code === "42P01" || insertError.code === "PGRST205") {
+      return {
+        ok: false,
+        error: "Escalation records need the latest database migration before they can be saved.",
+      };
+    }
+    return { ok: false, error: insertError.message };
+  }
+
+  return { ok: true };
+}
+
+export async function updateChatPriorityAction(input: {
+  sessionId: string;
+  priority: "low" | "normal" | "high" | "urgent";
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+
+  if (!(PRIORITIES as readonly string[]).includes(input.priority)) {
+    return { ok: false, error: "Invalid priority" };
+  }
+
+  const { error: updateError } = await supabase.from("chat_sessions").update({ priority: input.priority }).eq("id", input.sessionId);
+  if (updateError) {
+    if (updateError.code === "PGRST204" || updateError.code === "42703") {
+      return {
+        ok: false,
+        error: "Case priority needs the latest database migration before it can be saved.",
+      };
+    }
+    return { ok: false, error: updateError.message };
+  }
+  return { ok: true };
 }
 
 export async function markNotificationsReadAction(): Promise<ActionResult> {

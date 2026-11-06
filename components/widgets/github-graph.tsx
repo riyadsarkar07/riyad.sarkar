@@ -29,8 +29,12 @@ export function GitHubGraph({ username }: { username: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
     setLoading(true);
-    fetch(`https://github-contributions-api.jogruber.de/v4/${username}`)
+    fetch(`https://github-contributions-api.jogruber.de/v4/${username}`, {
+      signal: controller.signal,
+    })
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data) => {
         if (cancelled || !data?.contributions) return;
@@ -47,9 +51,14 @@ export function GitHubGraph({ username }: { username: string }) {
         }
       })
       .catch(() => undefined)
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => {
+        window.clearTimeout(timeout);
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
+      controller.abort();
+      window.clearTimeout(timeout);
     };
   }, [username]);
 

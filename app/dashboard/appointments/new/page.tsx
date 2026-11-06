@@ -19,8 +19,10 @@ import {
   APPOINTMENT_SERVICES,
   CONTACT_METHODS,
   PRIORITIES,
+  STATUS_LABELS,
   TIME_SLOTS,
   TIMEZONES,
+  matchTimezoneOption,
 } from "@/lib/constants";
 import { createAppointmentAction } from "@/app/actions";
 import { PageHeader } from "@/components/portal/page-header";
@@ -60,19 +62,28 @@ function BookingForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<{
+    referenceId: string;
+    service: string;
+    date: string;
+    time: string;
+    timezone: string;
+    status: string;
+  } | null>(null);
   const submittedRef = useRef(false);
+  const hydratedFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (profile) {
-      setForm((f) => ({
-        ...f,
-        fullName: profile.full_name ?? f.fullName,
-        email: profile.email ?? f.email,
-        phone: profile.phone ?? f.phone,
-        timezone: profile.timezone && profile.timezone !== "Asia/Dhaka" ? f.timezone : f.timezone,
-      }));
-    }
+    if (!profile) return;
+    if (hydratedFor.current === profile.id) return;
+    hydratedFor.current = profile.id;
+    setForm((f) => ({
+      ...f,
+      fullName: profile.full_name ?? f.fullName,
+      email: profile.email ?? f.email,
+      phone: profile.phone ?? f.phone,
+      timezone: matchTimezoneOption(profile.timezone) ?? f.timezone,
+    }));
   }, [profile]);
 
   useEffect(() => {
@@ -143,7 +154,14 @@ function BookingForm() {
       if (!res.referenceId) {
         throw new Error("Appointment saved without a reference. Please contact support.");
       }
-      setDone(res.referenceId);
+      setDone({
+        referenceId: res.referenceId,
+        service: form.service,
+        date: form.date,
+        time: form.time,
+        timezone: form.timezone,
+        status: res.status ?? "pending",
+      });
     } catch (err) {
       submittedRef.current = false;
       setErrors({ _form: err instanceof Error ? err.message : "Something went wrong" });
@@ -170,8 +188,37 @@ function BookingForm() {
           </div>
         </motion.div>
         <h2 className="font-display text-2xl font-bold">Booking Request Received</h2>
-        <p className="mt-3 font-display text-sm font-semibold text-primary">Booking reference: {done}</p>
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="mt-3 font-display text-sm font-semibold text-primary">Booking reference: {done.referenceId}</p>
+        <dl className="mx-auto mt-6 w-full max-w-sm space-y-2 rounded-2xl border border-border/60 bg-white/40 p-4 text-left text-sm dark:bg-white/5">
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Service</dt>
+            <dd className="text-right font-medium">{done.service}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Preferred date</dt>
+            <dd className="text-right font-medium">
+              {new Date(`${done.date}T00:00:00`).toLocaleDateString(undefined, {
+                weekday: "short",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Preferred time</dt>
+            <dd className="text-right font-medium">{done.time}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Timezone</dt>
+            <dd className="text-right font-medium">{done.timezone}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Status</dt>
+            <dd className="text-right font-medium">{STATUS_LABELS[done.status] ?? done.status}</dd>
+          </div>
+        </dl>
+        <p className="mt-4 text-sm text-muted-foreground">
           Your request is pending confirmation. Preferred times are not held until the team confirms.
           You will be taken to My Appointments in a few seconds.
         </p>
