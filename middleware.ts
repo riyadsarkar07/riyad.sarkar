@@ -5,13 +5,15 @@ import { safeNextPath } from "@/lib/safe-path";
 /**
  * Route guard:
  *  - /dashboard* requires a signed-in user
- *  - /admin*    requires a signed-in user (admin check happens in the layout)
+ *  - /admin*     requires a signed-in user. Full admins may use every page;
+ *                support staff (agent/senior_agent/supervisor) are limited to
+ *                /admin/chat and are redirected there from other admin pages.
  *  - /login, /signup, /reset-password redirect to dashboard if signed in
  *  - /forgot-password stays reachable while signed in so signed-in users can
  *    complete the OTP password-recovery flow (e.g. from the profile page).
  */
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user, isAdmin } = await updateSession(request);
+  const { supabaseResponse, user, isAdmin, staffRole } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
   if (!user) {
@@ -29,6 +31,8 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
+  const isStaff = isAdmin || !!staffRole;
+
   if (
     pathname === "/login" ||
     pathname === "/signup" ||
@@ -36,19 +40,29 @@ export async function middleware(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     const next = safeNextPath(request.nextUrl.searchParams.get("next"));
-    if (next && !(isAdmin && (next === "/dashboard" || next.startsWith("/dashboard/chat")))) {
+    if (next && !(isStaff && (next === "/dashboard" || next.startsWith("/dashboard/chat")))) {
       return NextResponse.redirect(new URL(next, request.url));
     }
-    url.pathname = isAdmin ? "/admin" : "/dashboard";
+    url.pathname = isAdmin ? "/admin" : isStaff ? "/admin/chat" : "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  if (isAdmin && pathname === "/dashboard/chat") {
+  if (isStaff && pathname === "/dashboard/chat") {
     const url = request.nextUrl.clone();
     url.pathname = "/admin/chat";
     url.search = request.nextUrl.search;
     return NextResponse.redirect(url);
+  }
+
+  if (isStaff && pathname.startsWith("/admin") && !isAdmin) {
+    const allowed = pathname === "/admin/chat" || pathname.startsWith("/admin/chat/");
+    if (!allowed) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/chat";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

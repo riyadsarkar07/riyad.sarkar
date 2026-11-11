@@ -18,12 +18,24 @@ import {
   APPOINTMENT_SERVICES,
   APPOINTMENT_STATUSES,
   MAX_FILE_SIZE,
+  CHAT_PRIORITIES,
   PRIORITIES,
   TICKET_CATEGORIES,
   TICKET_STATUSES,
   TIME_SLOTS,
 } from "@/lib/constants";
-import type { ChatAgentEvent, ChatCustomer, ChatMessage, ChatSession } from "@/types/dashboard";
+import type {
+  ChatAgentEvent,
+  ChatAssignment,
+  ChatCaseEvent,
+  ChatCustomer,
+  ChatDepartment,
+  ChatEscalation,
+  ChatMessage,
+  ChatSession,
+  ChatStaffMember,
+  ChatTeam,
+} from "@/types/dashboard";
 
 type ActionResult = { ok: boolean; error?: string; referenceId?: string; status?: string };
 
@@ -545,42 +557,134 @@ export async function adminUpdateTicketAction(input: {
 /*  Live chat                                                          */
 /* ------------------------------------------------------------------ */
 
-export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"): Promise<{
+type ChatScope = "user" | "admin";
+
+type ChatInboxFilters = {
+  statuses?: string[] | null;
+  priorities?: string[];
+  assignee?: string | null;
+  team?: string | null;
+  department?: string | null;
+  hasEscalation?: boolean | null;
+  query?: string | null;
+  cursorUpdatedAt?: string | null;
+  cursorId?: string | null;
+  limit?: number;
+};
+
+type ChatInboxCounts = {
+  waiting: number;
+  active: number;
+  pending_client: number;
+  resolved: number;
+  closed: number;
+  all: number;
+};
+
+type ChatInboxCursor = { updated_at: string | null; id: string | null; has_more: boolean };
+
+type ChatInboxResult = {
+  sessions: ChatSession[];
+  counts: ChatInboxCounts;
+  next_cursor: ChatInboxCursor;
+  server_now: string;
+};
+
+type ChatMessagePage = {
+  messages: ChatMessage[];
+  has_more: boolean;
+  server_now: string;
+};
+
+type ChatTimelineResult = {
+  events: ChatCaseEvent[];
+  escalations: ChatEscalation[];
+  assignments: ChatAssignment[];
+  server_now: string;
+};
+
+async function getStaffRole(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<string | null> {
+  const { data, error } = await supabase.rpc("staff_role");
+  if (error) return null;
+  return (data as string | null) ?? null;
+}
+
+export async function loadLiveChatInboxAction(
+  scope: ChatScope = "user",
+  filters: ChatInboxFilters = {},
+): Promise<{
   ok: boolean;
   error?: string;
   sessions?: ChatSession[];
   profiles?: Record<string, string>;
   customers?: Record<string, ChatCustomer>;
   unread?: Record<string, number>;
+  counts?: ChatInboxCounts;
+  nextCursor?: ChatInboxCursor;
+  serverNow?: string;
   agentOnline?: boolean | null;
+  staffRole?: string | null;
 }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
-  const isAdmin = await isAdminUser();
-  if (scope === "admin" && !isAdmin) return { ok: false, error: "Not authorized" };
-  const asAdmin = scope === "admin" && isAdmin;
-  let q = supabase.from("chat_sessions").select("*").order("updated_at", { ascending: false });
-  if (!asAdmin) q = q.eq("user_id", user.id);
-  const { data, error: qErr } = await q;
-  if (qErr) return { ok: false, error: qErr.message };
+  const role = await getStaffRole(supabase);
+  const asAdmin = scope === "admin" && role !== null;
+  if (scope === "admin" && !asAdmin) return { ok: false, error: "Not authorized" };
 
-  const sessions = (data ?? []) as ChatSession[];
+  const { data, error: rpcErr } = await supabase.rpc("chat_inbox_page", {
+    p_scope: asAdmin ? "admin" : "user",
+    p_statuses: filters.statuses ?? null,
+    p_priorities: filters.priorities ?? null,
+    p_assignee: filters.assignee ?? null,
+    p_team: filters.team ?? null,
+    p_department: filters.department ?? null,
+    p_has_escalation: filters.hasEscalation ?? null,
+    p_query: filters.query ?? null,
+    p_cursor_updated_at: filters.cursorUpdatedAt ?? null,
+    p_cursor_id: filters.cursorId ?? null,
+    p_limit: filters.limit ?? 30,
+  });
+
+  if (rpcErr) {
+    const msg = (rpcErr.message ?? "").toLowerCase();
+    if (rpcErr.code === "42883" || msg.includes("chat_inbox_page") || msg.includes("does not exist")) {
+      return {
+        ok: false,
+        error: "Live chat needs the latest database migration. Apply it, then retry.",
+      };
+    }
+    return { ok: false, error: rpcErr.message };
+  }
+
+  const page = (data ?? {}) as ChatInboxResult;
+  const sessions = (page.sessions ?? []) as ChatSession[];
+
   const profiles: Record<string, string> = {};
   const customers: Record<string, ChatCustomer> = {};
   if (asAdmin && sessions.length > 0) {
     const ids = Array.from(new Set(sessions.map((s) => s.user_id)));
-    const { data: rows } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, phone")
-      .in("id", ids);
-    for (const row of rows ?? []) {
-      const p = row as {
-        id: string;
-        full_name: string | null;
-        email: string | null;
-        phone: string | null;
-      };
+    const isAdmin = await isAdminUser();
+    let rows: {
+      id: string;
+      full_name: string | null;
+      email: string | null;
+      phone: string | null;
+    }[] = [];
+    if (isAdmin) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone")
+        .in("id", ids);
+      rows = (data ?? []) as typeof rows;
+    } else {
+      const { data } = await supabase.rpc("chat_customer_directory", { p_ids: ids });
+      const result = (data ?? {}) as { customers?: typeof rows };
+      rows = result.customers ?? [];
+    }
+    for (const p of rows) {
       const name = p.full_name?.trim() || p.email || "Client";
       profiles[p.id] = name;
       customers[p.id] = { id: p.id, name, email: p.email, phone: p.phone };
@@ -590,13 +694,12 @@ export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"):
   const sessionIds = sessions.map((s) => s.id);
   const unread: Record<string, number> = {};
   if (sessionIds.length > 0) {
-    const unreadQ = supabase
+    const { data: msgRows } = await supabase
       .from("chat_messages")
       .select("session_id")
       .eq("read", false)
       .eq("sender_role", asAdmin ? "user" : "admin")
       .in("session_id", sessionIds);
-    const { data: msgRows } = await unreadQ;
     for (const r of (msgRows ?? []) as { session_id: string }[]) {
       unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
     }
@@ -609,41 +712,67 @@ export async function loadLiveChatInboxAction(scope: "user" | "admin" = "user"):
       ? onlineCount > 0
       : Number(onlineCount) > 0;
 
-  const safeSessions = sessions.map((s) => ({
-    ...s,
-    resolved_by: asAdmin ? s.resolved_by ?? null : null,
-  }));
-
-  return { ok: true, sessions: safeSessions, profiles, customers, unread, agentOnline };
+  return {
+    ok: true,
+    sessions,
+    profiles,
+    customers,
+    unread,
+    counts: page.counts,
+    nextCursor: page.next_cursor,
+    serverNow: page.server_now,
+    agentOnline,
+    staffRole: role,
+  };
 }
 
-export async function loadLiveChatMessagesAction(sessionId: string): Promise<{
+export async function loadLiveChatMessagesAction(
+  sessionId: string,
+  opts: { beforeCreatedAt?: string | null; beforeId?: string | null; limit?: number } = {},
+): Promise<{
   ok: boolean;
   error?: string;
   messages?: ChatMessage[];
+  hasMore?: boolean;
+  serverNow?: string;
 }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
   const { data: session } = await supabase.from("chat_sessions").select("id, user_id").eq("id", sessionId).maybeSingle();
   if (!session) return { ok: false, error: "Chat session not found." };
+  const role = await getStaffRole(supabase);
   const isAdmin = await isAdminUser();
-  if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
+  if (!isAdmin && !role && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
 
-  const { data, error: qErr } = await supabase
-    .from("chat_messages")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: true });
-  if (qErr) return { ok: false, error: qErr.message };
-  return { ok: true, messages: (data ?? []) as ChatMessage[] };
+  const { data, error: rpcErr } = await supabase.rpc("chat_messages_page", {
+    p_session_id: sessionId,
+    p_before_created_at: opts.beforeCreatedAt ?? null,
+    p_before_id: opts.beforeId ?? null,
+    p_limit: opts.limit ?? 50,
+  });
+
+  if (rpcErr) {
+    if (rpcErr.code === "42883") {
+      return { ok: false, error: "Live chat message history needs the latest database migration." };
+    }
+    return { ok: false, error: rpcErr.message };
+  }
+
+  const page = (data ?? {}) as ChatMessagePage;
+  return {
+    ok: true,
+    messages: (page.messages ?? []) as ChatMessage[],
+    hasMore: !!page.has_more,
+    serverNow: page.server_now,
+  };
 }
 
 export async function markChatReadAction(sessionId: string): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
-  const isAdmin = await isAdminUser();
-  const incomingRole = isAdmin ? "user" : "admin";
+  const role = await getStaffRole(supabase);
+  const incomingRole = role ? "user" : "admin";
   const { error: updErr } = await supabase
     .from("chat_messages")
     .update({ read: true })
@@ -662,7 +791,7 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
     .from("chat_sessions")
     .select("*")
     .eq("user_id", user.id)
-    .in("status", ["waiting", "active"])
+    .in("status", ["waiting", "active", "pending_client"])
     .order("created_at", { ascending: false })
     .maybeSingle();
 
@@ -683,7 +812,7 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
         .from("chat_sessions")
         .select("*")
         .eq("user_id", user.id)
-        .in("status", ["waiting", "active"])
+        .in("status", ["waiting", "active", "pending_client"])
         .maybeSingle();
       if (raced?.id) {
         return { ok: true, referenceId: raced.reference_id ?? undefined, sessionId: raced.id };
@@ -758,6 +887,9 @@ export async function joinChatSessionAction(sessionId: string): Promise<
         error: "Admin join is not available on the server. Apply the live chat join migration, then retry.",
       };
     }
+    if (joined.error.toLowerCase().includes("already assigned")) {
+      return { ok: false, error: "Another agent already owns this case. Ask a supervisor to transfer it." };
+    }
     return { ok: false, error: joined.error };
   }
 
@@ -793,34 +925,44 @@ export async function sendChatMessageAction(input: {
   if (!session) return { ok: false, error: "Chat session not found." };
   if (session.status === "closed") return { ok: false, error: "This chat session is closed." };
 
+  const role = await getStaffRole(supabase);
   const isAdmin = await isAdminUser();
-  if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
-  const role: "user" | "admin" = isAdmin ? "admin" : "user";
+  const isStaff = !!role || isAdmin;
+  if (!isStaff && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
+  const senderRole: "user" | "admin" = isStaff ? "admin" : "user";
 
-  if (isAdmin && session.status !== "closed" && !session.assigned_admin_id) {
-    return { ok: false, error: "Join this session before sending a reply." };
+  if (isStaff && session.status === "resolved") {
+    return { ok: false, error: "This case is resolved. Reopen it before replying." };
   }
 
   const insertPayload = {
     session_id: session.id,
     sender_id: user.id,
-    sender_role: role,
+    sender_role: senderRole,
     message: text,
     kind: "message",
   };
 
   let { error: msgError } = await supabase.from("chat_messages").insert(insertPayload);
   if (msgError && msgError.code === "PGRST204") {
-    // sender_name / kind not present on older projects — retry with the core columns.
     const retry = await supabase.from("chat_messages").insert({
       session_id: session.id,
       sender_id: user.id,
-      sender_role: role,
+      sender_role: senderRole,
       message: text,
     });
     msgError = retry.error;
   }
-  if (msgError) return { ok: false, error: msgError.message };
+  if (msgError) {
+    const m = (msgError.message ?? "").toLowerCase();
+    if (m.includes("not authorized to reply")) {
+      return { ok: false, error: "You are not the assigned agent for this case." };
+    }
+    if (m.includes("case is not active")) {
+      return { ok: false, error: "This case is no longer active." };
+    }
+    return { ok: false, error: msgError.message };
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -829,11 +971,11 @@ export async function sendChatMessageAction(input: {
     .maybeSingle();
 
   await notifyChatMessage({
-    userId: role === "admin" ? session.user_id : null,
+    userId: senderRole === "admin" ? session.user_id : null,
     userEmail: profile?.email ?? "",
     userName: profile?.full_name ?? "Client",
     referenceId: session.reference_id ?? "",
-    senderRole: role,
+    senderRole,
     preview: text,
   });
 
@@ -842,25 +984,75 @@ export async function sendChatMessageAction(input: {
   return { ok: true, referenceId: session.reference_id ?? undefined };
 }
 
-export async function closeChatSessionAction(id: string): Promise<ActionResult> {
+export async function resolveChatSessionAction(
+  id: string,
+  summary?: string,
+): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
-  const { data: session } = await supabase
-    .from("chat_sessions")
-    .select("user_id, reference_id")
-    .eq("id", id)
-    .maybeSingle();
-  if (!session) return { ok: false, error: "Chat session not found." };
-  const isAdmin = await isAdminUser();
-  if (!isAdmin && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
-  const { error: updateError } = await supabase
-    .from("chat_sessions")
-    .update({ status: "closed" })
-    .eq("id", id);
-  if (updateError) return { ok: false, error: updateError.message };
+
+  const { data, error: rpcErr } = await supabase.rpc("resolve_chat_session", {
+    p_session_id: id,
+    p_summary: summary ?? null,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
-  return { ok: true, referenceId: session.reference_id ?? undefined };
+  const result = (data ?? {}) as { status?: string };
+  return { ok: true, status: result.status };
+}
+
+export async function closeChatSessionAction(
+  id: string,
+  reason?: string,
+): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data, error: rpcErr } = await supabase.rpc("close_chat_session", {
+    p_session_id: id,
+    p_reason: reason ?? null,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/dashboard/chat");
+  revalidatePath("/admin/chat");
+  const result = (data ?? {}) as { status?: string };
+  return { ok: true, status: result.status };
+}
+
+export async function clientEndChatSessionAction(id: string): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data, error: rpcErr } = await supabase.rpc("client_end_chat_session", {
+    p_session_id: id,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/dashboard/chat");
+  const result = (data ?? {}) as { status?: string };
+  return { ok: true, status: result.status };
+}
+
+export async function reopenChatSessionAction(
+  id: string,
+  reason: string,
+): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data, error: rpcErr } = await supabase.rpc("reopen_chat_session", {
+    p_session_id: id,
+    p_reason: reason,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/dashboard/chat");
+  revalidatePath("/admin/chat");
+  const result = (data ?? {}) as { status?: string };
+  return { ok: true, status: result.status };
 }
 
 export async function loadChatAgentEventsAction(sessionId: string): Promise<{
@@ -871,7 +1063,8 @@ export async function loadChatAgentEventsAction(sessionId: string): Promise<{
 }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
-  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+  const staffRole = await getStaffRole(supabase);
+  if (!staffRole && !(await isAdminUser())) return { ok: false, error: "Not authorized" };
 
   const { data, error: qErr } = await supabase
     .from("chat_agent_events")
@@ -893,7 +1086,8 @@ export async function addChatInternalNoteAction(input: {
 }): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
-  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+  const staffRole = await getStaffRole(supabase);
+  if (!staffRole && !(await isAdminUser())) return { ok: false, error: "Not authorized" };
 
   const body = input.body.trim();
   if (body.length < 2) return { ok: false, error: "Add a note before saving." };
@@ -930,80 +1124,295 @@ export async function addChatInternalNoteAction(input: {
 
 export async function escalateChatSessionAction(input: {
   sessionId: string;
+  targetType: "staff" | "role" | "team" | "department";
+  targetStaffId?: string | null;
+  targetRole?: string | null;
+  targetTeamId?: string | null;
+  targetDepartmentId?: string | null;
   reason: string;
 }): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
-  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+  const role = await getStaffRole(supabase);
+  if (!role) return { ok: false, error: "Not authorized" };
 
   const reason = input.reason.trim();
   if (reason.length < 3) return { ok: false, error: "Record a reason before escalating." };
   if (reason.length > 2000) return { ok: false, error: "Escalation reason is too long." };
 
-  const { data: session } = await supabase
-    .from("chat_sessions")
-    .select("id, status, reference_id")
-    .eq("id", input.sessionId)
-    .maybeSingle();
-  if (!session) return { ok: false, error: "Chat session not found." };
-  if ((session as { status?: string }).status === "closed") {
-    return { ok: false, error: "This case is already resolved." };
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", user.id)
-    .maybeSingle();
-  const authorName =
-    (profile as { full_name?: string | null; email?: string | null } | null)?.full_name ||
-    (profile as { email?: string | null } | null)?.email ||
-    "Support Agent";
-
-  const { error: insertError } = await supabase.from("chat_agent_events").insert({
-    session_id: input.sessionId,
-    author_id: user.id,
-    author_name: authorName,
-    kind: "escalation",
-    body: reason,
+  const { error: rpcErr } = await supabase.rpc("create_chat_escalation", {
+    p_session_id: input.sessionId,
+    p_target_type: input.targetType,
+    p_target_staff_id: input.targetStaffId ?? null,
+    p_target_role: input.targetRole ?? null,
+    p_target_team_id: input.targetTeamId ?? null,
+    p_target_department_id: input.targetDepartmentId ?? null,
+    p_reason: reason,
   });
-  if (insertError) {
-    if (insertError.code === "42P01" || insertError.code === "PGRST205") {
-      return {
-        ok: false,
-        error: "Escalation records need the latest database migration before they can be saved.",
-      };
-    }
-    return { ok: false, error: insertError.message };
-  }
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
 
+  revalidatePath("/admin/chat");
+  return { ok: true };
+}
+
+export async function respondChatEscalationAction(input: {
+  escalationId: string;
+  action: "accept" | "reject" | "return" | "cancel";
+  reason?: string | null;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const role = await getStaffRole(supabase);
+  if (!role) return { ok: false, error: "Not authorized" };
+
+  const { error: rpcErr } = await supabase.rpc("respond_chat_escalation", {
+    p_escalation_id: input.escalationId,
+    p_action: input.action,
+    p_reason: input.reason ?? null,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
+  return { ok: true };
+}
+
+export async function claimChatSessionAction(sessionId: string): Promise<
+  ActionResult & { assignedAdminId?: string | null; assignedAdminName?: string | null }
+> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data, error: rpcErr } = await supabase.rpc("claim_chat_session", {
+    p_session_id: sessionId,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
+  const result = (data ?? {}) as {
+    status?: string;
+    assigned_admin_id?: string | null;
+    assigned_admin_name?: string | null;
+  };
+  return {
+    ok: true,
+    status: result.status,
+    assignedAdminId: result.assigned_admin_id ?? null,
+    assignedAdminName: result.assigned_admin_name ?? null,
+  };
+}
+
+export async function assignChatSessionAction(input: {
+  sessionId: string;
+  assigneeId: string | null;
+  teamId?: string | null;
+  departmentId?: string | null;
+  reason?: string | null;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data, error: rpcErr } = await supabase.rpc("assign_chat_session", {
+    p_session_id: input.sessionId,
+    p_assignee_id: input.assigneeId,
+    p_team_id: input.teamId ?? null,
+    p_department_id: input.departmentId ?? null,
+    p_reason: input.reason ?? null,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
+  const result = (data ?? {}) as { status?: string; assigned_admin_name?: string | null };
+  return { ok: true, status: result.status };
+}
+
+export async function offerChatSessionAction(input: {
+  sessionId: string;
+  targetStaffId: string;
+  reason: string;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { error: rpcErr } = await supabase.rpc("offer_chat_session", {
+    p_session_id: input.sessionId,
+    p_target_staff_id: input.targetStaffId,
+    p_reason: input.reason,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
+  return { ok: true };
+}
+
+export async function respondChatAssignmentAction(input: {
+  assignmentId: string;
+  accept: boolean;
+  reason?: string | null;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { data, error: rpcErr } = await supabase.rpc("respond_chat_assignment", {
+    p_assignment_id: input.assignmentId,
+    p_accept: input.accept,
+    p_reason: input.reason ?? null,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
+  const result = (data ?? {}) as { accepted?: boolean; status?: string };
+  return { ok: true, status: result.status };
+}
+
+export async function returnChatSessionToQueueAction(input: {
+  sessionId: string;
+  reason: string;
+}): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (input.reason.trim().length < 3) return { ok: false, error: "A reason is required." };
+
+  const { error: rpcErr } = await supabase.rpc("return_chat_session_to_queue", {
+    p_session_id: input.sessionId,
+    p_reason: input.reason.trim(),
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
   return { ok: true };
 }
 
 export async function updateChatPriorityAction(input: {
   sessionId: string;
-  priority: "low" | "normal" | "high" | "urgent";
+  priority: (typeof CHAT_PRIORITIES)[number];
 }): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
-  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+  if (!(await isAdminUser()) && !(await getStaffRole(supabase))) {
+    return { ok: false, error: "Not authorized" };
+  }
 
-  if (!(PRIORITIES as readonly string[]).includes(input.priority)) {
+  if (!(CHAT_PRIORITIES as readonly string[]).includes(input.priority)) {
     return { ok: false, error: "Invalid priority" };
   }
 
-  const { error: updateError } = await supabase.from("chat_sessions").update({ priority: input.priority }).eq("id", input.sessionId);
-  if (updateError) {
-    if (updateError.code === "PGRST204" || updateError.code === "42703") {
-      return {
-        ok: false,
-        error: "Case priority needs the latest database migration before it can be saved.",
-      };
-    }
-    return { ok: false, error: updateError.message };
-  }
+  const { error: rpcErr } = await supabase.rpc("set_chat_priority", {
+    p_session_id: input.sessionId,
+    p_priority: input.priority,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
   return { ok: true };
 }
+
+export async function markChatPendingClientAction(sessionId: string): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { error: rpcErr } = await supabase.rpc("mark_chat_pending_client", {
+    p_session_id: sessionId,
+  });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
+  return { ok: true };
+}
+
+export async function setChatAgentStatusAction(
+  status: "available" | "busy" | "away" | "offline",
+): Promise<ActionResult> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+
+  const { error: rpcErr } = await supabase.rpc("set_my_agent_status", { p_status: status });
+  if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+
+  revalidatePath("/admin/chat");
+  return { ok: true };
+}
+
+export async function loadChatCaseTimelineAction(
+  sessionId: string,
+): Promise<{ ok: boolean; error?: string; timeline?: ChatTimelineResult }> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const role = await getStaffRole(supabase);
+  if (!role) return { ok: false, error: "Not authorized" };
+
+  const { data, error: rpcErr } = await supabase.rpc("chat_case_timeline", {
+    p_session_id: sessionId,
+    p_limit: 100,
+  });
+  if (rpcErr) {
+    if (rpcErr.code === "42883") {
+      return { ok: false, error: "Case timeline needs the latest database migration." };
+    }
+    return { ok: false, error: rpcErr.message };
+  }
+  return { ok: true, timeline: (data ?? {}) as ChatTimelineResult };
+}
+
+export async function loadChatStaffDirectoryAction(): Promise<{
+  ok: boolean;
+  error?: string;
+  staff?: ChatStaffMember[];
+}> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const role = await getStaffRole(supabase);
+  if (!role) return { ok: false, error: "Not authorized" };
+
+  const { data, error: rpcErr } = await supabase.rpc("chat_staff_directory");
+  if (rpcErr) {
+    if (rpcErr.code === "42883") return { ok: true, staff: [] };
+    return { ok: false, error: rpcErr.message };
+  }
+  const result = (data ?? {}) as { staff?: ChatStaffMember[] };
+  return { ok: true, staff: result.staff ?? [] };
+}
+
+export async function loadChatRoutingDirectoryAction(): Promise<{
+  ok: boolean;
+  error?: string;
+  departments?: ChatDepartment[];
+  teams?: ChatTeam[];
+}> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  const role = await getStaffRole(supabase);
+  if (!role) return { ok: false, error: "Not authorized" };
+
+  const { data, error: rpcErr } = await supabase.rpc("chat_routing_directory");
+  if (rpcErr) {
+    if (rpcErr.code === "42883") return { ok: true, departments: [], teams: [] };
+    return { ok: false, error: rpcErr.message };
+  }
+  const result = (data ?? {}) as { departments?: ChatDepartment[]; teams?: ChatTeam[] };
+  return { ok: true, departments: result.departments ?? [], teams: result.teams ?? [] };
+}
+
+/** Maps a database RPC error message to a user-facing message. */
+function chatRpcError(message: string | undefined): string {
+  const m = (message ?? "").toLowerCase();
+  if (m.includes("already assigned")) return "Another agent already owns this case.";
+  if (m.includes("already has another active case")) {
+    return "This client already has another active case. Resolve it first.";
+  }
+  if (m.includes("already active for this case") || m.includes("escalation is already active")) {
+    return "An escalation is already active for this case.";
+  }
+  if (m.includes("offer is already pending")) return "An offer is already pending for this case.";
+  if (m.includes("not authorized")) return "You do not have permission for this action.";
+  if (m.includes("not staff")) return "Only support staff can perform this action.";
+  if (m.includes("case is not active") || m.includes("case is not resolved")) {
+    return "This action is not valid for the current case state.";
+  }
+  if (m.includes("does not exist") || m.includes("could not find the function")) {
+    return "Live chat needs the latest database migration. Apply it, then retry.";
+  }
+  return message || "Something went wrong. Please retry.";
+}
+
 
 export async function markNotificationsReadAction(): Promise<ActionResult> {
   const { supabase, user, error } = await requireUser();

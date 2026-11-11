@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
+  ArrowUpRight,
   CheckCircle2,
   ChevronLeft,
   Clock,
@@ -16,24 +17,41 @@ import {
   Phone,
   Radio,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   StickyNote,
+  Timer,
   User,
+  UserPlus,
   WifiOff,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSupabase } from "@/hooks/use-supabase";
 import {
+  addChatInternalNoteAction,
+  assignChatSessionAction,
+  claimChatSessionAction,
+  clientEndChatSessionAction,
   closeChatSessionAction,
   escalateChatSessionAction,
-  addChatInternalNoteAction,
-  joinChatSessionAction,
   loadChatAgentEventsAction,
+  loadChatCaseTimelineAction,
+  loadChatRoutingDirectoryAction,
+  loadChatStaffDirectoryAction,
   loadLiveChatInboxAction,
   loadLiveChatMessagesAction,
+  markChatPendingClientAction,
   markChatReadAction,
+  offerChatSessionAction,
+  reopenChatSessionAction,
+  resolveChatSessionAction,
+  respondChatAssignmentAction,
+  respondChatEscalationAction,
+  returnChatSessionToQueueAction,
   sendChatMessageAction,
+  setChatAgentStatusAction,
   startChatSessionAction,
   updateChatPriorityAction,
 } from "@/app/actions";
@@ -42,11 +60,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { PRIORITIES, PRIORITY_LABELS } from "@/lib/constants";
+import {
+  AGENT_STATUSES,
+  AGENT_STATUS_LABELS,
+  CHAT_PRIORITIES,
+  CHAT_STAFF_RANK,
+  CHAT_STAFF_ROLE_LABELS,
+  PRIORITY_LABELS,
+} from "@/lib/constants";
+import type { AgentStatus } from "@/lib/constants";
+import type {
+  ChatAssignment,
+  ChatCaseEvent,
+  ChatDepartment,
+  ChatEscalation,
+  ChatStaffMember,
+  ChatTeam,
+} from "@/types/dashboard";
 import type { ChatAgentEvent, ChatCustomer, ChatMessage, ChatSession } from "@/types/dashboard";
 
 type Mode = "user" | "admin";
-type FilterValue = "open" | "waiting" | "active" | "closed" | "all";
+type FilterValue = "open" | "waiting" | "active" | "pending_client" | "resolved" | "closed" | "all";
+
+const PAGE_SIZE = 25;
 
 function fmtTime(d: string) {
   return new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -76,6 +112,34 @@ function fmtDuration(from: string, to = Date.now()) {
   return `${days}d ${hours % 24}h`;
 }
 
+/** Human SLA state derived from real server timestamps, never invented. */
+function slaState(s: ChatSession, nowMs: number) {
+  const out: {
+    firstOverdue: boolean;
+    resolutionOverdue: boolean;
+    firstDueIn: number | null;
+    resolutionDueIn: number | null;
+  } = {
+    firstOverdue: !!s.first_response_breached,
+    resolutionOverdue: !!s.resolution_breached,
+    firstDueIn: null,
+    resolutionDueIn: null,
+  };
+  const paused = !!s.sla_paused_since;
+  if (paused) return out;
+  if (s.first_response_due_at && !s.first_response_at) {
+    const inMs = new Date(s.first_response_due_at).getTime() - nowMs;
+    out.firstDueIn = inMs;
+    if (inMs < 0) out.firstOverdue = true;
+  }
+  if (s.resolution_due_at && s.status !== "resolved" && s.status !== "closed") {
+    const inMs = new Date(s.resolution_due_at).getTime() - nowMs;
+    out.resolutionDueIn = inMs;
+    if (inMs < 0) out.resolutionOverdue = true;
+  }
+  return out;
+}
+
 function senderLabel(m: ChatMessage, session: ChatSession | null, mode: Mode) {
   if (m.sender_role === "admin") {
     return m.sender_name || session?.assigned_admin_name || "Support";
@@ -97,6 +161,8 @@ function mergeChatMessages(prev: ChatMessage[], next: ChatMessage[]): ChatMessag
 
 function priorityStyle(priority: string | undefined) {
   switch (priority) {
+    case "critical":
+      return "border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400";
     case "urgent":
       return "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400";
     case "high":
@@ -111,17 +177,27 @@ function priorityStyle(priority: string | undefined) {
 export function LiveChat({
   mode,
   initialSessionId,
+  staffRole = null,
 }: {
   mode: Mode;
   initialSessionId?: string | null;
+  staffRole?: string | null;
 }) {
   const { user, isLoaded } = useAuth();
   const supabase = useSupabase();
+  const [activeStaffRole, setActiveStaffRole] = useState<string | null>(staffRole);
+  const rank = activeStaffRole
+    ? (CHAT_STAFF_RANK as Record<string, number>)[activeStaffRole] ?? 0
+    : 0;
+  const isStaff = mode === "admin" && rank >= 1;
+  const canSupervise = rank >= 3;
 
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [customers, setCustomers] = useState<Record<string, ChatCustomer>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({});
+  const [threadHasMore, setThreadHasMore] = useState<Record<string, boolean>>({});
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [loadingList, setLoadingList] = useState(true);
   const [loadingThreads, setLoadingThreads] = useState<Record<string, boolean>>({});
@@ -137,15 +213,43 @@ export function LiveChat({
   const [agentOnline, setAgentOnline] = useState<boolean | null>(null);
   const [connected, setConnected] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [nextCursor, setNextCursor] = useState<{ updated_at: string | null; id: string | null; has_more: boolean } | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [agentEvents, setAgentEvents] = useState<ChatAgentEvent[]>([]);
   const [eventsUnavailable, setEventsUnavailable] = useState(false);
   const [noteBody, setNoteBody] = useState("");
   const [savingNote, setSavingNote] = useState(false);
-  const [escalationOpen, setEscalationOpen] = useState(false);
-  const [escalationReason, setEscalationReason] = useState("");
-  const [escalating, setEscalating] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [showResolvedHint, setShowResolvedHint] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const [timeline, setTimeline] = useState<{
+    events: ChatCaseEvent[];
+    escalations: ChatEscalation[];
+    assignments: ChatAssignment[];
+  }>({ events: [], escalations: [], assignments: [] });
+  const [staffDir, setStaffDir] = useState<ChatStaffMember[]>([]);
+  const [departments, setDepartments] = useState<ChatDepartment[]>([]);
+  const [teams, setTeams] = useState<ChatTeam[]>([]);
+
+  const [dialog, setDialog] = useState<
+    | null
+    | { kind: "resolve" }
+    | { kind: "close" }
+    | { kind: "reopen" }
+    | { kind: "return" }
+    | { kind: "assign" }
+    | { kind: "offer" }
+    | { kind: "escalate" }
+  >(null);
+  const [dialogReason, setDialogReason] = useState("");
+  const [dialogStaff, setDialogStaff] = useState<string>("");
+  const [dialogEscType, setDialogEscType] = useState<"staff" | "role" | "team" | "department">("staff");
+  const [dialogEscRole, setDialogEscRole] = useState<string>("supervisor");
+  const [dialogEscTeam, setDialogEscTeam] = useState<string>("");
+  const [dialogEscDept, setDialogEscDept] = useState<string>("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
@@ -178,9 +282,34 @@ export function LiveChat({
     });
   }, []);
 
+  const statusFilters = useCallback((): string[] | null => {
+    switch (fStatus) {
+      case "open":
+        return ["waiting", "active", "pending_client"];
+      case "waiting":
+        return ["waiting"];
+      case "active":
+        return ["active"];
+      case "pending_client":
+        return ["pending_client"];
+      case "resolved":
+        return ["resolved"];
+      case "closed":
+        return ["closed"];
+      default:
+        return null;
+    }
+  }, [fStatus]);
+
   const loadSessions = useCallback(
-    async (opts?: { initial?: boolean }) => {
-      const res = await loadLiveChatInboxAction(mode);
+    async (opts?: { initial?: boolean; append?: boolean }) => {
+      const res = await loadLiveChatInboxAction(mode, {
+        statuses: statusFilters(),
+        query: query.trim() || null,
+        cursorUpdatedAt: opts?.append ? nextCursor?.updated_at ?? null : null,
+        cursorId: opts?.append ? nextCursor?.id ?? null : null,
+        limit: PAGE_SIZE,
+      });
       if (!res.ok) {
         if (opts?.initial) {
           setListErr(res.error || "Could not load live chat sessions.");
@@ -191,9 +320,21 @@ export function LiveChat({
         return sessionsRef.current;
       }
       const list = res.sessions ?? [];
-      applySessions(list);
+      if (opts?.append) {
+        setSessions((prev) => {
+          const byId = new Map(prev.map((s) => [s.id, s]));
+          for (const s of list) byId.set(s.id, { ...byId.get(s.id), ...s });
+          return Array.from(byId.values()).sort(
+            (a, b) => +new Date(b.updated_at) - +new Date(a.updated_at),
+          );
+        });
+      } else {
+        applySessions(list);
+      }
+      setNextCursor(res.nextCursor ?? null);
       setListErr(null);
       setLoadingList(false);
+      setLoadingMore(false);
       if (res.profiles) {
         setCustomers((prev) => {
           const next = { ...prev };
@@ -210,20 +351,28 @@ export function LiveChat({
       }
       if (res.unread) setUnread(res.unread);
       if (res.agentOnline !== undefined) setAgentOnline(res.agentOnline ?? null);
+      if (res.staffRole !== undefined && res.staffRole !== null) setActiveStaffRole(res.staffRole);
       return list;
     },
-    [applySessions, mode],
+    [applySessions, mode, statusFilters, query, nextCursor],
   );
 
   const loadThread = useCallback(
-    async (sessionId: string, opts?: { showLoader?: boolean }) => {
+    async (sessionId: string, opts?: { showLoader?: boolean; older?: boolean }) => {
       const seq = ++loadSeq.current;
       if (opts?.showLoader) {
         setLoadingThreads((prev) => ({ ...prev, [sessionId]: true }));
       }
-      const res = await loadLiveChatMessagesAction(sessionId);
+      const existing = threads[sessionId] ?? [];
+      const oldest = existing[0];
+      const res = await loadLiveChatMessagesAction(sessionId, {
+        beforeCreatedAt: opts?.older && oldest ? oldest.created_at : null,
+        beforeId: opts?.older && oldest ? oldest.id : null,
+        limit: 50,
+      });
       if (seq !== loadSeq.current) return;
       setLoadingThreads((prev) => ({ ...prev, [sessionId]: false }));
+      setLoadingOlder(false);
       if (!res.ok) {
         if (selectedIdRef.current === sessionId) {
           setChatErr(res.error || "Could not load messages.");
@@ -231,22 +380,49 @@ export function LiveChat({
         return;
       }
       const incoming = res.messages ?? [];
+      setThreadHasMore((prev) => ({ ...prev, [sessionId]: !!res.hasMore }));
       setThreads((prev) => {
         const merged = mergeChatMessages(prev[sessionId] ?? [], incoming);
         return { ...prev, [sessionId]: merged };
       });
-      if (selectedIdRef.current === sessionId) setChatErr(null);
     },
-    [],
+    [threads],
   );
 
-  const loadAgentEvents = useCallback(async (sessionId: string) => {
+  const loadAgentEvents = useCallback(
+    async (sessionId: string) => {
+      if (mode !== "admin") return;
+      const res = await loadChatAgentEventsAction(sessionId);
+      if (!res.ok) return;
+      setAgentEvents(res.events ?? []);
+      setEventsUnavailable(!!res.unavailable);
+    },
+    [mode],
+  );
+
+  const loadTimeline = useCallback(async (sessionId: string) => {
     if (mode !== "admin") return;
-    const res = await loadChatAgentEventsAction(sessionId);
-    if (!res.ok) return;
-    setAgentEvents(res.events ?? []);
-    setEventsUnavailable(!!res.unavailable);
+    const res = await loadChatCaseTimelineAction(sessionId);
+    if (!res.ok || !res.timeline) return;
+    setTimeline({
+      events: res.timeline.events,
+      escalations: res.timeline.escalations,
+      assignments: res.timeline.assignments,
+    });
   }, [mode]);
+
+  const loadDirectories = useCallback(async () => {
+    if (mode !== "admin") return;
+    if (rank >= 2) {
+      const res = await loadChatStaffDirectoryAction();
+      if (res.ok) setStaffDir(res.staff ?? []);
+    }
+    const routing = await loadChatRoutingDirectoryAction();
+    if (routing.ok) {
+      setDepartments(routing.departments ?? []);
+      setTeams(routing.teams ?? []);
+    }
+  }, [mode, rank]);
 
   const markRead = useCallback(async (sessionId: string) => {
     await markChatReadAction(sessionId);
@@ -281,6 +457,7 @@ export function LiveChat({
     (async () => {
       const list = await loadSessions({ initial: true });
       if (!active) return;
+      void loadDirectories();
       if (initialSessionId) {
         setFStatus("all");
         setSelectedId(initialSessionId);
@@ -293,7 +470,16 @@ export function LiveChat({
     return () => {
       active = false;
     };
-  }, [isLoaded, user, loadSessions, initialSessionId, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user, initialSessionId, mode]);
+
+  // Reload the list when filters/search change (not on every render).
+  useEffect(() => {
+    if (!bootstrapped.current) return;
+    const t = window.setTimeout(() => void loadSessions(), 250);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fStatus, query]);
 
   useEffect(() => {
     if (!user) return;
@@ -314,20 +500,7 @@ export function LiveChat({
             return prev;
           }
           return prev
-            .map((x) =>
-              x.id === s.id
-                ? {
-                    ...x,
-                    ...s,
-                    priority: s.priority ?? x.priority,
-                    assigned_admin_id: s.assigned_admin_id ?? x.assigned_admin_id,
-                    assigned_admin_name: s.assigned_admin_name ?? x.assigned_admin_name,
-                    welcome_sent_at: s.welcome_sent_at ?? x.welcome_sent_at,
-                    joined_at: s.joined_at ?? x.joined_at,
-                    resolved_at: s.resolved_at ?? x.resolved_at,
-                  }
-                : x,
-            )
+            .map((x) => (x.id === s.id ? { ...x, ...s } : x))
             .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
         });
       })
@@ -365,6 +538,12 @@ export function LiveChat({
       })
       .subscribe((status) => {
         setConnected(status === "SUBSCRIBED");
+        if (status === "SUBSCRIBED") {
+          // Resync after any reconnect so no message is missed.
+          void loadSessions();
+          const sid = selectedIdRef.current;
+          if (sid) void loadThread(sid);
+        }
       });
 
     const onVis = () => {
@@ -380,7 +559,8 @@ export function LiveChat({
         reloadTimer.current = null;
       }
     };
-  }, [supabase, loadSessions, scheduleSilentReload, markRead, mode, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, user, mode]);
 
   useEffect(() => {
     if (!user) return;
@@ -388,30 +568,34 @@ export function LiveChat({
       if (document.visibilityState !== "visible" || refreshing.current) return;
       refreshing.current = true;
       const sid = selectedIdRef.current;
-      Promise.all([
-        loadSessions(),
-        sid ? loadThread(sid) : Promise.resolve(),
-      ]).finally(() => {
+      Promise.all([loadSessions(), sid ? loadThread(sid) : Promise.resolve()]).finally(() => {
         refreshing.current = false;
       });
     }, mode === "admin" ? 12_000 : 25_000);
     return () => window.clearInterval(interval);
-  }, [user, mode, loadSessions, loadThread]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, mode]);
 
   useEffect(() => {
     if (!selectedId) {
       setChatErr(null);
       lastMsgIdRef.current = null;
       setAgentEvents([]);
+      setTimeline({ events: [], escalations: [], assignments: [] });
       return;
     }
     const sessionId = selectedId;
     const hasCache = (threads[sessionId] ?? []).length > 0;
     if (!hasCache) setLoadingThreads((prev) => ({ ...prev, [sessionId]: true }));
     setChatErr(null);
+    setActionMsg(null);
+    setShowResolvedHint(false);
     void loadThread(sessionId, { showLoader: !hasCache });
     void markRead(sessionId);
-    if (mode === "admin") void loadAgentEvents(sessionId);
+    if (mode === "admin") {
+      void loadAgentEvents(sessionId);
+      void loadTimeline(sessionId);
+    }
 
     const channel = supabase
       .channel(`chat-thread-${sessionId}`)
@@ -435,22 +619,7 @@ export function LiveChat({
         { event: "UPDATE", schema: "public", table: "chat_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
           const s = payload.new as ChatSession;
-          setSessions((prev) =>
-            prev.map((x) =>
-              x.id === s.id
-                ? {
-                    ...x,
-                    ...s,
-                    priority: s.priority ?? x.priority,
-                    assigned_admin_id: s.assigned_admin_id ?? x.assigned_admin_id,
-                    assigned_admin_name: s.assigned_admin_name ?? x.assigned_admin_name,
-                    welcome_sent_at: s.welcome_sent_at ?? x.welcome_sent_at,
-                    joined_at: s.joined_at ?? x.joined_at,
-                    resolved_at: s.resolved_at ?? x.resolved_at,
-                  }
-                : x,
-            ),
-          );
+          setSessions((prev) => prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)));
         },
       )
       .subscribe();
@@ -459,7 +628,7 @@ export function LiveChat({
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, supabase, loadThread, markRead, mode, loadAgentEvents]);
+  }, [selectedId, supabase, loadThread, markRead, mode, loadAgentEvents, loadTimeline]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -490,8 +659,10 @@ export function LiveChat({
   const counts = useMemo(() => {
     const waiting = sessions.filter((s) => s.status === "waiting").length;
     const active = sessions.filter((s) => s.status === "active").length;
+    const pendingClient = sessions.filter((s) => s.status === "pending_client").length;
+    const resolved = sessions.filter((s) => s.status === "resolved").length;
     const closed = sessions.filter((s) => s.status === "closed").length;
-    return { waiting, active, closed, all: sessions.length };
+    return { waiting, active, pendingClient, resolved, closed, all: sessions.length };
   }, [sessions]);
 
   const filtered = useMemo(() => {
@@ -505,27 +676,46 @@ export function LiveChat({
         (customers[s.user_id]?.name ?? "").toLowerCase().includes(q) ||
         (customers[s.user_id]?.email ?? "").toLowerCase().includes(q);
       if (!matchQ) return false;
-      if (fStatus === "all") return true;
-      if (fStatus === "open") return s.status === "waiting" || s.status === "active";
-      return s.status === fStatus;
+      return true;
     });
     if (mode === "admin") {
-      const rank = (s: ChatSession) => (s.status === "waiting" ? 0 : s.status === "active" ? 1 : 2);
+      const rankOf = (s: ChatSession) =>
+        s.status === "waiting" ? 0 : s.status === "active" ? 1 : s.status === "pending_client" ? 2 : 3;
       return [...list].sort((a, b) => {
-        const r = rank(a) - rank(b);
+        const r = rankOf(a) - rankOf(b);
         if (r !== 0) return r;
         return +new Date(b.updated_at) - +new Date(a.updated_at);
       });
     }
     return list;
-  }, [sessions, query, fStatus, customers, mode]);
+  }, [sessions, query, customers, mode]);
 
-  const joinSession = async () => {
-    if (mode !== "admin" || !selectedId || joining) return;
+  const selectedEscalation = useMemo(
+    () => timeline.escalations.find((e) => e.status === "pending" || e.status === "accepted") ?? null,
+    [timeline.escalations],
+  );
+
+  const myPendingOffer = useMemo(() => {
+    if (!user) return null;
+    return (
+      timeline.assignments.find((a) => a.status === "offered" && a.assignee_id === user.id) ?? null
+    );
+  }, [timeline.assignments, user]);
+
+  const isAssignedToMe = !!selected && !!user && selected.assigned_admin_id === user.id;
+  const canWriteSelected = canSupervise || isAssignedToMe;
+  const sla = selected ? slaState(selected, now) : null;
+
+  /* ---------------------------------------------------------------- */
+  /*  Actions                                                          */
+  /* ---------------------------------------------------------------- */
+
+  const claim = async () => {
+    if (!selectedId || joining) return;
     setJoining(true);
     setChatErr(null);
     setActionMsg(null);
-    const res = await joinChatSessionAction(selectedId);
+    const res = await claimChatSessionAction(selectedId);
     if (!res.ok) {
       setJoining(false);
       setChatErr(res.error ?? "Could not join this session. Please retry.");
@@ -537,17 +727,17 @@ export function LiveChat({
           ? {
               ...s,
               status: (res.status as ChatSession["status"]) ?? "active",
-              assigned_admin_name: res.adminName ?? s.assigned_admin_name,
               assigned_admin_id: res.assignedAdminId ?? user?.id ?? s.assigned_admin_id,
-              welcome_sent_at: res.welcome ? new Date().toISOString() : s.welcome_sent_at,
+              assigned_admin_name: res.assignedAdminName ?? s.assigned_admin_name,
               joined_at: s.joined_at ?? new Date().toISOString(),
             }
           : s,
       ),
     );
-    setActionMsg(res.welcome ? "Joined. The welcome message was delivered." : "Joined this session.");
+    setActionMsg("You are now the assigned agent for this case.");
     await loadThread(selectedId);
     void loadSessions();
+    void loadTimeline(selectedId);
     setJoining(false);
   };
 
@@ -586,22 +776,134 @@ export function LiveChat({
     await loadThread(selectedId);
   };
 
-  const closeSession = async () => {
-    if (!selectedId) return;
-    const res = await closeChatSessionAction(selectedId);
-    if (res.ok) {
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === selectedId ? { ...s, status: "closed" as const, resolved_at: new Date().toISOString() } : s,
-        ),
-      );
-      setActionMsg("Case resolved. History and case ID are preserved.");
-      if (fStatus === "open" || fStatus === "waiting" || fStatus === "active") {
-        setFStatus("closed");
+  const runDialogAction = async () => {
+    if (!selectedId || !dialog || busy) return;
+    setBusy(true);
+    setChatErr(null);
+    let res: { ok: boolean; error?: string } = { ok: false, error: "Unknown action" };
+    if (dialog.kind === "resolve") {
+      res = await resolveChatSessionAction(selectedId, dialogReason.trim() || undefined);
+      if (res.ok) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === selectedId
+              ? { ...s, status: "resolved" as const, resolved_at: new Date().toISOString() }
+              : s,
+          ),
+        );
+        setActionMsg("Case resolved. History and case ID are preserved.");
+        setShowResolvedHint(true);
       }
-    } else {
-      setChatErr(res.error ?? "Could not close session");
+    } else if (dialog.kind === "close") {
+      res = await closeChatSessionAction(selectedId, dialogReason.trim() || undefined);
+      if (res.ok) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === selectedId
+              ? { ...s, status: "closed" as const, closed_at: new Date().toISOString() }
+              : s,
+          ),
+        );
+        setActionMsg("Case closed and archived.");
+      }
+    } else if (dialog.kind === "reopen") {
+      res = await reopenChatSessionAction(selectedId, dialogReason.trim());
+      if (res.ok) {
+        setSessions((prev) =>
+          prev.map((s) => (s.id === selectedId ? { ...s, status: "active" as const } : s)),
+        );
+        setActionMsg("Case reopened.");
+      }
+    } else if (dialog.kind === "return") {
+      res = await returnChatSessionToQueueAction({ sessionId: selectedId, reason: dialogReason.trim() });
+      if (res.ok) {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === selectedId
+              ? { ...s, status: "waiting" as const, assigned_admin_id: null, assigned_admin_name: null }
+              : s,
+          ),
+        );
+        setActionMsg("Case returned to the waiting queue.");
+      }
+    } else if (dialog.kind === "assign") {
+      res = await assignChatSessionAction({
+        sessionId: selectedId,
+        assigneeId: dialogStaff || null,
+        reason: dialogReason.trim() || null,
+      });
+      if (res.ok) {
+        setActionMsg("Case reassigned.");
+        void loadSessions();
+      }
+    } else if (dialog.kind === "offer") {
+      res = await offerChatSessionAction({
+        sessionId: selectedId,
+        targetStaffId: dialogStaff,
+        reason: dialogReason.trim(),
+      });
+      if (res.ok) setActionMsg("Transfer offer sent.");
+    } else if (dialog.kind === "escalate") {
+      res = await escalateChatSessionAction({
+        sessionId: selectedId,
+        targetType: dialogEscType,
+        targetStaffId: dialogEscType === "staff" ? dialogStaff || null : null,
+        targetRole: dialogEscType === "role" ? dialogEscRole : null,
+        targetTeamId: dialogEscType === "team" ? dialogEscTeam || null : null,
+        targetDepartmentId: dialogEscType === "department" ? dialogEscDept || null : null,
+        reason: dialogReason.trim(),
+      });
+      if (res.ok) setActionMsg("Escalation created.");
     }
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Action failed.");
+      return;
+    }
+    setDialog(null);
+    setDialogReason("");
+    setDialogStaff("");
+    if (selectedId) {
+      void loadTimeline(selectedId);
+      void loadSessions();
+    }
+  };
+
+  const respondOffer = async (accept: boolean) => {
+    if (!myPendingOffer) return;
+    setBusy(true);
+    const res = await respondChatAssignmentAction({
+      assignmentId: myPendingOffer.id,
+      accept,
+      reason: accept ? null : "Declined by agent",
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Could not respond to the offer.");
+      return;
+    }
+    setActionMsg(accept ? "You accepted the case." : "Offer declined.");
+    void loadSessions();
+    if (selectedId) void loadTimeline(selectedId);
+  };
+
+  const respondEscalation = async (action: "accept" | "reject" | "return" | "cancel") => {
+    if (!selectedEscalation) return;
+    setBusy(true);
+    const res = await respondChatEscalationAction({
+      escalationId: selectedEscalation.id,
+      action,
+      reason: action === "accept" ? null : dialogReason.trim() || `${action} by staff`,
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Could not respond to the escalation.");
+      return;
+    }
+    setActionMsg(`Escalation ${action}ed.`);
+    setDialog(null);
+    setDialogReason("");
+    if (selectedId) void loadTimeline(selectedId);
   };
 
   const saveNote = async () => {
@@ -621,27 +923,6 @@ export function LiveChat({
     void loadAgentEvents(selectedId);
   };
 
-  const submitEscalation = async () => {
-    if (!selectedId || escalating) return;
-    const reason = escalationReason.trim();
-    if (reason.length < 3) {
-      setChatErr("Record a reason before escalating.");
-      return;
-    }
-    setEscalating(true);
-    setChatErr(null);
-    const res = await escalateChatSessionAction({ sessionId: selectedId, reason });
-    setEscalating(false);
-    if (!res.ok) {
-      setChatErr(res.error ?? "Could not record the escalation.");
-      return;
-    }
-    setEscalationReason("");
-    setEscalationOpen(false);
-    setActionMsg("Escalation recorded with your reason.");
-    void loadAgentEvents(selectedId);
-  };
-
   const changePriority = async (priority: ChatSession["priority"]) => {
     if (!selectedId || !priority) return;
     const previous = sessions;
@@ -651,6 +932,26 @@ export function LiveChat({
       setSessions(previous);
       setChatErr(res.error ?? "Could not update priority.");
     }
+  };
+
+  const togglePendingClient = async () => {
+    if (!selectedId) return;
+    setBusy(true);
+    const res = await markChatPendingClientAction(selectedId);
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Could not update the case.");
+      return;
+    }
+    setSessions((prev) =>
+      prev.map((s) => (s.id === selectedId ? { ...s, status: "pending_client" as const } : s)),
+    );
+    setActionMsg("Case is now waiting for the customer.");
+  };
+
+  const changePresence = async (status: AgentStatus) => {
+    const res = await setChatAgentStatusAction(status);
+    if (!res.ok) setChatErr(res.error ?? "Could not update presence.");
   };
 
   const supportHref = mode === "admin" ? "/admin/support" : "/dashboard/support";
@@ -663,20 +964,31 @@ export function LiveChat({
       ? [
           { value: "waiting", label: "Waiting", count: counts.waiting },
           { value: "active", label: "Active", count: counts.active },
+          { value: "pending_client", label: "Awaiting", count: counts.pendingClient },
+          { value: "resolved", label: "Resolved", count: counts.resolved },
           { value: "closed", label: "Closed", count: counts.closed },
           { value: "all", label: "All", count: counts.all },
         ]
       : [
-          { value: "open", label: "Open", count: counts.waiting + counts.active },
+          { value: "open", label: "Open", count: counts.waiting + counts.active + counts.pendingClient },
+          { value: "resolved", label: "Resolved", count: counts.resolved },
           { value: "closed", label: "Closed", count: counts.closed },
           { value: "all", label: "All", count: counts.all },
         ];
 
+  const openDialog = (kind: NonNullable<typeof dialog>["kind"]) => {
+    setDialog({ kind } as NonNullable<typeof dialog>);
+    setDialogReason("");
+    setDialogStaff("");
+    setChatErr(null);
+  };
+
   return (
-    <div className="glass gradient-border flex h-[calc(100dvh-13rem)] min-h-[520px] flex-col overflow-hidden rounded-3xl lg:flex-row">
+    <div className="glass gradient-border flex h-[calc(100dvh-11rem)] min-h-[560px] flex-col overflow-hidden rounded-3xl lg:h-[calc(100dvh-9rem)] lg:flex-row">
+      {/* Queue / list panel */}
       <aside
         className={cn(
-          "flex w-full flex-col border-b border-border/60 lg:w-[21rem] lg:shrink-0 lg:border-b-0 lg:border-r",
+          "flex w-full flex-col border-b border-border/60 lg:w-[20rem] lg:shrink-0 lg:border-b-0 lg:border-r",
           selectedId ? "hidden lg:flex" : "",
         )}
       >
@@ -702,6 +1014,31 @@ export function LiveChat({
             )}
           </div>
         </div>
+
+        {mode === "admin" && isStaff && (
+          <div className="border-b border-border/60 px-3 py-2">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              My presence
+            </label>
+            <select
+              className="mt-1 h-8 w-full rounded-lg border border-input bg-white/60 px-2 text-xs dark:bg-white/5"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) void changePresence(e.target.value as AgentStatus);
+              }}
+              aria-label="Set my agent presence"
+            >
+              <option value="" disabled>
+                Set status…
+              </option>
+              {AGENT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {AGENT_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="space-y-2 border-b border-border/60 px-3 py-3">
           <div className="relative">
@@ -776,23 +1113,16 @@ export function LiveChat({
               <p className="text-sm text-muted-foreground">
                 {fStatus === "closed"
                   ? "No closed live chat sessions yet."
-                  : fStatus === "waiting"
-                    ? "The waiting queue is empty. New client sessions appear here automatically."
-                    : fStatus === "active"
-                      ? "No active conversations right now."
-                      : fStatus === "open" && sessions.length > 0
-                        ? "No open sessions. Closed cases are under Closed."
-                        : "No live chat sessions yet."}
+                  : fStatus === "resolved"
+                    ? "No resolved cases right now."
+                    : fStatus === "waiting"
+                      ? "The waiting queue is empty. New client sessions appear here automatically."
+                      : "No live chat sessions yet."}
               </p>
               {mode === "user" && fStatus !== "closed" && (
                 <Button size="sm" variant="outline" onClick={startChat} disabled={starting}>
                   {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {chatErr ? "Retry live chat" : "Start a live chat"}
-                </Button>
-              )}
-              {mode === "admin" && fStatus === "waiting" && sessions.length > 0 && (
-                <Button size="sm" variant="outline" onClick={() => setFStatus("all")}>
-                  View all sessions
                 </Button>
               )}
             </div>
@@ -803,10 +1133,14 @@ export function LiveChat({
                 const unreadCount = unread[s.id] ?? 0;
                 const who = customers[s.user_id];
                 const waitFrom = s.status === "waiting" ? s.created_at : s.joined_at ?? s.created_at;
+                const rowSla = slaState(s, now);
                 return (
                   <li key={s.id}>
                     <button
-                      onClick={() => setSelectedId(s.id)}
+                      onClick={() => {
+                        setSelectedId(s.id);
+                        setDetailsOpen(false);
+                      }}
                       className={cn(
                         "flex w-full items-start gap-3 border-l-2 px-4 py-3.5 text-left transition-colors",
                         active
@@ -852,9 +1186,14 @@ export function LiveChat({
                               {PRIORITY_LABELS[s.priority] ?? s.priority}
                             </span>
                           )}
+                          {(rowSla.firstOverdue || rowSla.resolutionOverdue) && (
+                            <span className="rounded-full border border-red-500/40 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-600 dark:text-red-400">
+                              SLA
+                            </span>
+                          )}
                           <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                             <Clock className="h-3 w-3" />
-                            {s.status === "closed"
+                            {s.status === "closed" || s.status === "resolved"
                               ? fmtDate(s.created_at)
                               : s.status === "waiting"
                                 ? `Waiting ${fmtDuration(waitFrom, now)}`
@@ -866,12 +1205,35 @@ export function LiveChat({
                   </li>
                 );
               })}
+              {nextCursor?.has_more && (
+                <li className="p-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    disabled={loadingMore}
+                    onClick={() => {
+                      setLoadingMore(true);
+                      void loadSessions({ append: true });
+                    }}
+                  >
+                    {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Load more
+                  </Button>
+                </li>
+              )}
             </ul>
           )}
         </div>
       </aside>
 
-      <section className={cn("flex min-w-0 flex-1 flex-col border-b border-border/60 lg:border-b-0", !selectedId ? "hidden lg:flex" : "")}>
+      {/* Thread panel */}
+      <section
+        className={cn(
+          "flex min-w-0 flex-1 flex-col border-b border-border/60 lg:border-b-0",
+          !selectedId ? "hidden lg:flex" : "",
+        )}
+      >
         {!selected ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/20 to-cyan-400/20 text-cyan-500">
@@ -887,11 +1249,6 @@ export function LiveChat({
                   <span className={cn("h-2 w-2 rounded-full", agentOnline ? "bg-emerald-500" : "bg-slate-400")} />
                   {presenceLabel}
                 </div>
-                {agentOnline === false && (
-                  <p className="max-w-sm text-xs text-amber-600 dark:text-amber-400">
-                    Agents are offline right now. You can still start a session and your messages are saved.
-                  </p>
-                )}
                 {chatErr && (
                   <p className="max-w-sm text-sm text-red-500" role="alert">
                     {chatErr}
@@ -912,7 +1269,7 @@ export function LiveChat({
                 <p className="font-display text-sm font-bold">Select a conversation to begin</p>
                 <p className="text-sm text-muted-foreground">
                   New client sessions arrive in the Waiting queue automatically. Opening the list does not join a
-                  case — use Join session to take it.
+                  case — use Claim case to take it.
                 </p>
                 {counts.waiting > 0 && (
                   <p className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -935,9 +1292,7 @@ export function LiveChat({
               </button>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-display text-base font-bold">
-                  {mode === "admin"
-                    ? customer?.name ?? "Client"
-                    : selected.reference_id ?? "Session"}
+                  {mode === "admin" ? customer?.name ?? "Client" : selected.reference_id ?? "Session"}
                 </p>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground">
                   {mode === "admin" && (
@@ -946,14 +1301,17 @@ export function LiveChat({
                         Case {selected.reference_id ?? "pending"}
                       </span>
                       <span>
-                        {selected.status === "closed"
+                        {selected.status === "resolved"
                           ? `Resolved ${fmtDate(selected.resolved_at ?? selected.updated_at)}`
-                          : `${selected.status === "waiting" ? "Waiting" : "Open"} ${fmtDuration(
-                              selected.status === "waiting" ? selected.created_at : selected.joined_at ?? selected.created_at,
-                              now,
-                            )}`}
+                          : selected.status === "closed"
+                            ? `Closed ${fmtDate(selected.closed_at ?? selected.updated_at)}`
+                            : `${fmtDuration(
+                                selected.status === "waiting" ? selected.created_at : selected.joined_at ?? selected.created_at,
+                                now,
+                              )}`}
                       </span>
-                      {selected.assigned_admin_name && <span>Agent: {selected.assigned_admin_name}</span>}
+                      {selected.assigned_admin_name && <span>Owner: {selected.assigned_admin_name}</span>}
+                      {selected.team_id && <span>Team routed</span>}
                     </>
                   )}
                   {mode === "user" && (
@@ -962,12 +1320,14 @@ export function LiveChat({
                         ? `Connected with ${selected.assigned_admin_name}`
                         : selected.status === "waiting"
                           ? "Waiting for an agent"
-                          : selected.status === "closed"
-                            ? `Closed ${fmtDate(selected.resolved_at ?? selected.updated_at)}`
-                            : "Support team"}
+                          : selected.status === "resolved"
+                            ? `Resolved ${fmtDate(selected.resolved_at ?? selected.updated_at)}`
+                            : selected.status === "closed"
+                              ? `Closed ${fmtDate(selected.closed_at ?? selected.updated_at)}`
+                              : "Support team"}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1" aria-live="polite">
                     {connected ? <Radio className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3" />}
                     {connected ? "Realtime" : "Auto-refresh"}
                   </span>
@@ -975,47 +1335,122 @@ export function LiveChat({
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <StatusBadge status={selected.status} />
-                {mode === "admin" && selected.status !== "closed" && !selected.assigned_admin_id && (
-                  <Button size="sm" onClick={joinSession} disabled={joining}>
-                    {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                    Join session
+                {mode === "admin" && isStaff && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="xl:hidden"
+                    onClick={() => setDetailsOpen(true)}
+                    aria-label="Open case details"
+                  >
+                    <StickyNote className="h-4 w-4" /> Details
                   </Button>
                 )}
-                {mode === "admin" && selected.status !== "closed" && selected.assigned_admin_id && (
-                  <Button size="sm" variant="outline" onClick={closeSession}>
+                {mode === "admin" && selected.status !== "resolved" && selected.status !== "closed" && !selected.assigned_admin_id && (
+                  <Button size="sm" onClick={claim} disabled={joining}>
+                    {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
+                    Claim case
+                  </Button>
+                )}
+                {mode === "admin" && canWriteSelected && selected.status !== "resolved" && selected.status !== "closed" && (
+                  <Button size="sm" variant="outline" onClick={() => openDialog("resolve")} disabled={busy}>
                     <CheckCircle2 className="h-4 w-4" /> Resolve
                   </Button>
                 )}
-                {mode === "user" && selected.status !== "closed" && (
-                  <Button size="sm" variant="outline" onClick={closeSession}>
+                {mode === "admin" && canSupervise && selected.status !== "closed" && (
+                  <Button size="sm" variant="ghost" onClick={() => openDialog("close")} disabled={busy}>
+                    Close
+                  </Button>
+                )}
+                {mode === "admin" && (selected.status === "resolved" || selected.status === "closed") &&
+                  ((selected.status === "resolved" && rank >= 2) || (selected.status === "closed" && canSupervise)) && (
+                    <Button size="sm" variant="outline" onClick={() => openDialog("reopen")} disabled={busy}>
+                      <RotateCcw className="h-4 w-4" /> Reopen
+                    </Button>
+                  )}
+                {mode === "user" && selected.status !== "resolved" && selected.status !== "closed" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const res = await clientEndChatSessionAction(selected.id);
+                      if (res.ok) {
+                        setSessions((prev) =>
+                          prev.map((s) =>
+                            s.id === selected.id ? { ...s, status: "resolved" as const, resolved_at: new Date().toISOString() } : s,
+                          ),
+                        );
+                        setActionMsg("Your case is resolved. You can reopen it by messaging again.");
+                      } else {
+                        setChatErr(res.error ?? "Could not end the session.");
+                      }
+                    }}
+                  >
                     End session
                   </Button>
                 )}
               </div>
             </div>
 
-            {selected.assigned_admin_name && selected.status !== "closed" && (
-              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 sm:px-5">
-                {mode === "admin"
-                  ? `You are handling this case as ${selected.assigned_admin_name}. The client can see your name and the welcome message.`
-                  : `${selected.assigned_admin_name} has joined this chat.`}
-              </div>
-            )}
-            {actionMsg && (
-              <div className="border-b border-border/60 bg-primary/5 px-4 py-2 text-xs font-medium text-primary sm:px-5">
-                {actionMsg}
-              </div>
-            )}
-            {mode === "user" && agentOnline === false && selected.status !== "closed" && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-700 dark:text-amber-300 sm:px-5">
-                <span>Agents are offline. Messages are saved. You can also open a support case.</span>
-                <Button size="sm" variant="outline" asChild>
-                  <Link href={supportHref}>Open a support case</Link>
-                </Button>
+            {mode === "admin" && isStaff && myPendingOffer && selected.assigned_admin_id !== user?.id && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-xs text-cyan-700 dark:text-cyan-300 sm:px-5">
+                <span>You have a pending transfer offer for this case.</span>
+                <div className="flex gap-1.5">
+                  <Button size="sm" onClick={() => void respondOffer(true)} disabled={busy}>
+                    Accept
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => void respondOffer(false)} disabled={busy}>
+                    Decline
+                  </Button>
+                </div>
               </div>
             )}
 
-            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+            {selected.assigned_admin_id === user?.id && selected.status !== "resolved" && selected.status !== "closed" && (
+              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 sm:px-5">
+                {mode === "admin"
+                  ? `You are handling this case as ${selected.assigned_admin_name ?? "the assigned agent"}.`
+                  : `${selected.assigned_admin_name} has joined this chat.`}
+              </div>
+            )}
+
+            {actionMsg && (
+              <div className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-primary/5 px-4 py-2 text-xs font-medium text-primary sm:px-5" role="status" aria-live="polite">
+                <span>{actionMsg}</span>
+                {showResolvedHint && (
+                  <button
+                    className="rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-semibold"
+                    onClick={() => {
+                      setFStatus("resolved");
+                      setShowResolvedHint(false);
+                    }}
+                  >
+                    Show resolved
+                  </button>
+                )}
+              </div>
+            )}
+
+            {mode === "admin" && isStaff && selectedEscalation && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-orange-500/30 bg-orange-500/10 px-4 py-2.5 text-xs text-orange-700 dark:text-orange-300 sm:px-5">
+                <span className="inline-flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Escalation {selectedEscalation.status} · {selectedEscalation.reason.slice(0, 60)}
+                </span>
+                {selectedEscalation.status === "pending" && (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" onClick={() => void respondEscalation("accept")} disabled={busy}>
+                      Accept
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => openDialog("escalate")} disabled={busy}>
+                      Manage
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5" aria-live="polite">
               {showThreadLoader ? (
                 <div className="space-y-3">
                   <Skeleton className="h-12 w-2/3" />
@@ -1031,52 +1466,70 @@ export function LiveChat({
                 </div>
               ) : messages.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  {mode === "admin" ? "No messages yet. Join and greet the client." : "No messages yet. Say hello."}
+                  {mode === "admin" ? "No messages yet. Claim the case and greet the client." : "No messages yet. Say hello."}
                 </p>
               ) : (
-                <AnimatePresence initial={false}>
-                  {messages.map((m) => {
-                    const mine = mode === "admin" ? m.sender_role === "admin" : m.sender_role === "user";
-                    const isWelcome = m.kind === "welcome";
-                    return (
-                      <motion.div
-                        key={m.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={cn("flex", mine ? "justify-end" : "justify-start")}
+                <>
+                  {threadHasMore[selected.id] && (
+                    <div className="flex justify-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loadingOlder}
+                        onClick={() => {
+                          setLoadingOlder(true);
+                          void loadThread(selected.id, { older: true });
+                        }}
                       >
-                        <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "text-right" : "text-left")}>
-                          <div
-                            className={cn(
-                              "inline-block rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed",
-                              mine
-                                ? "rounded-br-md bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-glow"
-                                : "rounded-bl-md bg-primary/5 text-foreground",
-                              isWelcome && "ring-1 ring-cyan-400/40",
-                            )}
-                          >
-                            {!mine && (
-                              <p className="mb-1 text-[10px] font-semibold tracking-wide text-cyan-500">
-                                {senderLabel(m, selected, mode)}
-                              </p>
-                            )}
-                            {mine && m.sender_role === "admin" && (
-                              <p className="mb-1 text-[10px] font-semibold tracking-wide text-white/80">
-                                {senderLabel(m, selected, mode)}
-                              </p>
-                            )}
-                            <p className="whitespace-pre-line">{m.message}</p>
+                        {loadingOlder ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+                        Load earlier messages
+                      </Button>
+                    </div>
+                  )}
+                  <AnimatePresence initial={false}>
+                    {messages.map((m) => {
+                      const mine = mode === "admin" ? m.sender_role === "admin" : m.sender_role === "user";
+                      const isWelcome = m.kind === "welcome";
+                      return (
+                        <motion.div
+                          key={m.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={cn("flex", mine ? "justify-end" : "justify-start")}
+                        >
+                          <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "text-right" : "text-left")}>
+                            <div
+                              className={cn(
+                                "inline-block rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed",
+                                mine
+                                  ? "rounded-br-md bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-glow"
+                                  : "rounded-bl-md bg-primary/5 text-foreground",
+                                isWelcome && "ring-1 ring-cyan-400/40",
+                              )}
+                            >
+                              {!mine && (
+                                <p className="mb-1 text-[10px] font-semibold tracking-wide text-cyan-500">
+                                  {senderLabel(m, selected, mode)}
+                                </p>
+                              )}
+                              {mine && m.sender_role === "admin" && (
+                                <p className="mb-1 text-[10px] font-semibold tracking-wide text-white/80">
+                                  {senderLabel(m, selected, mode)}
+                                </p>
+                              )}
+                              <p className="whitespace-pre-line">{m.message}</p>
+                            </div>
+                            <p className={cn("mt-1 text-[10px] text-muted-foreground", mine ? "text-right" : "text-left")}>
+                              {fmtTime(m.created_at)}
+                              {" · "}
+                              {senderLabel(m, selected, mode)}
+                            </p>
                           </div>
-                          <p className={cn("mt-1 text-[10px] text-muted-foreground", mine ? "text-right" : "text-left")}>
-                            {fmtTime(m.created_at)}
-                            {" · "}
-                            {senderLabel(m, selected, mode)}
-                          </p>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </>
               )}
             </div>
 
@@ -1087,62 +1540,95 @@ export function LiveChat({
             )}
 
             <div className="border-t border-border/60 p-3 sm:p-4">
-              {selected.status !== "closed" ? (
-                mode === "admin" && !selected.assigned_admin_id ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-                    <p className="text-sm text-muted-foreground">
-                      Join this waiting session to send the welcome message and reply as support.
-                    </p>
-                    <Button size="sm" onClick={joinSession} disabled={joining}>
-                      {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                      Join session
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {sendOk && (
-                      <p className="text-xs text-emerald-600 dark:text-emerald-400" role="status">
-                        Message sent
-                      </p>
-                    )}
-                    <div className="flex items-end gap-2">
-                      <textarea
-                        value={reply}
-                        onChange={(e) => setReply(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            void sendReply();
-                          }
-                        }}
-                        placeholder={mode === "user" ? "Message the support team…" : "Reply as agent…"}
-                        rows={2}
-                        className="flex-1 resize-none rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
-                        aria-label="Live chat message"
-                      />
-                      <Button size="sm" onClick={sendReply} disabled={sending || !reply.trim()}>
-                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        Send
-                      </Button>
-                    </div>
-                  </div>
-                )
-              ) : (
+              {selected.status === "resolved" || selected.status === "closed" ? (
                 <div className="text-center text-sm text-muted-foreground">
-                  This case is closed. Its reference ID and full history are kept.{" "}
+                  {selected.status === "resolved" ? "This case is resolved." : "This case is closed."} Its reference ID
+                  and full history are kept.{" "}
                   {mode === "user" ? (
                     <>
+                      Send a message to reopen it (within 72 hours), or{" "}
                       <button className="font-semibold text-primary hover:underline" onClick={startChat}>
-                        Start a new chat
+                        start a new case
                       </button>
-                      {" for a new case ID, or "}
-                      <Link href={supportHref} className="font-semibold text-primary hover:underline">
-                        open a support case
-                      </Link>
-                      .
+                      {"."}
                     </>
                   ) : (
-                    "The client can start a new session if they still need help."
+                    <span>Use Reopen to continue working on it, or ask the client to start a new case.</span>
+                  )}
+                </div>
+              ) : mode === "admin" && !selected.assigned_admin_id ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    Claim this case to reply as the assigned agent.
+                  </p>
+                  <Button size="sm" onClick={claim} disabled={joining}>
+                    {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
+                    Claim case
+                  </Button>
+                </div>
+              ) : mode === "admin" && !canWriteSelected ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-primary/5 px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    This case is owned by {selected.assigned_admin_name ?? "another agent"}. Only the owner or a
+                    supervisor can reply.
+                  </p>
+                  {rank >= 2 && (
+                    <Button size="sm" variant="outline" onClick={() => openDialog("offer")} disabled={busy}>
+                      <ArrowUpRight className="h-4 w-4" /> Offer transfer
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {sendOk && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400" role="status">
+                      Message sent
+                    </p>
+                  )}
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void sendReply();
+                        }
+                      }}
+                      placeholder={mode === "user" ? "Message the support team…" : "Reply as agent…"}
+                      rows={2}
+                      className="flex-1 resize-none rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
+                      aria-label="Live chat message"
+                    />
+                    <Button size="sm" onClick={sendReply} disabled={sending || !reply.trim()}>
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      Send
+                    </Button>
+                  </div>
+                  {mode === "admin" && canWriteSelected && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button size="sm" variant="ghost" onClick={togglePendingClient} disabled={busy}>
+                        <Timer className="h-3.5 w-3.5" /> Waiting for customer
+                      </Button>
+                      {rank >= 2 && (
+                        <Button size="sm" variant="ghost" onClick={() => openDialog("offer")} disabled={busy}>
+                          <ArrowUpRight className="h-3.5 w-3.5" /> Transfer
+                        </Button>
+                      )}
+                      {canSupervise && (
+                        <Button size="sm" variant="ghost" onClick={() => openDialog("assign")} disabled={busy}>
+                          <UserPlus className="h-3.5 w-3.5" /> Assign
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => openDialog("escalate")} disabled={busy}>
+                        <AlertTriangle className="h-3.5 w-3.5" /> Escalate
+                      </Button>
+                      {(isAssignedToMe || canSupervise) && (
+                        <Button size="sm" variant="ghost" onClick={() => openDialog("return")} disabled={busy}>
+                          <RotateCcw className="h-3.5 w-3.5" /> Return to queue
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -1151,185 +1637,542 @@ export function LiveChat({
         )}
       </section>
 
+      {/* Details panel: inline on wide screens, slide-over otherwise */}
       {mode === "admin" && selected && (
-        <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/60 xl:flex">
-          <div className="border-b border-border/60 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Customer</p>
-            <p className="mt-1 truncate font-display text-sm font-bold">{customer?.name ?? "Client"}</p>
-            <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
-              <p className="flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-cyan-500" />
-                <span className="truncate">{customer?.email ?? "No email on file"}</span>
-              </p>
-              <p className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-cyan-500" />
-                <span className="truncate">{customer?.phone ?? "No phone on file"}</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="border-b border-border/60 px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Case</p>
-            <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-cyan-600 dark:text-cyan-400">
-              {selected.reference_id ?? "Pending ID"}
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Opened {fmtDateTime(selected.created_at)}
-            </p>
-            {selected.status === "closed" && (
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                Resolved {fmtDateTime(selected.resolved_at ?? selected.updated_at)}
-              </p>
+        <>
+          <aside
+            className={cn(
+              "hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/60 xl:flex",
             )}
-            <label className="mt-3 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Priority
-            </label>
-            <select
-              value={selected.priority ?? "normal"}
-              onChange={(e) => void changePriority(e.target.value as ChatSession["priority"])}
-              disabled={selected.status === "closed"}
-              className="mt-1 h-9 w-full rounded-xl border border-input bg-white/60 px-2 text-xs capitalize dark:bg-white/5"
-              aria-label="Case priority"
-            >
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABELS[p]}
-                </option>
-              ))}
-            </select>
-            {selected.status !== "closed" && (
-              <div className="mt-3 space-y-2">
-                {!escalationOpen ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setEscalationOpen(true);
-                      setActionMsg(null);
-                    }}
-                  >
-                    <AlertTriangle className="h-4 w-4" /> Escalate case
-                  </Button>
-                ) : (
-                  <div className="space-y-2 rounded-xl border border-orange-500/30 bg-orange-500/5 p-2.5">
-                    <textarea
-                      value={escalationReason}
-                      onChange={(e) => setEscalationReason(e.target.value)}
-                      rows={2}
-                      placeholder="Record why this needs escalation…"
-                      className="w-full resize-none rounded-lg border border-input bg-white/60 px-2.5 py-2 text-xs dark:bg-white/5"
-                      aria-label="Escalation reason"
-                    />
-                    <div className="flex gap-1.5">
-                      <Button size="sm" onClick={submitEscalation} disabled={escalating}>
-                        {escalating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                        Record
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEscalationOpen(false);
-                          setEscalationReason("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
+          >
+            <DetailsBody
+              selected={selected}
+              customer={customer}
+              sla={sla}
+              rank={rank}
+              isAssignedToMe={isAssignedToMe}
+              canSupervise={canSupervise}
+              agentEvents={agentEvents}
+              eventsUnavailable={eventsUnavailable}
+              noteBody={noteBody}
+              setNoteBody={setNoteBody}
+              savingNote={savingNote}
+              saveNote={saveNote}
+              timeline={timeline}
+              previousCases={previousCases}
+              onSelectCase={(id) => setSelectedId(id)}
+              onChangePriority={changePriority}
+              openDialog={openDialog}
+              busy={busy}
+            />
+          </aside>
+
+          <AnimatePresence>
+            {detailsOpen && (
+              <motion.div
+                className="fixed inset-0 z-50 flex justify-end bg-black/40 xl:hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setDetailsOpen(false)}
+              >
+                <motion.aside
+                  className="flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-border bg-background"
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "tween", duration: 0.22 }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Case details"
+                >
+                  <div className="sticky top-0 flex items-center justify-between border-b border-border/60 bg-background px-4 py-3">
+                    <p className="font-display text-sm font-bold">Case details</p>
+                    <Button size="sm" variant="ghost" onClick={() => setDetailsOpen(false)} aria-label="Close details">
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-              </div>
+                  <DetailsBody
+                    selected={selected}
+                    customer={customer}
+                    sla={sla}
+                    rank={rank}
+                    isAssignedToMe={isAssignedToMe}
+                    canSupervise={canSupervise}
+                    agentEvents={agentEvents}
+                    eventsUnavailable={eventsUnavailable}
+                    noteBody={noteBody}
+                    setNoteBody={setNoteBody}
+                    savingNote={savingNote}
+                    saveNote={saveNote}
+                    timeline={timeline}
+                    previousCases={previousCases}
+                    onSelectCase={(id) => {
+                      setSelectedId(id);
+                      setDetailsOpen(false);
+                    }}
+                    onChangePriority={changePriority}
+                    openDialog={openDialog}
+                    busy={busy}
+                    bare
+                  />
+                </motion.aside>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+        </>
+      )}
 
-          <div className="border-b border-border/60 px-4 py-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <StickyNote className="h-3.5 w-3.5" /> Internal notes
-            </p>
-            {eventsUnavailable ? (
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                Apply the latest database migration to enable internal notes.
-              </p>
-            ) : (
-              <>
-                <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
-                  {agentEvents.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground">No internal notes yet.</p>
-                  ) : (
-                    agentEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className={cn(
-                          "rounded-lg border px-2.5 py-2 text-[11px]",
-                          event.kind === "escalation"
-                            ? "border-orange-500/30 bg-orange-500/5"
-                            : "border-border/60 bg-primary/5",
-                        )}
-                      >
-                        <p className="mb-1 flex items-center justify-between gap-2 font-semibold text-muted-foreground">
-                          <span>{event.kind === "escalation" ? "Escalation" : "Note"}</span>
-                          <span className="font-normal">{fmtDate(event.created_at)}</span>
-                        </p>
-                        <p className="whitespace-pre-line text-foreground">{event.body}</p>
-                        <p className="mt-1 text-[10px] text-muted-foreground">by {event.author_name ?? "Agent"}</p>
-                      </div>
-                    ))
+      {/* Dialogs */}
+      <AnimatePresence>
+        {dialog && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !busy && setDialog(null)}
+          >
+            <motion.div
+              className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-xl"
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={
+                dialog.kind === "assign"
+                  ? "Assign case"
+                  : dialog.kind === "offer"
+                    ? "Offer transfer"
+                    : dialog.kind === "escalate"
+                      ? "Escalate case"
+                      : `Confirm ${dialog.kind}`
+              }
+            >
+              <h3 className="font-display text-base font-bold capitalize">
+                {`${dialog.kind} case`}
+              </h3>
+
+              {(dialog.kind === "assign" || dialog.kind === "offer") && (
+                <div className="mt-3 space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground">Staff member</label>
+                  <select
+                    value={dialogStaff}
+                    onChange={(e) => setDialogStaff(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                  >
+                    <option value="">Select staff…</option>
+                    {staffDir
+                      .filter((m) => m.id !== user?.id)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} · {CHAT_STAFF_ROLE_LABELS[m.staff_role] ?? m.staff_role} · {m.active_cases} active
+                        </option>
+                      ))}
+                  </select>
+                  {dialog.kind === "assign" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Leaving the member blank returns the case to the team queue.
+                    </p>
                   )}
                 </div>
-                <textarea
-                  value={noteBody}
-                  onChange={(e) => setNoteBody(e.target.value)}
-                  rows={2}
-                  placeholder="Private note (clients never see this)…"
-                  className="mt-2 w-full resize-none rounded-lg border border-input bg-white/60 px-2.5 py-2 text-xs dark:bg-white/5"
-                  aria-label="Internal note"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-1.5 w-full"
-                  onClick={saveNote}
-                  disabled={savingNote || noteBody.trim().length < 2}
-                >
-                  {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StickyNote className="h-3.5 w-3.5" />}
-                  Save note
-                </Button>
-              </>
-            )}
-          </div>
+              )}
 
-          <div className="px-4 py-3">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <History className="h-3.5 w-3.5" /> Previous cases
-            </p>
-            {previousCases.length === 0 ? (
-              <p className="mt-2 text-[11px] text-muted-foreground">This is the client&apos;s first live chat.</p>
-            ) : (
-              <ul className="mt-2 space-y-1.5">
-                {previousCases.slice(0, 8).map((c) => (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => setSelectedId(c.id)}
-                      className="w-full rounded-lg border border-border/60 px-2.5 py-2 text-left text-[11px] transition-colors hover:border-primary/40 hover:bg-primary/5"
+              {dialog.kind === "escalate" && (
+                <div className="mt-3 space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground">Escalate to</label>
+                  <select
+                    value={dialogEscType}
+                    onChange={(e) => setDialogEscType(e.target.value as typeof dialogEscType)}
+                    className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                  >
+                    <option value="staff">A specific staff member</option>
+                    <option value="role">A role queue</option>
+                    <option value="team">A team</option>
+                    <option value="department">A department</option>
+                  </select>
+                  {dialogEscType === "staff" && (
+                    <select
+                      value={dialogStaff}
+                      onChange={(e) => setDialogStaff(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
                     >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="font-mono text-cyan-600 dark:text-cyan-400">
-                          {c.reference_id ?? "Pending ID"}
-                        </span>
-                        <StatusBadge status={c.status} />
-                      </span>
-                      <span className="mt-0.5 block truncate text-muted-foreground">
-                        {c.last_message_preview || fmtDate(c.created_at)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <option value="">Select staff…</option>
+                      {staffDir.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} · {CHAT_STAFF_ROLE_LABELS[m.staff_role] ?? m.staff_role}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {dialogEscType === "role" && (
+                    <select
+                      value={dialogEscRole}
+                      onChange={(e) => setDialogEscRole(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                    >
+                      <option value="senior_agent">Senior Agent</option>
+                      <option value="supervisor">Supervisor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  )}
+                  {dialogEscType === "team" && (
+                    <select
+                      value={dialogEscTeam}
+                      onChange={(e) => setDialogEscTeam(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                    >
+                      <option value="">Select team…</option>
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {dialogEscType === "department" && (
+                    <select
+                      value={dialogEscDept}
+                      onChange={(e) => setDialogEscDept(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                    >
+                      <option value="">Select department…</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {dialog.kind !== "assign" && dialog.kind !== "offer" && dialog.kind !== "escalate" && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {dialog.kind === "resolve" && "Resolving keeps the full history and case ID. The customer can reopen within 72 hours."}
+                  {dialog.kind === "close" && "Closing archives the case. Only supervisors and admins can close."}
+                  {dialog.kind === "reopen" && "Reopening restarts SLA tracking and requires a reason."}
+                  {dialog.kind === "return" && "Returning the case sends it back to the waiting queue."}
+                </p>
+              )}
+
+              <label className="mt-3 block text-xs font-semibold text-muted-foreground">
+                {dialog.kind === "resolve"
+                  ? "Resolution summary (optional)"
+                  : dialog.kind === "assign" || dialog.kind === "offer"
+                    ? "Reason"
+                    : dialog.kind === "escalate"
+                      ? "Reason (required)"
+                      : "Reason (required)"}
+              </label>
+              <textarea
+                value={dialogReason}
+                onChange={(e) => setDialogReason(e.target.value)}
+                rows={3}
+                className="mt-1 w-full resize-none rounded-xl border border-input bg-white/60 px-3 py-2 text-sm dark:bg-white/5"
+                aria-label="Reason"
+              />
+
+              {dialog.kind === "escalate" && selectedEscalation && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <Button size="sm" variant="outline" onClick={() => void respondEscalation("return")} disabled={busy}>
+                    Return escalation
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => void respondEscalation("cancel")} disabled={busy}>
+                    Cancel escalation
+                  </Button>
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setDialog(null)} disabled={busy}>
+                  Cancel
+                </Button>
+                <Button onClick={runDialogAction} disabled={busy}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Confirm
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Case details panel                                                 */
+/* ------------------------------------------------------------------ */
+
+function DetailsBody({
+  selected,
+  customer,
+  sla,
+  rank,
+  isAssignedToMe,
+  canSupervise,
+  agentEvents,
+  eventsUnavailable,
+  noteBody,
+  setNoteBody,
+  savingNote,
+  saveNote,
+  timeline,
+  previousCases,
+  onSelectCase,
+  onChangePriority,
+  openDialog,
+  busy,
+  bare,
+}: {
+  selected: ChatSession;
+  customer: ChatCustomer | undefined;
+  sla: ReturnType<typeof slaState> | null;
+  rank: number;
+  isAssignedToMe: boolean;
+  canSupervise: boolean;
+  agentEvents: ChatAgentEvent[];
+  eventsUnavailable: boolean;
+  noteBody: string;
+  setNoteBody: (v: string) => void;
+  savingNote: boolean;
+  saveNote: () => void;
+  timeline: { events: ChatCaseEvent[]; escalations: ChatEscalation[]; assignments: ChatAssignment[] };
+  previousCases: ChatSession[];
+  onSelectCase: (id: string) => void;
+  onChangePriority: (p: ChatSession["priority"]) => void;
+  openDialog: (kind: "resolve" | "close" | "reopen" | "return" | "assign" | "offer" | "escalate") => void;
+  busy: boolean;
+  bare?: boolean;
+}) {
+  return (
+    <div className={cn(bare ? "px-4 py-3" : "")}>
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Customer</p>
+        <p className="mt-1 truncate font-display text-sm font-bold">{customer?.name ?? "Client"}</p>
+        <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5 text-cyan-500" />
+            <span className="truncate">{customer?.email ?? "No email on file"}</span>
+          </p>
+          <p className="flex items-center gap-1.5">
+            <Phone className="h-3.5 w-3.5 text-cyan-500" />
+            <span className="truncate">{customer?.phone ?? "No phone on file"}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Case</p>
+        <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-cyan-600 dark:text-cyan-400">
+          {selected.reference_id ?? "Pending ID"}
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Opened {fmtDateTime(selected.created_at)}
+          {typeof selected.reopen_count === "number" && selected.reopen_count > 0
+            ? ` · reopened ${selected.reopen_count}×`
+            : ""}
+        </p>
+        {selected.resolved_at && (
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Resolved {fmtDateTime(selected.resolved_at)}</p>
+        )}
+        {selected.closed_at && (
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Closed {fmtDateTime(selected.closed_at)}</p>
+        )}
+
+        {sla && (sla.firstDueIn !== null || sla.resolutionDueIn !== null || sla.firstOverdue || sla.resolutionOverdue) && (
+          <div className="mt-2 space-y-1 rounded-lg border border-border/60 bg-primary/5 p-2 text-[11px]">
+            <p className="font-semibold text-muted-foreground">SLA</p>
+            {selected.first_response_due_at && (
+              <p className={cn(sla.firstOverdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                First response:{" "}
+                {selected.first_response_at
+                  ? "met"
+                  : sla.firstOverdue
+                    ? "overdue"
+                    : `${fmtDuration(new Date().toISOString(), Date.now() + (sla.firstDueIn ?? 0))} left`}
+              </p>
+            )}
+            {selected.resolution_due_at && selected.status !== "resolved" && selected.status !== "closed" && (
+              <p className={cn(sla.resolutionOverdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                Resolution:{" "}
+                {sla.resolutionOverdue
+                  ? "overdue"
+                  : `${fmtDuration(new Date().toISOString(), Date.now() + (sla.resolutionDueIn ?? 0))} left`}
+              </p>
+            )}
+            {selected.sla_paused_since && <p className="text-amber-600 dark:text-amber-400">Paused (waiting on customer)</p>}
+          </div>
+        )}
+
+        <label className="mt-3 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Priority
+        </label>
+        <select
+          value={selected.priority ?? "normal"}
+          onChange={(e) => void onChangePriority(e.target.value as ChatSession["priority"])}
+          disabled={selected.status === "resolved" || selected.status === "closed" || !(isAssignedToMe || canSupervise)}
+          className="mt-1 h-9 w-full rounded-xl border border-input bg-white/60 px-2 text-xs capitalize dark:bg-white/5"
+          aria-label="Case priority"
+        >
+          {CHAT_PRIORITIES.map((p) => (
+            <option key={p} value={p} disabled={p === "critical" && rank < 3}>
+              {PRIORITY_LABELS[p]}
+              {p === "critical" && rank < 3 ? " (supervisor only)" : ""}
+            </option>
+          ))}
+        </select>
+
+        {selected.status !== "resolved" && selected.status !== "closed" && (
+          <div className="mt-3 grid grid-cols-2 gap-1.5">
+            {(isAssignedToMe || canSupervise) && (
+              <Button size="sm" variant="outline" onClick={() => openDialog("resolve")} disabled={busy}>
+                Resolve
+              </Button>
+            )}
+            {rank >= 2 && (
+              <Button size="sm" variant="outline" onClick={() => openDialog("offer")} disabled={busy}>
+                Transfer
+              </Button>
+            )}
+            {canSupervise && (
+              <Button size="sm" variant="outline" onClick={() => openDialog("assign")} disabled={busy}>
+                Assign
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => openDialog("escalate")} disabled={busy}>
+              Escalate
+            </Button>
+            {canSupervise && (
+              <Button size="sm" variant="ghost" onClick={() => openDialog("close")} disabled={busy}>
+                Close
+              </Button>
             )}
           </div>
-        </aside>
+        )}
+      </div>
+
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Assignment</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {selected.assigned_admin_name ? `Owner: ${selected.assigned_admin_name}` : "Unassigned (queue)"}
+        </p>
+        {timeline.assignments.length > 0 && (
+          <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
+            {timeline.assignments.slice(0, 8).map((a) => (
+              <li key={a.id} className="rounded-lg border border-border/60 px-2 py-1.5 text-[10px] text-muted-foreground">
+                <span className="font-semibold text-foreground">{a.assignee_name ?? "Team queue"}</span> · {a.status}
+                {a.reason ? ` · ${a.reason}` : ""}
+                <span className="block">{fmtDate(a.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <StickyNote className="h-3.5 w-3.5" /> Internal notes
+        </p>
+        {eventsUnavailable ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Apply the latest database migration to enable internal notes.
+          </p>
+        ) : (
+          <>
+            <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+              {agentEvents.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No internal notes yet.</p>
+              ) : (
+                agentEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-2 text-[11px]",
+                      event.kind === "escalation"
+                        ? "border-orange-500/30 bg-orange-500/5"
+                        : "border-border/60 bg-primary/5",
+                    )}
+                  >
+                    <p className="mb-1 flex items-center justify-between gap-2 font-semibold text-muted-foreground">
+                      <span>{event.kind === "escalation" ? "Escalation" : "Note"}</span>
+                      <span className="font-normal">{fmtDate(event.created_at)}</span>
+                    </p>
+                    <p className="whitespace-pre-line text-foreground">{event.body}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">by {event.author_name ?? "Agent"}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            <textarea
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+              rows={2}
+              placeholder="Private note (clients never see this)…"
+              className="mt-2 w-full resize-none rounded-lg border border-input bg-white/60 px-2.5 py-2 text-xs dark:bg-white/5"
+              aria-label="Internal note"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-1.5 w-full"
+              onClick={saveNote}
+              disabled={savingNote || noteBody.trim().length < 2}
+            >
+              {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StickyNote className="h-3.5 w-3.5" />}
+              Save note
+            </Button>
+          </>
+        )}
+      </div>
+
+      {timeline.escalations.length > 0 && (
+        <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Escalations</p>
+          <ul className="mt-2 space-y-1.5">
+            {timeline.escalations.slice(0, 6).map((e) => (
+              <li key={e.id} className="rounded-lg border border-orange-500/30 bg-orange-500/5 px-2.5 py-2 text-[10px]">
+                <p className="flex items-center justify-between gap-2 font-semibold">
+                  <span className="uppercase">{e.status}</span>
+                  <span className="font-normal text-muted-foreground">{fmtDate(e.created_at)}</span>
+                </p>
+                <p className="mt-0.5 text-foreground">{e.reason}</p>
+                <p className="mt-0.5 text-muted-foreground">to {e.target_type}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
+
+      <div className={cn("py-3", bare ? "" : "px-4")}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <History className="h-3.5 w-3.5" /> Previous cases
+        </p>
+        {previousCases.length === 0 ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">This is the client&apos;s first live chat.</p>
+        ) : (
+          <ul className="mt-2 space-y-1.5">
+            {previousCases.slice(0, 8).map((c) => (
+              <li key={c.id}>
+                <button
+                  onClick={() => onSelectCase(c.id)}
+                  className="w-full rounded-lg border border-border/60 px-2.5 py-2 text-left text-[11px] transition-colors hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-cyan-600 dark:text-cyan-400">{c.reference_id ?? "Pending ID"}</span>
+                    <StatusBadge status={c.status} />
+                  </span>
+                  <span className="mt-0.5 block truncate text-muted-foreground">
+                    {c.last_message_preview || fmtDate(c.created_at)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
