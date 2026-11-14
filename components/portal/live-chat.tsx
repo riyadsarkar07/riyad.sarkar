@@ -60,7 +60,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { chatStatusMatchesFilter, selectChatSession, statusesForChatFilter } from "@/lib/chat-queue";
+import { chatStatusMatchesFilter, reconcileChatSession, selectChatSession, statusesForChatFilter } from "@/lib/chat-queue";
 import type { ChatQueueFilter } from "@/lib/chat-queue";
 import {
   AGENT_STATUSES,
@@ -274,6 +274,7 @@ export function LiveChat({
   const reloadTimer = useRef<number | null>(null);
   const loadSessionsRef = useRef<((opts?: { initial?: boolean; append?: boolean }) => Promise<ChatSession[]>) | null>(null);
   const inboxRequestSeq = useRef(0);
+  const startingRef = useRef(false);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -294,14 +295,7 @@ export function LiveChat({
       return list
         .map((s) => {
           const current = byId.get(s.id);
-          if (!current) return s;
-          const currentVersion = Number(current.version ?? 0);
-          const fetchedVersion = Number(s.version ?? 0);
-          // Ignore an older snapshot if Realtime has already provided a
-          // newer committed lifecycle or assignment state for this case.
-          if (currentVersion > fetchedVersion) return current;
-          if (currentVersion === fetchedVersion && +new Date(current.updated_at) > +new Date(s.updated_at)) return current;
-          return { ...current, ...s };
+          return current ? reconcileChatSession(current, s) : s;
         })
         .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
     });
@@ -334,7 +328,10 @@ export function LiveChat({
       if (opts?.append) {
         setSessions((prev) => {
           const byId = new Map(prev.map((s) => [s.id, s]));
-          for (const s of list) byId.set(s.id, { ...byId.get(s.id), ...s });
+          for (const s of list) {
+            const current = byId.get(s.id);
+            byId.set(s.id, current ? reconcileChatSession(current, s) : s);
+          }
           return Array.from(byId.values()).sort(
             (a, b) => +new Date(b.updated_at) - +new Date(a.updated_at),
           );
@@ -523,7 +520,7 @@ export function LiveChat({
             return prev;
           }
           return prev
-            .map((x) => (x.id === s.id ? { ...x, ...s } : x))
+            .map((x) => (x.id === s.id ? reconcileChatSession(x, s) : x))
             .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
         });
       })
@@ -775,11 +772,23 @@ export function LiveChat({
   };
 
   const startChat = async () => {
-    if (starting) return;
+    // Prevent two clicks before React commits the loading state; otherwise
+    // the second request's conflict error could overwrite a successful case.
+    if (startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     setChatErr(null);
-    const res = await startChatSessionAction();
+    let res: Awaited<ReturnType<typeof startChatSessionAction>>;
+    try {
+      res = await startChatSessionAction();
+    } catch {
+      startingRef.current = false;
+      setStarting(false);
+      setChatErr("Could not contact the server. Check the session list before retrying.");
+      return;
+    }
     if (!res.ok || !res.sessionId) {
+      startingRef.current = false;
       setStarting(false);
       setChatErr(res.error ?? "Could not start live chat. Please retry.");
       return;
@@ -795,6 +804,7 @@ export function LiveChat({
     setFStatus("open");
     setSelectedId(res.sessionId);
     setChatErr(null);
+    startingRef.current = false;
     setStarting(false);
   };
 
