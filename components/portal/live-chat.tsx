@@ -755,25 +755,19 @@ export function LiveChat({
     setChatErr(null);
     setActionMsg(null);
     const res = await claimChatSessionAction(selectedId);
-    if (!res.ok) {
+    if (!res.ok || !res.session) {
       setJoining(false);
-      setChatErr(res.error ?? "Could not join this session. Please retry.");
+      setChatErr(res.error ?? "Agent assignment could not be confirmed by the database.");
       return;
     }
+    const persisted = res.session;
     setSessions((prev) =>
-      prev.map((s) =>
-        s.id === selectedId
-          ? {
-              ...s,
-              status: (res.status as ChatSession["status"]) ?? "active",
-              assigned_admin_id: res.assignedAdminId ?? user?.id ?? s.assigned_admin_id,
-              assigned_admin_name: res.assignedAdminName ?? s.assigned_admin_name,
-              joined_at: s.joined_at ?? new Date().toISOString(),
-            }
-          : s,
-      ),
+      prev.map((row) => row.id === persisted.id ? persisted : row),
     );
-    setActionMsg("You are now the assigned agent for this case.");
+    // Claimed waiting cases become Active in the database; move the queue
+    // selector to the committed status instead of showing Active under Waiting.
+    setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
+    setActionMsg("You are now the assigned agent. Database ownership confirmed.");
     await loadThread(selectedId);
     void loadSessions();
     void loadTimeline(selectedId);
