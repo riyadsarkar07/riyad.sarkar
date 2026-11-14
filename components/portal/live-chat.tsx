@@ -259,6 +259,8 @@ export function LiveChat({
   const bootstrapped = useRef(false);
   const refreshing = useRef(false);
   const reloadTimer = useRef<number | null>(null);
+  const loadSessionsRef = useRef<((opts?: { initial?: boolean; append?: boolean }) => Promise<ChatSession[]>) | null>(null);
+  const inboxRequestSeq = useRef(0);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -303,6 +305,7 @@ export function LiveChat({
 
   const loadSessions = useCallback(
     async (opts?: { initial?: boolean; append?: boolean }) => {
+      const requestSeq = ++inboxRequestSeq.current;
       const res = await loadLiveChatInboxAction(mode, {
         statuses: statusFilters(),
         query: query.trim() || null,
@@ -310,6 +313,8 @@ export function LiveChat({
         cursorId: opts?.append ? nextCursor?.id ?? null : null,
         limit: PAGE_SIZE,
       });
+      // Reject stale requests from an older filter or query.
+      if (requestSeq !== inboxRequestSeq.current) return sessionsRef.current;
       if (!res.ok) {
         if (opts?.initial) {
           setListErr(res.error || "Could not load live chat sessions.");
@@ -356,6 +361,8 @@ export function LiveChat({
     },
     [applySessions, mode, statusFilters, query, nextCursor],
   );
+
+  loadSessionsRef.current = loadSessions;
 
   const loadThread = useCallback(
     async (sessionId: string, opts?: { showLoader?: boolean; older?: boolean }) => {
@@ -440,11 +447,11 @@ export function LiveChat({
       reloadTimer.current = null;
       if (refreshing.current) return;
       refreshing.current = true;
-      void loadSessions().finally(() => {
+      void (loadSessionsRef.current?.() ?? Promise.resolve([])).finally(() => {
         refreshing.current = false;
       });
     }, 400);
-  }, [loadSessions]);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -540,14 +547,14 @@ export function LiveChat({
         setConnected(status === "SUBSCRIBED");
         if (status === "SUBSCRIBED") {
           // Resync after any reconnect so no message is missed.
-          void loadSessions();
+          void loadSessionsRef.current?.();
           const sid = selectedIdRef.current;
           if (sid) void loadThread(sid);
         }
       });
 
     const onVis = () => {
-      if (document.visibilityState === "visible") void loadSessions();
+      if (document.visibilityState === "visible") void loadSessionsRef.current?.();
     };
     document.addEventListener("visibilitychange", onVis);
 
@@ -568,7 +575,7 @@ export function LiveChat({
       if (document.visibilityState !== "visible" || refreshing.current) return;
       refreshing.current = true;
       const sid = selectedIdRef.current;
-      Promise.all([loadSessions(), sid ? loadThread(sid) : Promise.resolve()]).finally(() => {
+      Promise.all([loadSessionsRef.current?.() ?? Promise.resolve([]), sid ? loadThread(sid) : Promise.resolve()]).finally(() => {
         refreshing.current = false;
       });
     }, mode === "admin" ? 12_000 : 25_000);
@@ -751,6 +758,8 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not start live chat. Please retry.");
       return;
     }
+    // Never inherit a previous case's messages, even across same-page starts.
+    setThreads((prev) => ({ ...prev, [res.sessionId!]: [] }));
     const list = await loadSessions();
     const created = list.find((s) => s.id === res.sessionId);
     setFStatus("open");
@@ -780,39 +789,25 @@ export function LiveChat({
     if (!selectedId || !dialog || busy) return;
     setBusy(true);
     setChatErr(null);
-    let res: { ok: boolean; error?: string } = { ok: false, error: "Unknown action" };
+    let res: { ok: boolean; error?: string; session?: ChatSession } = { ok: false, error: "Unknown action" };
     if (dialog.kind === "resolve") {
       res = await resolveChatSessionAction(selectedId, dialogReason.trim() || undefined);
       if (res.ok) {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === selectedId
-              ? { ...s, status: "resolved" as const, resolved_at: new Date().toISOString() }
-              : s,
-          ),
-        );
-        setActionMsg("Case resolved. History and case ID are preserved.");
+        setActionMsg("Case resolved and confirmed in the database; history is preserved.");
         setShowResolvedHint(true);
+        setFStatus("resolved");
       }
     } else if (dialog.kind === "close") {
       res = await closeChatSessionAction(selectedId, dialogReason.trim() || undefined);
       if (res.ok) {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === selectedId
-              ? { ...s, status: "closed" as const, closed_at: new Date().toISOString() }
-              : s,
-          ),
-        );
-        setActionMsg("Case closed and archived.");
+        setActionMsg("Case closure confirmed in the database; history is preserved.");
+        setFStatus("closed");
       }
     } else if (dialog.kind === "reopen") {
       res = await reopenChatSessionAction(selectedId, dialogReason.trim());
       if (res.ok) {
-        setSessions((prev) =>
-          prev.map((s) => (s.id === selectedId ? { ...s, status: "active" as const } : s)),
-        );
-        setActionMsg("Case reopened.");
+        setActionMsg("Case reopen confirmed in the database.");
+        setFStatus("open");
       }
     } else if (dialog.kind === "return") {
       res = await returnChatSessionToQueueAction({ sessionId: selectedId, reason: dialogReason.trim() });
@@ -859,6 +854,10 @@ export function LiveChat({
     if (!res.ok) {
       setChatErr(res.error ?? "Action failed.");
       return;
+    }
+    // Lifecycle badges use only the database row returned after the RPC.
+    if (res.session) {
+      setSessions((prev) => prev.map((row) => row.id === res.session!.id ? res.session! : row));
     }
     setDialog(null);
     setDialogReason("");
@@ -1059,7 +1058,10 @@ export function LiveChat({
                   key={tab.value}
                   role="tab"
                   aria-selected={activeTab}
-                  onClick={() => setFStatus(tab.value)}
+                  onClick={() => {
+                    setSelectedId(null);
+                    setFStatus(tab.value);
+                  }}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
                     activeTab
@@ -1374,13 +1376,10 @@ export function LiveChat({
                     variant="outline"
                     onClick={async () => {
                       const res = await clientEndChatSessionAction(selected.id);
-                      if (res.ok) {
-                        setSessions((prev) =>
-                          prev.map((s) =>
-                            s.id === selected.id ? { ...s, status: "resolved" as const, resolved_at: new Date().toISOString() } : s,
-                          ),
-                        );
-                        setActionMsg("Your case is resolved. You can reopen it by messaging again.");
+                      if (res.ok && res.session) {
+                        setSessions((prev) => prev.map((s) => s.id === res.session!.id ? res.session! : s));
+                        setFStatus("resolved");
+                        setActionMsg("Case ended and confirmed in the database. New Chat creates a separate case.");
                       } else {
                         setChatErr(res.error ?? "Could not end the session.");
                       }
