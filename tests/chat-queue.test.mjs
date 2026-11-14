@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   chatStatusMatchesFilter,
   selectChatSession,
+  selectPreviousChatCases,
   statusesForChatFilter,
   reconcileChatSession,
 } from "../lib/chat-queue.ts";
@@ -76,4 +77,19 @@ test("Same-version message timestamps are monotonic", () => {
   const newer = { ...current, updated_at: "2026-11-14T10:03:00Z" };
   assert.deepEqual(reconcileChatSession(current, older), current);
   assert.deepEqual(reconcileChatSession(current, newer), newer);
+});
+
+test("Admin previous cases list retains resolved/closed history outside Waiting queue", () => {
+  const history = [
+    { id: "old-closed", user_id: "client-a", status: "closed", created_at: "2026-10-01T00:00:00Z" },
+    { id: "current", user_id: "client-a", status: "active", created_at: "2026-11-14T00:00:00Z" },
+    { id: "another-user", user_id: "client-b", status: "resolved", created_at: "2026-11-12T00:00:00Z" },
+    { id: "old-resolved", user_id: "client-a", status: "resolved", created_at: "2026-11-01T00:00:00Z" },
+  ];
+  const result = selectPreviousChatCases(history, history[1]);
+  assert.deepEqual(result.map((item) => item.id), ["old-resolved", "old-closed"]);
+  assert.deepEqual(result.map((item) => item.status), ["resolved", "closed"]);
+  assert.deepEqual(selectPreviousChatCases(history, null), []);
+  // The active filter excludes historical rows from the inbox, not history.
+  assert.equal(chatStatusMatchesFilter(result[0].status, "active"), false);
 });
