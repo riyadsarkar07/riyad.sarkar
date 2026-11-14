@@ -62,7 +62,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { chatStatusMatchesFilter, reconcileChatSession, selectChatSession, statusesForChatFilter } from "@/lib/chat-queue";
+import { chatStatusMatchesFilter, reconcileChatSession, selectChatSession, selectPreviousChatCases, statusesForChatFilter } from "@/lib/chat-queue";
 import type { ChatQueueFilter } from "@/lib/chat-queue";
 import {
   AGENT_STATUSES,
@@ -806,11 +806,12 @@ export function LiveChat({
 
   const customer = selected ? customers[selected.user_id] : undefined;
 
-  const previousCases = useMemo(() => {
-    if (mode !== "admin" || !selected) return [];
-    return (customerHistory[selected.user_id] ?? [])
-      .filter((s) => s.id !== selected.id);
-  }, [mode, selected, customerHistory]);
+  const previousCases = useMemo(() =>
+    mode === "admin" && selected
+      ? selectPreviousChatCases(customerHistory[selected.user_id] ?? [], selected)
+      : [],
+    [mode, selected, customerHistory],
+  );
 
   const openHistoricalCase = (id: string) => {
     switchQueueFilter("all");
