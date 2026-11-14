@@ -1203,7 +1203,7 @@ export async function escalateChatSessionAction(input: {
   if (reason.length < 3) return { ok: false, error: "Record a reason before escalating." };
   if (reason.length > 2000) return { ok: false, error: "Escalation reason is too long." };
 
-  const { error: rpcErr } = await supabase.rpc("create_chat_escalation", {
+  const { data, error: rpcErr } = await supabase.rpc("create_chat_escalation", {
     p_session_id: input.sessionId,
     p_target_type: input.targetType,
     p_target_staff_id: input.targetStaffId ?? null,
@@ -1213,6 +1213,16 @@ export async function escalateChatSessionAction(input: {
     p_reason: reason,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+  const rpcResult = (data ?? {}) as { ok?: boolean; escalation_id?: string };
+  if (rpcResult.ok !== true || !rpcResult.escalation_id) {
+    return { ok: false, error: "Escalation creation was not confirmed by the database." };
+  }
+  const { data: created, error: readError } = await supabase
+    .from("chat_escalations").select("id, session_id, status")
+    .eq("id", rpcResult.escalation_id).maybeSingle();
+  if (readError || !created || created.session_id !== input.sessionId || created.status !== "pending") {
+    return { ok: false, error: "Escalation was submitted, but its saved status could not be confirmed. Refresh the case timeline." };
+  }
 
   revalidatePath("/admin/chat");
   return { ok: true };
@@ -1228,12 +1238,16 @@ export async function respondChatEscalationAction(input: {
   const role = await getStaffRole(supabase);
   if (!role) return { ok: false, error: "Not authorized" };
 
-  const { error: rpcErr } = await supabase.rpc("respond_chat_escalation", {
+  const { data, error: rpcErr } = await supabase.rpc("respond_chat_escalation", {
     p_escalation_id: input.escalationId,
     p_action: input.action,
     p_reason: input.reason ?? null,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+  const result = (data ?? {}) as { ok?: boolean; status?: string };
+  if (result.ok !== true || result.status !== input.action) {
+    return { ok: false, error: "Escalation response was not confirmed. Refresh the timeline." };
+  }
 
   revalidatePath("/admin/chat");
   return { ok: true };
@@ -1271,7 +1285,7 @@ export async function assignChatSessionAction(input: {
   teamId?: string | null;
   departmentId?: string | null;
   reason?: string | null;
-}): Promise<ActionResult> {
+}): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -1284,9 +1298,22 @@ export async function assignChatSessionAction(input: {
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
 
+  const result = (data ?? {}) as { ok?: boolean; status?: string };
+  if (result.ok !== true) {
+    return { ok: false, error: "The assignment RPC did not confirm success." };
+  }
+  const { data: row, error: readError } = await supabase
+    .from("chat_sessions").select("*").eq("id", input.sessionId).maybeSingle();
+  const matches = row &&
+    row.assigned_admin_id === input.assigneeId &&
+    (!input.teamId || row.team_id === input.teamId) &&
+    (!input.departmentId || row.department_id === input.departmentId) &&
+    row.status === result.status;
+  if (readError || !matches) {
+    return { ok: false, error: "The new case ownership/routing could not be confirmed. Refresh the queue." };
+  }
   revalidatePath("/admin/chat");
-  const result = (data ?? {}) as { status?: string; assigned_admin_name?: string | null };
-  return { ok: true, status: result.status };
+  return { ok: true, status: row.status, session: row as ChatSession };
 }
 
 export async function offerChatSessionAction(input: {
@@ -1297,12 +1324,22 @@ export async function offerChatSessionAction(input: {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
-  const { error: rpcErr } = await supabase.rpc("offer_chat_session", {
+  const { data, error: rpcErr } = await supabase.rpc("offer_chat_session", {
     p_session_id: input.sessionId,
     p_target_staff_id: input.targetStaffId,
     p_reason: input.reason,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+  const rpcResult = (data ?? {}) as { ok?: boolean; assignment_id?: string };
+  if (rpcResult.ok !== true || !rpcResult.assignment_id) {
+    return { ok: false, error: "Transfer offer was not confirmed by the database." };
+  }
+  const { data: offer, error: readError } = await supabase.from("chat_session_assignments")
+    .select("id, session_id, assignee_id, status").eq("id", rpcResult.assignment_id).maybeSingle();
+  if (readError || !offer || offer.session_id !== input.sessionId ||
+      offer.assignee_id !== input.targetStaffId || offer.status !== "offered") {
+    return { ok: false, error: "Transfer offer was submitted but not verified. Refresh the case timeline." };
+  }
 
   revalidatePath("/admin/chat");
   return { ok: true };
@@ -1323,8 +1360,11 @@ export async function respondChatAssignmentAction(input: {
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
 
+  const result = (data ?? {}) as { ok?: boolean; accepted?: boolean; status?: string };
+  if (result.ok !== true || result.accepted !== input.accept) {
+    return { ok: false, error: "Transfer decision was not confirmed by the database." };
+  }
   revalidatePath("/admin/chat");
-  const result = (data ?? {}) as { accepted?: boolean; status?: string };
   return { ok: true, status: result.status };
 }
 
