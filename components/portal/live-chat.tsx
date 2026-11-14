@@ -60,6 +60,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { chatStatusMatchesFilter, selectChatSession, statusesForChatFilter } from "@/lib/chat-queue";
+import type { ChatQueueFilter } from "@/lib/chat-queue";
 import {
   AGENT_STATUSES,
   AGENT_STATUS_LABELS,
@@ -80,7 +82,7 @@ import type {
 import type { ChatAgentEvent, ChatCustomer, ChatMessage, ChatSession } from "@/types/dashboard";
 
 type Mode = "user" | "admin";
-type FilterValue = "open" | "waiting" | "active" | "pending_client" | "resolved" | "closed" | "all";
+type FilterValue = ChatQueueFilter;
 
 const PAGE_SIZE = 25;
 
@@ -304,24 +306,7 @@ export function LiveChat({
     });
   }, []);
 
-  const statusFilters = useCallback((): string[] | null => {
-    switch (fStatus) {
-      case "open":
-        return ["waiting", "active", "pending_client"];
-      case "waiting":
-        return ["waiting"];
-      case "active":
-        return ["active"];
-      case "pending_client":
-        return ["pending_client"];
-      case "resolved":
-        return ["resolved"];
-      case "closed":
-        return ["closed"];
-      default:
-        return null;
-    }
-  }, [fStatus]);
+  const statusFilters = useCallback((): string[] | null => statusesForChatFilter(fStatus), [fStatus]);
 
   const loadSessions = useCallback(
     async (opts?: { initial?: boolean; append?: boolean }) => {
@@ -677,8 +662,8 @@ export function LiveChat({
   }, [threads, selectedId]);
 
   const selected = useMemo(
-    () => sessions.find((s) => s.id === selectedId) ?? null,
-    [sessions, selectedId],
+    () => selectChatSession(sessions, selectedId, fStatus),
+    [sessions, selectedId, fStatus],
   );
 
   const messages = useMemo(
@@ -687,14 +672,14 @@ export function LiveChat({
   );
 
   useEffect(() => {
-    if (!selected) return;
-    const allowed = statusFilters();
-    // An externally closed, resolved or reopened case must not remain in the
-    // detail pane under an incompatible queue filter.
-    if (allowed && !allowed.includes(selected.status)) {
+    if (!selectedId) return;
+    const row = sessions.find((item) => item.id === selectedId);
+    // The detail selector already rejects mismatches during render. Clear the
+    // old ID too, so the mobile queue is visible after a realtime transition.
+    if (row && !chatStatusMatchesFilter(row.status, fStatus)) {
       setSelectedId(null);
     }
-  }, [selected, statusFilters]);
+  }, [selectedId, sessions, fStatus]);
 
   const customer = selected ? customers[selected.user_id] : undefined;
 
@@ -717,11 +702,10 @@ export function LiveChat({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const allowedStatuses = statusFilters();
     const list = sessions.filter((s) => {
       // Even when Realtime wins a race against an older inbox RPC snapshot,
       // an Active case may never render inside the Closed queue.
-      if (allowedStatuses && !allowedStatuses.includes(s.status)) return false;
+      if (!chatStatusMatchesFilter(s.status, fStatus)) return false;
       const matchQ =
         !q ||
         (s.reference_id ?? "").toLowerCase().includes(q) ||
@@ -742,7 +726,7 @@ export function LiveChat({
       });
     }
     return list;
-  }, [sessions, query, customers, mode, statusFilters]);
+  }, [sessions, query, customers, mode, fStatus]);
 
   const selectedEscalation = useMemo(
     () => timeline.escalations.find((e) => e.status === "pending" || e.status === "accepted") ?? null,
