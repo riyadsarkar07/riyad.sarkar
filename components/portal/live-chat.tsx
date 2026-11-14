@@ -951,7 +951,7 @@ export function LiveChat({
     }
     setBusy(true);
     setChatErr(null);
-    const res = action === "return"
+    const res: { ok: boolean; error?: string; session?: ChatSession } = action === "return"
       ? await returnChatEscalationToQueueAction(selectedEscalation.id, dialogReason.trim())
       : await respondChatEscalationAction({
           escalationId: selectedEscalation.id,
@@ -963,7 +963,7 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not respond to the escalation.");
       return;
     }
-    if ("session" in res && res.session) {
+    if (res.session) {
       const persisted = res.session;
       setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
       setFStatus("waiting");
