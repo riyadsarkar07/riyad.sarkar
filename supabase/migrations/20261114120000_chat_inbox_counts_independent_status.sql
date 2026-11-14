@@ -164,4 +164,4 @@ begin
     'server_now', now()
   );
 end;
-$function$
+$function$;
