@@ -865,9 +865,11 @@ export function LiveChat({
         ),
         reason: dialogReason.trim() || null,
       });
-      if (res.ok) {
-        setActionMsg("Assignment and routing saved. Check case history for the transfer audit.");
-        void loadSessions();
+      if (res.ok && res.session) {
+        setActionMsg("Assignment and routing verified in the database. Case history is preserved.");
+        const row = res.session;
+        setFStatus(row.status === "waiting" ? "waiting" :
+          row.status === "pending_client" ? "pending_client" : "active");
       }
     } else if (dialog.kind === "offer") {
       res = await offerChatSessionAction({
@@ -919,8 +921,9 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not respond to the offer.");
       return;
     }
-    setActionMsg(accept ? "You accepted the case." : "Offer declined.");
-    void loadSessions();
+    setActionMsg(accept ? "Transfer accepted by the database." : "Transfer offer declined.");
+    if (accept) setFStatus("active");
+    void loadSessionsRef.current?.();
     if (selectedId) void loadTimeline(selectedId);
   };
 
@@ -937,9 +940,16 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not respond to the escalation.");
       return;
     }
-    setActionMsg(`Escalation ${action}ed.`);
+    setActionMsg(({
+      accept: "Escalation accepted.",
+      reject: "Escalation rejected.",
+      return: "Escalation returned to the previous queue.",
+      cancel: "Escalation cancelled.",
+    } as const)[action]);
     setDialog(null);
     setDialogReason("");
+    // Escalation decisions can also change case ownership/queue visibility.
+    void loadSessionsRef.current?.();
     if (selectedId) void loadTimeline(selectedId);
   };
 
