@@ -38,6 +38,7 @@ import {
   escalateChatSessionAction,
   loadChatAgentEventsAction,
   loadChatCaseTimelineAction,
+  loadChatCustomerHistoryAction,
   loadChatRoutingDirectoryAction,
   loadChatStaffDirectoryAction,
   loadLiveChatInboxAction,
@@ -244,6 +245,10 @@ export function LiveChat({
     assignments: ChatAssignment[];
   }>({ events: [], escalations: [], assignments: [] });
   const [timelineSessionId, setTimelineSessionId] = useState<string | null>(null);
+  const [customerHistory, setCustomerHistory] = useState<Record<string, ChatSession[]>>({});
+  const [historyNextOffset, setHistoryNextOffset] = useState<Record<string, number | null>>({});
+  const [historyLoading, setHistoryLoading] = useState<Record<string, boolean>>({});
+  const [historyErrors, setHistoryErrors] = useState<Record<string, string>>({});
   const [staffDir, setStaffDir] = useState<ChatStaffMember[]>([]);
   const [departments, setDepartments] = useState<ChatDepartment[]>([]);
   const [teams, setTeams] = useState<ChatTeam[]>([]);
@@ -280,7 +285,14 @@ export function LiveChat({
   const reloadTimer = useRef<number | null>(null);
   const loadSessionsRef = useRef<((opts?: { initial?: boolean; append?: boolean }) => Promise<ChatSession[]>) | null>(null);
   const inboxRequestSeq = useRef(0);
+  const historyRequestSeq = useRef<Record<string, number>>({});
+  const connectedRef = useRef(false);
   const startingRef = useRef(false);
+
+  const switchQueueFilter = useCallback((value: FilterValue) => {
+    inboxRequestSeq.current += 1;
+    setFStatus(value);
+  }, []);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -293,6 +305,10 @@ export function LiveChat({
   useEffect(() => {
     threadsRef.current = threads;
   }, [threads]);
+
+  useEffect(() => {
+    connectedRef.current = connected;
+  }, [connected]);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -332,6 +348,7 @@ export function LiveChat({
         } else {
           setListErr(res.error || "Could not refresh live chat sessions.");
         }
+        setLoadingMore(false);
         return sessionsRef.current;
       }
       const list = res.sessions ?? [];
@@ -456,6 +473,52 @@ export function LiveChat({
       assignments: res.timeline.assignments,
     });
   }, [mode]);
+
+  // History is independent of the active queue filter and its pagination.
+  // The server checks staff authentication and existing case RLS first.
+  const loadCustomerHistory = useCallback(async (
+    caseId: string, customerId: string, offset = 0,
+  ) => {
+    const sequence = (historyRequestSeq.current[customerId] ?? 0) + 1;
+    historyRequestSeq.current[customerId] = sequence;
+    setHistoryLoading((prev) => ({ ...prev, [customerId]: true }));
+    setHistoryErrors((prev) => ({ ...prev, [customerId]: "" }));
+    try {
+      const result = await loadChatCustomerHistoryAction(caseId, offset);
+      if (historyRequestSeq.current[customerId] !== sequence) return;
+      if (!result.ok || result.customerId !== customerId) {
+        setHistoryErrors((prev) => ({
+          ...prev, [customerId]: result.error ?? "Could not load case history.",
+        }));
+        return;
+      }
+      setCustomerHistory((prev) => {
+        const oldCases = offset === 0 ? [] : prev[customerId] ?? [];
+        const byId = new Map(oldCases.map((item) => [item.id, item]));
+        for (const row of result.cases ?? []) {
+          const current = byId.get(row.id);
+          byId.set(row.id, current ? reconcileChatSession(current, row) : row);
+        }
+        return {
+          ...prev,
+          [customerId]: [...byId.values()].sort(
+            (a, b) => +new Date(b.created_at) - +new Date(a.created_at),
+          ),
+        };
+      });
+      setHistoryNextOffset((prev) => ({ ...prev, [customerId]: result.nextOffset ?? null }));
+    } catch {
+      if (historyRequestSeq.current[customerId] === sequence) {
+        setHistoryErrors((prev) => ({
+          ...prev, [customerId]: "Could not load previous cases. Retry.",
+        }));
+      }
+    } finally {
+      if (historyRequestSeq.current[customerId] === sequence) {
+        setHistoryLoading((prev) => ({ ...prev, [customerId]: false }));
+      }
+    }
+  }, []);
 
   const loadDirectories = useCallback(async () => {
     if (mode !== "admin") return;
@@ -686,10 +749,16 @@ export function LiveChat({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [threads, selectedId]);
 
-  const selected = useMemo(
-    () => selectChatSession(sessions, selectedId, fStatus),
-    [sessions, selectedId, fStatus],
-  );
+  const selected = useMemo(() => {
+    const queued = selectChatSession(sessions, selectedId, fStatus);
+    if (queued) return queued;
+    // A historical case may be outside the paginated inbox entirely.
+    for (const records of Object.values(customerHistory)) {
+      const historical = selectChatSession(records, selectedId, fStatus);
+      if (historical) return historical;
+    }
+    return null;
+  }, [sessions, selectedId, fStatus, customerHistory]);
 
   const messages = useMemo(
     () => (selectedId ? threads[selectedId] ?? [] : []),
@@ -698,7 +767,8 @@ export function LiveChat({
 
   useEffect(() => {
     if (!selectedId) return;
-    const row = sessions.find((item) => item.id === selectedId);
+    const row = sessions.find((item) => item.id === selectedId)
+      ?? Object.values(customerHistory).flat().find((item) => item.id === selectedId);
     // The detail selector already rejects mismatches during render. Clear the
     // old ID too, so the mobile queue is visible after a realtime transition.
     if (row && !chatStatusMatchesFilter(row.status, fStatus)) {
@@ -706,12 +776,29 @@ export function LiveChat({
     }
   }, [selectedId, sessions, fStatus]);
 
+  useEffect(() => {
+    if (mode !== "admin" || !selected?.user_id) return;
+    if (Object.prototype.hasOwnProperty.call(customerHistory, selected.user_id)) return;
+    void loadCustomerHistory(selected.id, selected.user_id);
+    // Deliberately keyed by customer only; avoid loading history again on
+    // every Realtime message or unrelated inbox refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, selected?.user_id, loadCustomerHistory]);
+
   const customer = selected ? customers[selected.user_id] : undefined;
 
   const previousCases = useMemo(() => {
     if (mode !== "admin" || !selected) return [];
-    return sessions.filter((s) => s.user_id === selected.user_id && s.id !== selected.id);
-  }, [mode, sessions, selected]);
+    return (customerHistory[selected.user_id] ?? [])
+      .filter((s) => s.id !== selected.id);
+  }, [mode, selected, customerHistory]);
+
+  const openHistoricalCase = (id: string) => {
+    switchQueueFilter("all");
+    setQuery("");
+    setSelectedId(id);
+    setDetailsOpen(false);
+  };
 
   const counts = useMemo(() => {
     if (serverCounts) return serverCounts;
