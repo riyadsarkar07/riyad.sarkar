@@ -38,6 +38,7 @@ import {
   escalateChatSessionAction,
   loadChatAgentEventsAction,
   loadChatCaseTimelineAction,
+  loadChatCustomerHistoryAction,
   loadChatRoutingDirectoryAction,
   loadChatStaffDirectoryAction,
   loadLiveChatInboxAction,
@@ -61,7 +62,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { chatStatusMatchesFilter, reconcileChatSession, selectChatSession, statusesForChatFilter } from "@/lib/chat-queue";
+import { chatStatusMatchesFilter, reconcileChatSession, selectChatSession, selectPreviousChatCases, statusesForChatFilter } from "@/lib/chat-queue";
 import type { ChatQueueFilter } from "@/lib/chat-queue";
 import {
   AGENT_STATUSES,
@@ -244,6 +245,10 @@ export function LiveChat({
     assignments: ChatAssignment[];
   }>({ events: [], escalations: [], assignments: [] });
   const [timelineSessionId, setTimelineSessionId] = useState<string | null>(null);
+  const [customerHistory, setCustomerHistory] = useState<Record<string, ChatSession[]>>({});
+  const [historyNextOffset, setHistoryNextOffset] = useState<Record<string, number | null>>({});
+  const [historyLoading, setHistoryLoading] = useState<Record<string, boolean>>({});
+  const [historyErrors, setHistoryErrors] = useState<Record<string, string>>({});
   const [staffDir, setStaffDir] = useState<ChatStaffMember[]>([]);
   const [departments, setDepartments] = useState<ChatDepartment[]>([]);
   const [teams, setTeams] = useState<ChatTeam[]>([]);
@@ -280,7 +285,14 @@ export function LiveChat({
   const reloadTimer = useRef<number | null>(null);
   const loadSessionsRef = useRef<((opts?: { initial?: boolean; append?: boolean }) => Promise<ChatSession[]>) | null>(null);
   const inboxRequestSeq = useRef(0);
+  const historyRequestSeq = useRef<Record<string, number>>({});
+  const connectedRef = useRef(false);
   const startingRef = useRef(false);
+
+  const switchQueueFilter = useCallback((value: FilterValue) => {
+    inboxRequestSeq.current += 1;
+    setFStatus(value);
+  }, []);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -293,6 +305,10 @@ export function LiveChat({
   useEffect(() => {
     threadsRef.current = threads;
   }, [threads]);
+
+  useEffect(() => {
+    connectedRef.current = connected;
+  }, [connected]);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -316,13 +332,23 @@ export function LiveChat({
   const loadSessions = useCallback(
     async (opts?: { initial?: boolean; append?: boolean }) => {
       const requestSeq = ++inboxRequestSeq.current;
-      const res = await loadLiveChatInboxAction(mode, {
-        statuses: statusFilters(),
-        query: query.trim() || null,
-        cursorUpdatedAt: opts?.append ? nextCursor?.updated_at ?? null : null,
-        cursorId: opts?.append ? nextCursor?.id ?? null : null,
-        limit: PAGE_SIZE,
-      });
+      let res: Awaited<ReturnType<typeof loadLiveChatInboxAction>>;
+      try {
+        res = await loadLiveChatInboxAction(mode, {
+          statuses: statusFilters(),
+          query: query.trim() || null,
+          cursorUpdatedAt: opts?.append ? nextCursor?.updated_at ?? null : null,
+          cursorId: opts?.append ? nextCursor?.id ?? null : null,
+          limit: PAGE_SIZE,
+        });
+      } catch {
+        if (requestSeq === inboxRequestSeq.current) {
+          setListErr("Could not contact Live Support. Check the connection and retry.");
+          setLoadingList(false);
+          setLoadingMore(false);
+        }
+        return sessionsRef.current;
+      }
       // Reject stale requests from an older filter or query.
       if (requestSeq !== inboxRequestSeq.current) return sessionsRef.current;
       if (!res.ok) {
@@ -332,6 +358,7 @@ export function LiveChat({
         } else {
           setListErr(res.error || "Could not refresh live chat sessions.");
         }
+        setLoadingMore(false);
         return sessionsRef.current;
       }
       const list = res.sessions ?? [];
@@ -457,6 +484,52 @@ export function LiveChat({
     });
   }, [mode]);
 
+  // History is independent of the active queue filter and its pagination.
+  // The server checks staff authentication and existing case RLS first.
+  const loadCustomerHistory = useCallback(async (
+    caseId: string, customerId: string, offset = 0,
+  ) => {
+    const sequence = (historyRequestSeq.current[customerId] ?? 0) + 1;
+    historyRequestSeq.current[customerId] = sequence;
+    setHistoryLoading((prev) => ({ ...prev, [customerId]: true }));
+    setHistoryErrors((prev) => ({ ...prev, [customerId]: "" }));
+    try {
+      const result = await loadChatCustomerHistoryAction(caseId, offset);
+      if (historyRequestSeq.current[customerId] !== sequence) return;
+      if (!result.ok || result.customerId !== customerId) {
+        setHistoryErrors((prev) => ({
+          ...prev, [customerId]: result.error ?? "Could not load case history.",
+        }));
+        return;
+      }
+      setCustomerHistory((prev) => {
+        const oldCases = offset === 0 ? [] : prev[customerId] ?? [];
+        const byId = new Map(oldCases.map((item) => [item.id, item]));
+        for (const row of result.cases ?? []) {
+          const current = byId.get(row.id);
+          byId.set(row.id, current ? reconcileChatSession(current, row) : row);
+        }
+        return {
+          ...prev,
+          [customerId]: [...byId.values()].sort(
+            (a, b) => +new Date(b.created_at) - +new Date(a.created_at),
+          ),
+        };
+      });
+      setHistoryNextOffset((prev) => ({ ...prev, [customerId]: result.nextOffset ?? null }));
+    } catch {
+      if (historyRequestSeq.current[customerId] === sequence) {
+        setHistoryErrors((prev) => ({
+          ...prev, [customerId]: "Could not load previous cases. Retry.",
+        }));
+      }
+    } finally {
+      if (historyRequestSeq.current[customerId] === sequence) {
+        setHistoryLoading((prev) => ({ ...prev, [customerId]: false }));
+      }
+    }
+  }, []);
+
   const loadDirectories = useCallback(async () => {
     if (mode !== "admin") return;
     if (rank >= 2) {
@@ -501,17 +574,26 @@ export function LiveChat({
     }
     let active = true;
     (async () => {
+      const firstRequestSeq = inboxRequestSeq.current;
       const list = await loadSessions({ initial: true });
       if (!active) return;
       void loadDirectories();
       if (initialSessionId) {
-        setFStatus("all");
+        switchQueueFilter("all");
         setSelectedId(initialSessionId);
       } else if (mode === "user" && !bootstrapped.current) {
         const open = list.find((s) => s.status === "waiting" || s.status === "active");
         if (open) setSelectedId(open.id);
       }
       bootstrapped.current = true;
+      // A tab/search change during the first request invalidates that
+      // response, while the filter effect is still waiting for bootstrap.
+      // Force a fresh request rather than leaving an endless list skeleton.
+      if (inboxRequestSeq.current > firstRequestSeq + 1 && !initialSessionId) {
+        window.setTimeout(() => {
+          if (active) void loadSessionsRef.current?.({ initial: true });
+        }, 0);
+      }
     })();
     return () => {
       active = false;
@@ -614,10 +696,15 @@ export function LiveChat({
       if (document.visibilityState !== "visible" || refreshing.current) return;
       refreshing.current = true;
       const sid = selectedIdRef.current;
-      Promise.all([loadSessionsRef.current?.() ?? Promise.resolve([]), sid ? loadThread(sid) : Promise.resolve()]).finally(() => {
+      // Chat messages already stream over Realtime. Only refetch the
+      // selected thread when disconnected; keep the inbox periodically fresh.
+      Promise.all([
+        loadSessionsRef.current?.() ?? Promise.resolve([]),
+        sid && !connectedRef.current ? loadThread(sid) : Promise.resolve(),
+      ]).finally(() => {
         refreshing.current = false;
       });
-    }, mode === "admin" ? 12_000 : 25_000);
+    }, mode === "admin" ? 20_000 : 25_000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, mode]);
@@ -686,32 +773,72 @@ export function LiveChat({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [threads, selectedId]);
 
-  const selected = useMemo(
-    () => selectChatSession(sessions, selectedId, fStatus),
-    [sessions, selectedId, fStatus],
-  );
+  const selected = useMemo(() => {
+    const queued = selectChatSession(sessions, selectedId, fStatus);
+    if (queued) return queued;
+    // A historical case may be outside the paginated inbox entirely.
+    for (const records of Object.values(customerHistory)) {
+      const historical = selectChatSession(records, selectedId, fStatus);
+      if (historical) return historical;
+    }
+    return null;
+  }, [sessions, selectedId, fStatus, customerHistory]);
 
   const messages = useMemo(
     () => (selectedId ? threads[selectedId] ?? [] : []),
     [threads, selectedId],
   );
 
+  // Do not clear selectedId when Realtime reports a status transition.
+  // During Join/Accept the case moves Waiting -> Active before the server
+  // action returns; clearing here permanently lost the currently viewed
+  // conversation. selectChatSession already hides a mismatched detail in
+  // the old tab, while explicit tab clicks clear selection deliberately.
+
   useEffect(() => {
-    if (!selectedId) return;
-    const row = sessions.find((item) => item.id === selectedId);
-    // The detail selector already rejects mismatches during render. Clear the
-    // old ID too, so the mobile queue is visible after a realtime transition.
-    if (row && !chatStatusMatchesFilter(row.status, fStatus)) {
-      setSelectedId(null);
-    }
-  }, [selectedId, sessions, fStatus]);
+    if (mode !== "admin" || !selected?.user_id) return;
+    if (Object.prototype.hasOwnProperty.call(customerHistory, selected.user_id)) return;
+    void loadCustomerHistory(selected.id, selected.user_id);
+    // Deliberately keyed by customer only; avoid loading history again on
+    // every Realtime message or unrelated inbox refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, selected?.user_id, loadCustomerHistory]);
 
   const customer = selected ? customers[selected.user_id] : undefined;
 
-  const previousCases = useMemo(() => {
-    if (mode !== "admin" || !selected) return [];
-    return sessions.filter((s) => s.user_id === selected.user_id && s.id !== selected.id);
-  }, [mode, sessions, selected]);
+  const previousCases = useMemo(() =>
+    mode === "admin" && selected
+      ? selectPreviousChatCases(customerHistory[selected.user_id] ?? [], selected)
+      : [],
+    [mode, selected, customerHistory],
+  );
+
+  const openHistoricalCase = (id: string) => {
+    switchQueueFilter("all");
+    setQuery("");
+    setSelectedId(id);
+    setDetailsOpen(false);
+  };
+
+  const historyCustomerId = selected?.user_id ?? "";
+  const isHistoryLoaded = !!historyCustomerId &&
+    Object.prototype.hasOwnProperty.call(customerHistory, historyCustomerId);
+  const isHistoryLoading = !!historyLoading[historyCustomerId];
+  const historyError = historyErrors[historyCustomerId] ?? "";
+  const nextHistoryOffset = historyNextOffset[historyCustomerId] ?? null;
+  const loadMoreHistory = () => {
+    if (selected && nextHistoryOffset !== null && !isHistoryLoading) {
+      void loadCustomerHistory(selected.id, selected.user_id, nextHistoryOffset);
+    }
+  };
+  const retryHistory = () => {
+    if (selected && !isHistoryLoading) {
+      void loadCustomerHistory(selected.id, selected.user_id);
+    }
+  };
+  const visibleTimeline = timelineSessionId === selectedId
+    ? timeline
+    : { events: [], escalations: [], assignments: [] };
 
   const counts = useMemo(() => {
     if (serverCounts) return serverCounts;
@@ -810,12 +937,14 @@ export function LiveChat({
       }
       const persisted = res.session;
       setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
-      setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
+      setSelectedId(caseId);
+      switchQueueFilter(persisted.status === "pending_client" ? "pending_client" : "active");
       setActionMsg(res.welcome
         ? "Agent joined. An automatic welcome message was saved in this case."
         : "Agent joined. The welcome message was already saved for this case.");
-      await loadThread(caseId);
-      void loadSessionsRef.current?.();
+      // Do not leave the Join button spinning for another message fetch.
+      void loadThread(caseId);
+      scheduleSilentReload();
       void loadTimeline(caseId);
     } catch {
       setChatErr("Could not finish joining this case. Refresh before retrying.");
@@ -854,7 +983,7 @@ export function LiveChat({
       setSessions((prev) => [res.session!, ...prev.filter((item) => item.id !== res.sessionId)]);
     }
     setQuery("");
-    setFStatus("open");
+    switchQueueFilter("open");
     setSelectedId(res.sessionId);
     setChatErr(null);
     startingRef.current = false;
@@ -888,25 +1017,25 @@ export function LiveChat({
       if (res.ok) {
         setActionMsg("Case resolved and confirmed in the database; history is preserved.");
         setShowResolvedHint(true);
-        setFStatus("resolved");
+        switchQueueFilter("resolved");
       }
     } else if (dialog.kind === "close") {
       res = await closeChatSessionAction(selectedId, dialogReason.trim() || undefined);
       if (res.ok) {
         setActionMsg("Case closure confirmed in the database; history is preserved.");
-        setFStatus("closed");
+        switchQueueFilter("closed");
       }
     } else if (dialog.kind === "reopen") {
       res = await reopenChatSessionAction(selectedId, dialogReason.trim());
       if (res.ok) {
         setActionMsg("Case reopen confirmed in the database.");
-        setFStatus("open");
+        switchQueueFilter("open");
       }
     } else if (dialog.kind === "return") {
       res = await returnChatSessionToQueueAction({ sessionId: selectedId, reason: dialogReason.trim() });
       if (res.ok) {
         setActionMsg("Case returned to waiting queue. Database state confirmed.");
-        setFStatus("waiting");
+        switchQueueFilter("waiting");
       }
     } else if (dialog.kind === "assign") {
       if (
@@ -931,7 +1060,7 @@ export function LiveChat({
       if (res.ok && res.session) {
         setActionMsg("Assignment and routing verified in the database. Case history is preserved.");
         const row = res.session;
-        setFStatus(row.status === "waiting" ? "waiting" :
+        switchQueueFilter(row.status === "waiting" ? "waiting" :
           row.status === "pending_client" ? "pending_client" : "active");
       }
     } else if (dialog.kind === "offer") {
@@ -972,7 +1101,7 @@ export function LiveChat({
     setDialogStaff("");
     if (selectedId) {
       void loadTimeline(selectedId);
-      void loadSessions();
+      scheduleSilentReload();
     }
   };
 
@@ -989,9 +1118,22 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not respond to the offer.");
       return;
     }
-    setActionMsg(accept ? "Transfer accepted by the database." : "Transfer offer declined.");
-    if (accept) setFStatus("active");
-    void loadSessionsRef.current?.();
+    if (accept) {
+      if (!res.session) {
+        setChatErr("Transfer was accepted, but the case ownership was not returned. Refresh the queue.");
+        return;
+      }
+      const persisted = res.session;
+      setSessions((prev) => {
+        const exists = prev.some((row) => row.id === persisted.id);
+        return exists
+          ? prev.map((row) => row.id === persisted.id ? persisted : row)
+          : [persisted, ...prev];
+      });
+      switchQueueFilter(persisted.status === "pending_client" ? "pending_client" : "active");
+    }
+    setActionMsg(accept ? "Transfer accepted; case ownership verified." : "Transfer offer declined.");
+    scheduleSilentReload();
     if (selectedId) void loadTimeline(selectedId);
   };
 
@@ -1018,7 +1160,7 @@ export function LiveChat({
     if (res.session) {
       const persisted = res.session;
       setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
-      setFStatus("waiting");
+      switchQueueFilter("waiting");
     }
     setActionMsg(({
       accept: "Escalation accepted.",
@@ -1028,7 +1170,7 @@ export function LiveChat({
     } as const)[action]);
     setDialog(null);
     setDialogReason("");
-    void loadSessionsRef.current?.();
+    scheduleSilentReload();
     if (selectedId) void loadTimeline(selectedId);
   };
 
@@ -1077,7 +1219,7 @@ export function LiveChat({
     }
     const persisted = res.session;
     setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
-    setFStatus("pending_client");
+    switchQueueFilter("pending_client");
     setActionMsg("Case is awaiting the customer. Database state confirmed.");
   };
 
@@ -1195,9 +1337,8 @@ export function LiveChat({
                   role="tab"
                   aria-selected={activeTab}
                   onClick={() => {
-                    inboxRequestSeq.current += 1;
                     setSelectedId(null);
-                    setFStatus(tab.value);
+                    switchQueueFilter(tab.value);
                   }}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
@@ -1522,7 +1663,7 @@ export function LiveChat({
                       const res = await clientEndChatSessionAction(selected.id);
                       if (res.ok && res.session) {
                         setSessions((prev) => prev.map((s) => s.id === res.session!.id ? res.session! : s));
-                        setFStatus("resolved");
+                        switchQueueFilter("resolved");
                         setActionMsg("Case ended and confirmed in the database. New Chat creates a separate case.");
                       } else {
                         setChatErr(res.error ?? "Could not end the session.");
@@ -1565,7 +1706,7 @@ export function LiveChat({
                   <button
                     className="rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-semibold"
                     onClick={() => {
-                      setFStatus("resolved");
+                      switchQueueFilter("resolved");
                       setShowResolvedHint(false);
                     }}
                   >
@@ -1802,9 +1943,15 @@ export function LiveChat({
               setNoteBody={setNoteBody}
               savingNote={savingNote}
               saveNote={saveNote}
-              timeline={timeline}
+              timeline={visibleTimeline}
               previousCases={previousCases}
-              onSelectCase={(id) => setSelectedId(id)}
+              historyLoaded={isHistoryLoaded}
+              historyLoading={isHistoryLoading}
+              historyError={historyError}
+              historyHasMore={nextHistoryOffset !== null}
+              onLoadMoreHistory={loadMoreHistory}
+              onRetryHistory={retryHistory}
+              onSelectCase={openHistoricalCase}
               onChangePriority={changePriority}
               openDialog={openDialog}
               busy={busy}
@@ -1848,12 +1995,15 @@ export function LiveChat({
                     setNoteBody={setNoteBody}
                     savingNote={savingNote}
                     saveNote={saveNote}
-                    timeline={timeline}
+                    timeline={visibleTimeline}
                     previousCases={previousCases}
-                    onSelectCase={(id) => {
-                      setSelectedId(id);
-                      setDetailsOpen(false);
-                    }}
+              historyLoaded={isHistoryLoaded}
+              historyLoading={isHistoryLoading}
+              historyError={historyError}
+              historyHasMore={nextHistoryOffset !== null}
+              onLoadMoreHistory={loadMoreHistory}
+              onRetryHistory={retryHistory}
+                    onSelectCase={openHistoricalCase}
                     onChangePriority={changePriority}
                     openDialog={openDialog}
                     busy={busy}
@@ -2147,6 +2297,12 @@ function DetailsBody({
   saveNote,
   timeline,
   previousCases,
+  historyLoaded,
+  historyLoading,
+  historyError,
+  historyHasMore,
+  onLoadMoreHistory,
+  onRetryHistory,
   onSelectCase,
   onChangePriority,
   openDialog,
@@ -2167,6 +2323,12 @@ function DetailsBody({
   saveNote: () => void;
   timeline: { events: ChatCaseEvent[]; escalations: ChatEscalation[]; assignments: ChatAssignment[] };
   previousCases: ChatSession[];
+  historyLoaded: boolean;
+  historyLoading: boolean;
+  historyError: string;
+  historyHasMore: boolean;
+  onLoadMoreHistory: () => void;
+  onRetryHistory: () => void;
   onSelectCase: (id: string) => void;
   onChangePriority: (p: ChatSession["priority"]) => void;
   openDialog: (kind: "resolve" | "close" | "reopen" | "return" | "assign" | "offer" | "escalate") => void;
@@ -2372,17 +2534,50 @@ function DetailsBody({
         </div>
       )}
 
+      {timeline.events.length > 0 && (
+        <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <History className="h-3.5 w-3.5" /> Case activity
+          </p>
+          <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
+            {timeline.events.slice(0, 25).map((event) => (
+              <li key={event.id} className="rounded-lg border border-border/60 px-2 py-1.5 text-[10px]">
+                <p className="font-semibold capitalize">{event.event_type.replaceAll("_", " ")}</p>
+                <p className="text-muted-foreground">
+                  {event.actor_name ?? "System"}
+                  {event.from_value && event.to_value ? ` · ${event.from_value} → ${event.to_value}` : ""}
+                </p>
+                <p className="text-muted-foreground">{fmtDateTime(event.created_at)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className={cn("py-3", bare ? "" : "px-4")}>
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           <History className="h-3.5 w-3.5" /> Previous cases
         </p>
-        {previousCases.length === 0 ? (
-          <p className="mt-2 text-[11px] text-muted-foreground">This is the client&apos;s first live chat.</p>
+        {historyError && (
+          <div role="alert" className="mt-2 text-xs text-red-500">
+            {historyError}{" "}
+            <button type="button" className="font-semibold underline" onClick={onRetryHistory}>Retry</button>
+          </div>
+        )}
+        {!historyLoaded && historyLoading ? (
+          <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading previous cases…
+          </p>
+        ) : !historyLoaded && historyError ? null : previousCases.length === 0 ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {historyLoaded ? "No earlier cases for this customer." : "Select a case to load customer history."}
+          </p>
         ) : (
-          <ul className="mt-2 space-y-1.5">
-            {previousCases.slice(0, 8).map((c) => (
+          <ul className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
+            {previousCases.map((c) => (
               <li key={c.id}>
                 <button
+                  type="button"
                   onClick={() => onSelectCase(c.id)}
                   className="w-full rounded-lg border border-border/60 px-2.5 py-2 text-left text-[11px] transition-colors hover:border-primary/40 hover:bg-primary/5"
                 >
@@ -2397,6 +2592,13 @@ function DetailsBody({
               </li>
             ))}
           </ul>
+        )}
+        {historyHasMore && (
+          <Button type="button" size="sm" variant="outline" className="mt-2 w-full"
+            disabled={historyLoading} onClick={onLoadMoreHistory}>
+            {historyLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+            Load older cases
+          </Button>
         )}
       </div>
     </div>

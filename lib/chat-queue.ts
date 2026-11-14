@@ -66,3 +66,17 @@ export function reconcileChatSession<T extends {
   }
   return { ...current, ...incoming };
 }
+
+/** A customer's history is independent of the current inbox status filter.
+ * Include solved/closed cases and never show another customer's case.
+ */
+export function selectPreviousChatCases<T extends {
+  id: string;
+  user_id: string;
+  created_at: string;
+}>(history: readonly T[], selected: T | null): T[] {
+  if (!selected) return [];
+  return history
+    .filter((item) => item.user_id === selected.user_id && item.id !== selected.id)
+    .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+}
