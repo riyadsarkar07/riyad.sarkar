@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSupabase } from "@/hooks/use-supabase";
-import { readLiveChatEnrichment, readLiveChatInbox, readLiveChatMessages } from "@/lib/live-chat-read";
+import { readLiveChatCustomerHistory, readLiveChatEnrichment, readLiveChatInbox, readLiveChatMessages } from "@/lib/live-chat-read";
 import {
   addChatInternalNoteAction,
   assignChatSessionAction,
@@ -39,7 +39,6 @@ import {
   escalateChatSessionAction,
   loadChatAgentEventsAction,
   loadChatCaseTimelineAction,
-  loadChatCustomerHistoryAction,
   loadChatRoutingDirectoryAction,
   loadChatStaffDirectoryAction,
   markChatPendingClientAction,
@@ -492,14 +491,14 @@ export function LiveChat({
   // History is independent of the active queue filter and its pagination.
   // The server checks staff authentication and existing case RLS first.
   const loadCustomerHistory = useCallback(async (
-    caseId: string, customerId: string, offset = 0,
+    _caseId: string, customerId: string, offset = 0,
   ) => {
     const sequence = (historyRequestSeq.current[customerId] ?? 0) + 1;
     historyRequestSeq.current[customerId] = sequence;
     setHistoryLoading((prev) => ({ ...prev, [customerId]: true }));
     setHistoryErrors((prev) => ({ ...prev, [customerId]: "" }));
     try {
-      const result = await loadChatCustomerHistoryAction(caseId, offset);
+      const result = await readLiveChatCustomerHistory(supabase, customerId, offset);
       if (historyRequestSeq.current[customerId] !== sequence) return;
       if (!result.ok || result.customerId !== customerId) {
         setHistoryErrors((prev) => ({
@@ -533,7 +532,7 @@ export function LiveChat({
         setHistoryLoading((prev) => ({ ...prev, [customerId]: false }));
       }
     }
-  }, []);
+  }, [supabase]);
 
   const loadDirectories = useCallback(async () => {
     if (mode !== "admin") return;
@@ -1407,7 +1406,9 @@ export function LiveChat({
             <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
               <Headset className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">
-                {fStatus === "closed"
+                {fStatus === "all" && counts.all > 0 && !query.trim()
+                  ? "Cases exist, but the list is not displayed. Retry loading the queue."
+                  : fStatus === "closed"
                   ? "No closed live chat sessions yet."
                   : fStatus === "resolved"
                     ? "No resolved cases right now."
@@ -1415,6 +1416,14 @@ export function LiveChat({
                       ? "The waiting queue is empty. New client sessions appear here automatically."
                       : "No live chat sessions yet."}
               </p>
+              {fStatus === "all" && counts.all > 0 && !query.trim() && (
+                <Button size="sm" variant="outline" onClick={() => {
+                  setLoadingList(true);
+                  void loadSessions({ initial: true });
+                }}>
+                  <RefreshCw className="h-4 w-4" /> Retry queue
+                </Button>
+              )}
               {mode === "user" && fStatus !== "closed" && (
                 <Button size="sm" variant="outline" onClick={startChat} disabled={starting}>
                   {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -1538,8 +1547,9 @@ export function LiveChat({
             {mode === "user" ? (
               <>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  Start a live session for realtime help. Each case keeps a permanent reference ID, and closed cases
-                  stay in your history. Support cases live in Support Inbox.
+                  {filtered.length > 0
+                    ? "Select an existing conversation on the left to view its messages and history. Use New chat only after finishing your current open case."
+                    : "Start a live session for realtime help. Each case has a permanent reference ID, and closed cases remain in your history."}
                 </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className={cn("h-2 w-2 rounded-full", agentOnline ? "bg-emerald-500" : "bg-slate-400")} />
