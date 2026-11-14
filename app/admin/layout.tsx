@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -7,6 +8,15 @@ import { AdminDashboardShell } from "@/components/portal/admin-shell";
  * Server-side admin gate — verifies the signed-in user is an authorized admin
  * via the SECURITY DEFINER is_admin() check. UI hiding alone is not enough.
  */
+/** Prevent search engines from indexing sign-in and private portal routes. */
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  },
+};
+
 export default async function AdminLayout({
   children,
 }: {
