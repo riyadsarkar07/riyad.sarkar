@@ -41,7 +41,8 @@ begin
     raise exception 'not authorized' using errcode = '42501';
   end if;
 
-  -- Counts reflect the whole filtered set, not just the current page.
+  -- Tab counts reflect all statuses, regardless of the selected tab, while
+  -- still respecting the caller's access and search/routing constraints.
   select jsonb_build_object(
            'waiting', count(*) filter (where v.status = 'waiting'),
            'active', count(*) filter (where v.status = 'active'),
@@ -55,7 +56,6 @@ begin
       select s.*
         from public.chat_sessions s
        where (not staff_scope or public.can_read_chat_session(s.id))
-         and (p_statuses is null or s.status = any (p_statuses))
          and (p_priorities is null or s.priority = any (p_priorities))
          and (p_assignee is null or s.assigned_admin_id = p_assignee)
          and (p_team is null or s.team_id = p_team)
