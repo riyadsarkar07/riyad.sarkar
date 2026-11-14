@@ -177,6 +177,58 @@ export async function readLiveChatEnrichment(
 }
 
 
+/**
+ * Admin previous-case history, independent of the current status filter.
+ * A single authenticated SELECT is enough because chat_sessions has RLS for
+ * both staff visibility and customer ownership. Never use a service key.
+ */
+export async function readLiveChatCustomerHistory(
+  supabase: SupabaseClient,
+  customerId: string,
+  offset = 0,
+): Promise<{
+  ok: boolean;
+  error?: string;
+  customerId?: string;
+  cases?: ChatSession[];
+  nextOffset?: number | null;
+}> {
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > 5000) {
+    return { ok: false, error: "Invalid history page." };
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(customerId)) {
+    return { ok: false, error: "Invalid customer ID." };
+  }
+
+  const pageSize = 40;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), READ_TIMEOUT_MS);
+  try {
+    const { data, error } = await supabase.from("chat_sessions")
+      .select("*").eq("user_id", customerId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + pageSize)
+      .abortSignal(controller.signal);
+    if (error) {
+      return { ok: false, error: controller.signal.aborted
+        ? "Case history timed out. Retry."
+        : error.message };
+    }
+    const rows = (data ?? []) as ChatSession[];
+    return {
+      ok: true,
+      customerId,
+      cases: rows.slice(0, pageSize),
+      nextOffset: rows.length > pageSize ? offset + pageSize : null,
+    };
+  } catch {
+    return { ok: false, error: "Could not contact case history. Retry." };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function readLiveChatMessages(
   supabase: SupabaseClient,
   sessionId: string,
