@@ -49,6 +49,7 @@ import {
   resolveChatSessionAction,
   respondChatAssignmentAction,
   respondChatEscalationAction,
+  returnChatEscalationToQueueAction,
   returnChatSessionToQueueAction,
   sendChatMessageAction,
   setChatAgentStatusAction,
@@ -242,6 +243,7 @@ export function LiveChat({
     escalations: ChatEscalation[];
     assignments: ChatAssignment[];
   }>({ events: [], escalations: [], assignments: [] });
+  const [timelineSessionId, setTimelineSessionId] = useState<string | null>(null);
   const [staffDir, setStaffDir] = useState<ChatStaffMember[]>([]);
   const [departments, setDepartments] = useState<ChatDepartment[]>([]);
   const [teams, setTeams] = useState<ChatTeam[]>([]);
@@ -413,7 +415,7 @@ export function LiveChat({
     async (sessionId: string) => {
       if (mode !== "admin") return;
       const res = await loadChatAgentEventsAction(sessionId);
-      if (!res.ok) return;
+      if (!res.ok || selectedIdRef.current !== sessionId) return;
       setAgentEvents(res.events ?? []);
       setEventsUnavailable(!!res.unavailable);
     },
@@ -423,7 +425,8 @@ export function LiveChat({
   const loadTimeline = useCallback(async (sessionId: string) => {
     if (mode !== "admin") return;
     const res = await loadChatCaseTimelineAction(sessionId);
-    if (!res.ok || !res.timeline) return;
+    if (!res.ok || !res.timeline || selectedIdRef.current !== sessionId) return;
+    setTimelineSessionId(sessionId);
     setTimeline({
       events: res.timeline.events,
       escalations: res.timeline.escalations,
@@ -602,6 +605,7 @@ export function LiveChat({
       lastMsgIdRef.current = null;
       setAgentEvents([]);
       setTimeline({ events: [], escalations: [], assignments: [] });
+      setTimelineSessionId(null);
       return;
     }
     const sessionId = selectedId;
@@ -727,8 +731,10 @@ export function LiveChat({
   }, [sessions, query, customers, mode, fStatus]);
 
   const selectedEscalation = useMemo(
-    () => timeline.escalations.find((e) => e.status === "pending" || e.status === "accepted") ?? null,
-    [timeline.escalations],
+    () => timelineSessionId === selectedId
+      ? timeline.escalations.find((e) => e.status === "pending" || e.status === "accepted") ?? null
+      : null,
+    [timeline.escalations, timelineSessionId, selectedId],
   );
 
   const myPendingOffer = useMemo(() => {
@@ -938,27 +944,38 @@ export function LiveChat({
   };
 
   const respondEscalation = async (action: "accept" | "reject" | "return" | "cancel") => {
-    if (!selectedEscalation) return;
+    if (!selectedEscalation || busy) return;
+    if ((action === "reject" || action === "return") && dialogReason.trim().length < 3) {
+      setChatErr("Enter a reason of at least 3 characters before rejecting or returning an escalation.");
+      return;
+    }
     setBusy(true);
-    const res = await respondChatEscalationAction({
-      escalationId: selectedEscalation.id,
-      action,
-      reason: action === "accept" ? null : dialogReason.trim() || `${action} by staff`,
-    });
+    setChatErr(null);
+    const res = action === "return"
+      ? await returnChatEscalationToQueueAction(selectedEscalation.id, dialogReason.trim())
+      : await respondChatEscalationAction({
+          escalationId: selectedEscalation.id,
+          action,
+          reason: action === "accept" ? null : dialogReason.trim() || null,
+        });
     setBusy(false);
     if (!res.ok) {
       setChatErr(res.error ?? "Could not respond to the escalation.");
       return;
     }
+    if ("session" in res && res.session) {
+      const persisted = res.session;
+      setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+      setFStatus("waiting");
+    }
     setActionMsg(({
       accept: "Escalation accepted.",
       reject: "Escalation rejected.",
-      return: "Escalation returned to the previous queue.",
+      return: "Escalation and its case returned to the waiting queue.",
       cancel: "Escalation cancelled.",
     } as const)[action]);
     setDialog(null);
     setDialogReason("");
-    // Escalation decisions can also change case ownership/queue visibility.
     void loadSessionsRef.current?.();
     if (selectedId) void loadTimeline(selectedId);
   };
@@ -1892,7 +1909,7 @@ export function LiveChat({
                 </div>
               )}
 
-              {dialog.kind === "escalate" && (
+              {dialog.kind === "escalate" && !selectedEscalation && (
                 <div className="mt-3 space-y-2">
                   <label className="text-xs font-semibold text-muted-foreground">Escalate to</label>
                   <select
@@ -1989,12 +2006,19 @@ export function LiveChat({
 
               {dialog.kind === "escalate" && selectedEscalation && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selectedEscalation.status === "pending" && (
+                    <Button size="sm" variant="outline" onClick={() => void respondEscalation("reject")} disabled={busy}>
+                      Reject escalation
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => void respondEscalation("return")} disabled={busy}>
-                    Return escalation
+                    Return case to queue
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => void respondEscalation("cancel")} disabled={busy}>
-                    Cancel escalation
-                  </Button>
+                  {selectedEscalation.status === "pending" && (
+                    <Button size="sm" variant="ghost" onClick={() => void respondEscalation("cancel")} disabled={busy}>
+                      Cancel escalation
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -2002,10 +2026,12 @@ export function LiveChat({
                 <Button variant="ghost" onClick={() => setDialog(null)} disabled={busy}>
                   Cancel
                 </Button>
-                <Button onClick={runDialogAction} disabled={busy}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Confirm
-                </Button>
+                {!(dialog.kind === "escalate" && selectedEscalation) && (
+                  <Button onClick={runDialogAction} disabled={busy}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Confirm
+                  </Button>
+                )}
               </div>
             </motion.div>
           </motion.div>
