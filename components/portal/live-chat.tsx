@@ -258,6 +258,7 @@ export function LiveChat({
   >(null);
   const [dialogReason, setDialogReason] = useState("");
   const [dialogStaff, setDialogStaff] = useState<string>("");
+  const [dialogAssignTarget, setDialogAssignTarget] = useState<"staff" | "team" | "department" | "queue">("staff");
   const [dialogEscType, setDialogEscType] = useState<"staff" | "role" | "team" | "department">("staff");
   const [dialogEscRole, setDialogEscRole] = useState<string>("supervisor");
   const [dialogEscTeam, setDialogEscTeam] = useState<string>("");
@@ -847,23 +848,31 @@ export function LiveChat({
     } else if (dialog.kind === "return") {
       res = await returnChatSessionToQueueAction({ sessionId: selectedId, reason: dialogReason.trim() });
       if (res.ok) {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === selectedId
-              ? { ...s, status: "waiting" as const, assigned_admin_id: null, assigned_admin_name: null }
-              : s,
-          ),
-        );
-        setActionMsg("Case returned to the waiting queue.");
+        setActionMsg("Case returned to waiting queue. Database state confirmed.");
+        setFStatus("waiting");
       }
     } else if (dialog.kind === "assign") {
+      if (
+        (dialogAssignTarget === "staff" && !dialogStaff)
+        || (dialogAssignTarget === "team" && !dialogEscTeam)
+        || (dialogAssignTarget === "department" && !dialogEscDept)
+      ) {
+        setBusy(false);
+        setChatErr("Select a staff member, team, or department before routing the case.");
+        return;
+      }
+      const selectedTeam = teams.find((team) => team.id === dialogEscTeam);
       res = await assignChatSessionAction({
         sessionId: selectedId,
-        assigneeId: dialogStaff || null,
+        assigneeId: dialogAssignTarget === "staff" ? dialogStaff : null,
+        teamId: dialogAssignTarget === "team" ? dialogEscTeam : null,
+        departmentId: dialogAssignTarget === "department" ? dialogEscDept : (
+          dialogAssignTarget === "team" ? selectedTeam?.department_id ?? null : null
+        ),
         reason: dialogReason.trim() || null,
       });
       if (res.ok) {
-        setActionMsg("Case reassigned.");
+        setActionMsg("Assignment and routing saved. Check case history for the transfer audit.");
         void loadSessions();
       }
     } else if (dialog.kind === "offer") {
@@ -959,13 +968,15 @@ export function LiveChat({
 
   const changePriority = async (priority: ChatSession["priority"]) => {
     if (!selectedId || !priority) return;
-    const previous = sessions;
-    setSessions((prev) => prev.map((s) => (s.id === selectedId ? { ...s, priority } : s)));
     const res = await updateChatPriorityAction({ sessionId: selectedId, priority });
-    if (!res.ok) {
-      setSessions(previous);
-      setChatErr(res.error ?? "Could not update priority.");
+    if (!res.ok || !res.session) {
+      setChatErr(res.error ?? "Priority was not confirmed by the database.");
+      return;
     }
+    const persisted = res.session;
+    setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+    setActionMsg("Priority saved and verified.");
+    void loadTimeline(selectedId);
   };
 
   const togglePendingClient = async () => {
@@ -977,10 +988,14 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not update the case.");
       return;
     }
-    setSessions((prev) =>
-      prev.map((s) => (s.id === selectedId ? { ...s, status: "pending_client" as const } : s)),
-    );
-    setActionMsg("Case is now waiting for the customer.");
+    if (!res.session) {
+      setChatErr("Could not confirm this case status from the database.");
+      return;
+    }
+    const persisted = res.session;
+    setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+    setFStatus("pending_client");
+    setActionMsg("Case is awaiting the customer. Database state confirmed.");
   };
 
   const changePresence = async (status: AgentStatus) => {
@@ -1014,6 +1029,9 @@ export function LiveChat({
     setDialog({ kind } as NonNullable<typeof dialog>);
     setDialogReason("");
     setDialogStaff("");
+    setDialogAssignTarget("staff");
+    setDialogEscTeam("");
+    setDialogEscDept("");
     setChatErr(null);
   };
 
@@ -1791,25 +1809,71 @@ export function LiveChat({
 
               {(dialog.kind === "assign" || dialog.kind === "offer") && (
                 <div className="mt-3 space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground">Staff member</label>
-                  <select
-                    value={dialogStaff}
-                    onChange={(e) => setDialogStaff(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
-                  >
-                    <option value="">Select staff…</option>
-                    {staffDir
-                      .filter((m) => m.id !== user?.id)
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} · {CHAT_STAFF_ROLE_LABELS[m.staff_role] ?? m.staff_role} · {m.active_cases} active
-                        </option>
-                      ))}
-                  </select>
                   {dialog.kind === "assign" && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Leaving the member blank returns the case to the team queue.
-                    </p>
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Route the case to</label>
+                      <select
+                        value={dialogAssignTarget}
+                        onChange={(e) => setDialogAssignTarget(e.target.value as typeof dialogAssignTarget)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="staff">Another staff member</option>
+                        <option value="team">A support team</option>
+                        <option value="department">A department</option>
+                        <option value="queue">Unassigned waiting queue</option>
+                      </select>
+                    </>
+                  )}
+                  {(dialog.kind === "offer" || (dialog.kind === "assign" && dialogAssignTarget === "staff")) && (
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Staff member</label>
+                      <select
+                        value={dialogStaff}
+                        onChange={(e) => setDialogStaff(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="">Select staff…</option>
+                        {staffDir.filter((m) => m.id !== user?.id).map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} · {CHAT_STAFF_ROLE_LABELS[m.staff_role] ?? m.staff_role} · {m.active_cases} active
+                          </option>
+                        ))}
+                      </select>
+                      {staffDir.length <= 1 && (
+                        <p className="text-[11px] text-amber-600">No additional agent is configured. An administrator must provision real staff accounts first.</p>
+                      )}
+                    </>
+                  )}
+                  {dialog.kind === "assign" && dialogAssignTarget === "team" && (
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Support team</label>
+                      <select
+                        value={dialogEscTeam}
+                        onChange={(e) => setDialogEscTeam(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="">Select team…</option>
+                        {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+                      </select>
+                      {teams.length === 0 && <p className="text-[11px] text-amber-600">No support teams have been configured.</p>}
+                    </>
+                  )}
+                  {dialog.kind === "assign" && dialogAssignTarget === "department" && (
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Department</label>
+                      <select
+                        value={dialogEscDept}
+                        onChange={(e) => setDialogEscDept(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="">Select department…</option>
+                        {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+                      </select>
+                      {departments.length === 0 && <p className="text-[11px] text-amber-600">No support departments have been configured.</p>}
+                    </>
+                  )}
+                  {dialog.kind === "assign" && dialogAssignTarget === "queue" && (
+                    <p className="text-xs text-muted-foreground">Remove the current assignee and return the case to the waiting queue.</p>
                   )}
                 </div>
               )}
