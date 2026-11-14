@@ -100,7 +100,24 @@ export async function readLiveChatInbox(
     return { ok: false, error: "The server returned an invalid chat queue response." };
   }
 
-  const sessions = page.sessions;
+  return {
+    ok: true,
+    sessions: page.sessions,
+    counts: page.counts,
+    nextCursor: page.next_cursor,
+    serverNow: page.server_now,
+  };
+}
+
+/**
+ * Optional metadata loads AFTER the queue rows have been rendered.
+ * A slow profile/unread/presence endpoint can no longer hide a fresh case.
+ */
+export async function readLiveChatEnrichment(
+  supabase: SupabaseClient,
+  scope: ChatScope,
+  sessions: ChatSession[],
+): Promise<Pick<InboxReadResult, "profiles" | "customers" | "unread" | "agentOnline">> {
   const customerIds = Array.from(new Set(sessions.map((row) => row.user_id)));
   const sessionIds = sessions.map((row) => row.id);
 
@@ -152,17 +169,13 @@ export async function readLiveChatInbox(
     ? null
     : Number(onlineCount) > 0;
   return {
-    ok: true,
-    sessions,
     profiles,
     customers,
     unread,
-    counts: page.counts,
-    nextCursor: page.next_cursor,
-    serverNow: page.server_now,
     agentOnline,
   };
 }
+
 
 export async function readLiveChatMessages(
   supabase: SupabaseClient,
