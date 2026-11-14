@@ -279,7 +279,17 @@ export function LiveChat({
     setSessions((prev) => {
       const byId = new Map(prev.map((s) => [s.id, s]));
       return list
-        .map((s) => ({ ...byId.get(s.id), ...s }))
+        .map((s) => {
+          const current = byId.get(s.id);
+          if (!current) return s;
+          const currentVersion = Number(current.version ?? 0);
+          const fetchedVersion = Number(s.version ?? 0);
+          // Ignore an older snapshot if Realtime has already provided a
+          // newer committed lifecycle or assignment state for this case.
+          if (currentVersion > fetchedVersion) return current;
+          if (currentVersion === fetchedVersion && +new Date(current.updated_at) > +new Date(s.updated_at)) return current;
+          return { ...current, ...s };
+        })
         .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
     });
   }, []);
@@ -656,6 +666,16 @@ export function LiveChat({
     [threads, selectedId],
   );
 
+  useEffect(() => {
+    if (!selected) return;
+    const allowed = statusFilters();
+    // An externally closed, resolved or reopened case must not remain in the
+    // detail pane under an incompatible queue filter.
+    if (allowed && !allowed.includes(selected.status)) {
+      setSelectedId(null);
+    }
+  }, [selected, statusFilters]);
+
   const customer = selected ? customers[selected.user_id] : undefined;
 
   const previousCases = useMemo(() => {
@@ -758,12 +778,16 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not start live chat. Please retry.");
       return;
     }
-    // Never inherit a previous case's messages, even across same-page starts.
+    // Render ONLY the newly inserted database row and its own empty thread.
+    // Cancel stale filtered responses before clearing any previous selection.
+    inboxRequestSeq.current += 1;
     setThreads((prev) => ({ ...prev, [res.sessionId!]: [] }));
-    const list = await loadSessions();
-    const created = list.find((s) => s.id === res.sessionId);
+    if (res.session) {
+      setSessions((prev) => [res.session!, ...prev.filter((item) => item.id !== res.sessionId)]);
+    }
+    setQuery("");
     setFStatus("open");
-    setSelectedId(created?.id ?? res.sessionId);
+    setSelectedId(res.sessionId);
     setChatErr(null);
     setStarting(false);
   };
@@ -1059,6 +1083,7 @@ export function LiveChat({
                   role="tab"
                   aria-selected={activeTab}
                   onClick={() => {
+                    inboxRequestSeq.current += 1;
                     setSelectedId(null);
                     setFStatus(tab.value);
                   }}
