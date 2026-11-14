@@ -568,7 +568,7 @@ export function LiveChat({
       if (!active) return;
       void loadDirectories();
       if (initialSessionId) {
-        setFStatus("all");
+        switchQueueFilter("all");
         setSelectedId(initialSessionId);
       } else if (mode === "user" && !bootstrapped.current) {
         const open = list.find((s) => s.status === "waiting" || s.status === "active");
@@ -677,10 +677,15 @@ export function LiveChat({
       if (document.visibilityState !== "visible" || refreshing.current) return;
       refreshing.current = true;
       const sid = selectedIdRef.current;
-      Promise.all([loadSessionsRef.current?.() ?? Promise.resolve([]), sid ? loadThread(sid) : Promise.resolve()]).finally(() => {
+      // Chat messages already stream over Realtime. Only refetch the
+      // selected thread when disconnected; keep the inbox periodically fresh.
+      Promise.all([
+        loadSessionsRef.current?.() ?? Promise.resolve([]),
+        sid && !connectedRef.current ? loadThread(sid) : Promise.resolve(),
+      ]).finally(() => {
         refreshing.current = false;
       });
-    }, mode === "admin" ? 12_000 : 25_000);
+    }, mode === "admin" ? 20_000 : 25_000);
     return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, mode]);
@@ -897,12 +902,13 @@ export function LiveChat({
       }
       const persisted = res.session;
       setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
-      setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
+      switchQueueFilter(persisted.status === "pending_client" ? "pending_client" : "active");
       setActionMsg(res.welcome
         ? "Agent joined. An automatic welcome message was saved in this case."
         : "Agent joined. The welcome message was already saved for this case.");
-      await loadThread(caseId);
-      void loadSessionsRef.current?.();
+      // Do not leave the Join button spinning for another message fetch.
+      void loadThread(caseId);
+      scheduleSilentReload();
       void loadTimeline(caseId);
     } catch {
       setChatErr("Could not finish joining this case. Refresh before retrying.");
@@ -941,7 +947,7 @@ export function LiveChat({
       setSessions((prev) => [res.session!, ...prev.filter((item) => item.id !== res.sessionId)]);
     }
     setQuery("");
-    setFStatus("open");
+    switchQueueFilter("open");
     setSelectedId(res.sessionId);
     setChatErr(null);
     startingRef.current = false;
@@ -975,25 +981,25 @@ export function LiveChat({
       if (res.ok) {
         setActionMsg("Case resolved and confirmed in the database; history is preserved.");
         setShowResolvedHint(true);
-        setFStatus("resolved");
+        switchQueueFilter("resolved");
       }
     } else if (dialog.kind === "close") {
       res = await closeChatSessionAction(selectedId, dialogReason.trim() || undefined);
       if (res.ok) {
         setActionMsg("Case closure confirmed in the database; history is preserved.");
-        setFStatus("closed");
+        switchQueueFilter("closed");
       }
     } else if (dialog.kind === "reopen") {
       res = await reopenChatSessionAction(selectedId, dialogReason.trim());
       if (res.ok) {
         setActionMsg("Case reopen confirmed in the database.");
-        setFStatus("open");
+        switchQueueFilter("open");
       }
     } else if (dialog.kind === "return") {
       res = await returnChatSessionToQueueAction({ sessionId: selectedId, reason: dialogReason.trim() });
       if (res.ok) {
         setActionMsg("Case returned to waiting queue. Database state confirmed.");
-        setFStatus("waiting");
+        switchQueueFilter("waiting");
       }
     } else if (dialog.kind === "assign") {
       if (
@@ -1018,7 +1024,7 @@ export function LiveChat({
       if (res.ok && res.session) {
         setActionMsg("Assignment and routing verified in the database. Case history is preserved.");
         const row = res.session;
-        setFStatus(row.status === "waiting" ? "waiting" :
+        switchQueueFilter(row.status === "waiting" ? "waiting" :
           row.status === "pending_client" ? "pending_client" : "active");
       }
     } else if (dialog.kind === "offer") {
@@ -1059,7 +1065,7 @@ export function LiveChat({
     setDialogStaff("");
     if (selectedId) {
       void loadTimeline(selectedId);
-      void loadSessions();
+      scheduleSilentReload();
     }
   };
 
@@ -1077,8 +1083,8 @@ export function LiveChat({
       return;
     }
     setActionMsg(accept ? "Transfer accepted by the database." : "Transfer offer declined.");
-    if (accept) setFStatus("active");
-    void loadSessionsRef.current?.();
+    if (accept) switchQueueFilter("active");
+    scheduleSilentReload();
     if (selectedId) void loadTimeline(selectedId);
   };
 
@@ -1105,7 +1111,7 @@ export function LiveChat({
     if (res.session) {
       const persisted = res.session;
       setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
-      setFStatus("waiting");
+      switchQueueFilter("waiting");
     }
     setActionMsg(({
       accept: "Escalation accepted.",
@@ -1115,7 +1121,7 @@ export function LiveChat({
     } as const)[action]);
     setDialog(null);
     setDialogReason("");
-    void loadSessionsRef.current?.();
+    scheduleSilentReload();
     if (selectedId) void loadTimeline(selectedId);
   };
 
@@ -1164,7 +1170,7 @@ export function LiveChat({
     }
     const persisted = res.session;
     setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
-    setFStatus("pending_client");
+    switchQueueFilter("pending_client");
     setActionMsg("Case is awaiting the customer. Database state confirmed.");
   };
 
@@ -1282,9 +1288,8 @@ export function LiveChat({
                   role="tab"
                   aria-selected={activeTab}
                   onClick={() => {
-                    inboxRequestSeq.current += 1;
                     setSelectedId(null);
-                    setFStatus(tab.value);
+                    switchQueueFilter(tab.value);
                   }}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
@@ -1609,7 +1614,7 @@ export function LiveChat({
                       const res = await clientEndChatSessionAction(selected.id);
                       if (res.ok && res.session) {
                         setSessions((prev) => prev.map((s) => s.id === res.session!.id ? res.session! : s));
-                        setFStatus("resolved");
+                        switchQueueFilter("resolved");
                         setActionMsg("Case ended and confirmed in the database. New Chat creates a separate case.");
                       } else {
                         setChatErr(res.error ?? "Could not end the session.");
@@ -1652,7 +1657,7 @@ export function LiveChat({
                   <button
                     className="rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-semibold"
                     onClick={() => {
-                      setFStatus("resolved");
+                      switchQueueFilter("resolved");
                       setShowResolvedHint(false);
                     }}
                   >
