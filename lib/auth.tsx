@@ -70,39 +70,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted.current) return;
+    let disposed = false;
+    let authEpoch = 0;
+
+    const hydrate = async (
+      session: { user: User } | null,
+      epoch: number,
+    ) => {
+      if (disposed || !mounted.current || epoch !== authEpoch) return;
       setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadProfile(session.user.id);
-        const { data } = await supabase.rpc("is_admin");
-        setIsAdmin(!!data);
+      if (!session?.user) {
+        setProfile(null);
+        setIsAdmin(false);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      // Profile and admin status are independent RLS-protected reads.
+      // Parallelizing them avoids serial network requests before Live Chat
+      // is allowed to render.
+      try {
+        const [profileResult, adminResult] = await Promise.all([
+          supabase.from("profiles").select("*")
+            .eq("id", session.user.id).maybeSingle(),
+          supabase.rpc("is_admin"),
+        ]);
+        if (disposed || !mounted.current || epoch !== authEpoch) return;
+        setProfile((profileResult.data as Profile | null) ?? null);
+        setIsAdmin(!adminResult.error && !!adminResult.data);
+      } catch {
+        if (disposed || !mounted.current || epoch !== authEpoch) return;
+        setIsAdmin(false);
+      } finally {
+        if (!disposed && mounted.current && epoch === authEpoch) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // INITIAL_SESSION and getSession are the same initial state. Process
+    // only getSession to avoid duplicate profile lookups on page load.
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (disposed || authEpoch !== 0) return;
+      const epoch = ++authEpoch;
+      void hydrate(session, epoch);
+    }).catch(() => {
+      if (!disposed && authEpoch === 0) setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted.current) return;
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadProfile(session.user.id);
-        const { data } = await supabase.rpc("is_admin");
-        setIsAdmin(!!data);
-        supabase.rpc("touch_last_activity").then(() => undefined);
-      } else {
-        setProfile(null);
-        setIsAdmin(false);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (disposed || event === "INITIAL_SESSION") return;
+      if (event === "TOKEN_REFRESHED") {
+        setUser(session?.user ?? null);
+        return;
       }
-      setLoading(false);
+      const epoch = ++authEpoch;
+      setLoading(true);
+      // Never await Supabase queries inside an onAuthStateChange callback:
+      // callbacks run under the auth client lock and can deadlock.
+      window.setTimeout(() => {
+        if (!disposed && epoch === authEpoch) void hydrate(session, epoch);
+      }, 0);
     });
 
     return () => {
+      disposed = true;
+      authEpoch += 1;
       mounted.current = false;
       subscription.unsubscribe();
     };
-  }, [supabase, loadProfile]);
+  }, [supabase]);
 
   useEffect(() => {
     if (!supabase || !user) return;
