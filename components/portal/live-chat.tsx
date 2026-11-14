@@ -574,6 +574,7 @@ export function LiveChat({
     }
     let active = true;
     (async () => {
+      const firstRequestSeq = inboxRequestSeq.current;
       const list = await loadSessions({ initial: true });
       if (!active) return;
       void loadDirectories();
@@ -585,6 +586,14 @@ export function LiveChat({
         if (open) setSelectedId(open.id);
       }
       bootstrapped.current = true;
+      // A tab/search change during the first request invalidates that
+      // response, while the filter effect is still waiting for bootstrap.
+      // Force a fresh request rather than leaving an endless list skeleton.
+      if (inboxRequestSeq.current > firstRequestSeq + 1 && !initialSessionId) {
+        window.setTimeout(() => {
+          if (active) void loadSessionsRef.current?.({ initial: true });
+        }, 0);
+      }
     })();
     return () => {
       active = false;
