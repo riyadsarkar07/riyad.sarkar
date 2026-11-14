@@ -193,6 +193,16 @@ export function LiveChat({
   const canSupervise = rank >= 3;
 
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  // Counts come from a database aggregate across the complete accessible
+  // inbox, not the currently paginated or filtered queue.
+  const [serverCounts, setServerCounts] = useState<{
+    waiting: number;
+    active: number;
+    pendingClient: number;
+    resolved: number;
+    closed: number;
+    all: number;
+  } | null>(null);
   const [customers, setCustomers] = useState<Record<string, ChatCustomer>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({});
@@ -345,6 +355,16 @@ export function LiveChat({
         });
       } else {
         applySessions(list);
+      }
+      if (res.counts) {
+        setServerCounts({
+          waiting: Number(res.counts.waiting ?? 0),
+          active: Number(res.counts.active ?? 0),
+          pendingClient: Number(res.counts.pending_client ?? 0),
+          resolved: Number(res.counts.resolved ?? 0),
+          closed: Number(res.counts.closed ?? 0),
+          all: Number(res.counts.all ?? 0),
+        });
       }
       setNextCursor(res.nextCursor ?? null);
       setListErr(null);
@@ -684,17 +704,24 @@ export function LiveChat({
   }, [mode, sessions, selected]);
 
   const counts = useMemo(() => {
+    if (serverCounts) return serverCounts;
+    // Temporary fallback during initial load only; never present page-sized
+    // counts as authoritative once the server aggregate is available.
     const waiting = sessions.filter((s) => s.status === "waiting").length;
     const active = sessions.filter((s) => s.status === "active").length;
     const pendingClient = sessions.filter((s) => s.status === "pending_client").length;
     const resolved = sessions.filter((s) => s.status === "resolved").length;
     const closed = sessions.filter((s) => s.status === "closed").length;
     return { waiting, active, pendingClient, resolved, closed, all: sessions.length };
-  }, [sessions]);
+  }, [sessions, serverCounts]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const allowedStatuses = statusFilters();
     const list = sessions.filter((s) => {
+      // Even when Realtime wins a race against an older inbox RPC snapshot,
+      // an Active case may never render inside the Closed queue.
+      if (allowedStatuses && !allowedStatuses.includes(s.status)) return false;
       const matchQ =
         !q ||
         (s.reference_id ?? "").toLowerCase().includes(q) ||
@@ -715,7 +742,7 @@ export function LiveChat({
       });
     }
     return list;
-  }, [sessions, query, customers, mode]);
+  }, [sessions, query, customers, mode, statusFilters]);
 
   const selectedEscalation = useMemo(
     () => timeline.escalations.find((e) => e.status === "pending" || e.status === "accepted") ?? null,
