@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { adminInbox, renderEmail, sendEmail } from "@/lib/email";
 import { STATUS_LABELS } from "@/lib/constants";
+import { escapeHtml } from "@/lib/html";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -41,12 +42,12 @@ export async function notifyAppointmentCreated(input: {
     to: input.userEmail,
     subject: `Appointment booked — ${input.referenceId}`,
     html: renderEmail({
-      greeting: `Hi ${input.userName},`,
+      greeting: `Hi ${escapeHtml(input.userName)},`,
       lines: [
         `Your appointment has been received.`,
-        `Reference: <strong>${input.referenceId}</strong>`,
-        `Service: ${badge(input.service)}`,
-        `Date: <strong>${input.date}</strong> · Time: <strong>${input.time}</strong>`,
+        `Reference: <strong>${escapeHtml(input.referenceId)}</strong>`,
+        `Service: ${badge(escapeHtml(input.service))}`,
+        `Date: <strong>${escapeHtml(input.date)}</strong> · Time: <strong>${escapeHtml(input.time)}</strong>`,
         "Our team will review your case and confirm shortly.",
       ],
       cta: { label: "View My Appointments", href: `${SITE_URL}/dashboard/appointments` },
@@ -60,9 +61,9 @@ export async function notifyAppointmentCreated(input: {
     html: renderEmail({
       greeting: "New appointment request",
       lines: [
-        `<strong>${input.referenceId}</strong> · ${input.userName} (${input.userEmail})`,
-        `Service: ${badge(input.service)}`,
-        `Date: <strong>${input.date}</strong> · Time: <strong>${input.time}</strong>`,
+        `<strong>${escapeHtml(input.referenceId)}</strong> · ${escapeHtml(input.userName)} (${escapeHtml(input.userEmail)})`,
+        `Service: ${badge(escapeHtml(input.service))}`,
+        `Date: <strong>${escapeHtml(input.date)}</strong> · Time: <strong>${escapeHtml(input.time)}</strong>`,
       ],
       cta: { label: "Open Admin Appointments", href: `${SITE_URL}/admin/appointments` },
     }),
@@ -88,9 +89,9 @@ export async function notifyAppointmentStatus(input: {
     to: input.userEmail,
     subject: `Appointment ${label} — ${input.referenceId}`,
     html: renderEmail({
-      greeting: `Hi ${input.userName},`,
+      greeting: `Hi ${escapeHtml(input.userName)},`,
       lines: [
-        `Your appointment <strong>${input.referenceId}</strong> is now <strong>${label}</strong>.`,
+        `Your appointment <strong>${escapeHtml(input.referenceId)}</strong> is now <strong>${escapeHtml(label)}</strong>.`,
       ],
       cta: { label: "View My Appointments", href: `${SITE_URL}/dashboard/appointments` },
     }),
@@ -114,10 +115,10 @@ export async function notifyTicketCreated(input: {
     to: input.userEmail,
     subject: `Support ticket opened — ${input.referenceId}`,
     html: renderEmail({
-      greeting: `Hi ${input.userName},`,
+      greeting: `Hi ${escapeHtml(input.userName)},`,
       lines: [
-        `Your support ticket <strong>${input.referenceId}</strong> has been created.`,
-        `Subject: ${badge(input.subject)}`,
+        `Your support ticket <strong>${escapeHtml(input.referenceId)}</strong> has been created.`,
+        `Subject: ${badge(escapeHtml(input.subject))}`,
         "We will get back to you shortly.",
       ],
       cta: { label: "Open Support", href: `${SITE_URL}/dashboard/support` },
@@ -128,7 +129,10 @@ export async function notifyTicketCreated(input: {
     subject: `New support ticket — ${input.referenceId}`,
     html: renderEmail({
       greeting: "New support ticket",
-      lines: [`<strong>${input.referenceId}</strong> — ${input.subject}`, `From: ${input.userName} (${input.userEmail})`],
+      lines: [
+        `<strong>${escapeHtml(input.referenceId)}</strong> — ${escapeHtml(input.subject)}`,
+        `From: ${escapeHtml(input.userName)} (${escapeHtml(input.userEmail)})`,
+      ],
       cta: { label: "Open Admin Support", href: `${SITE_URL}/admin/support` },
     }),
     text: `New support ticket ${input.referenceId} — ${input.subject}`,
@@ -155,8 +159,11 @@ export async function notifySupportReply(input: {
       to: input.userEmail,
       subject: `Reply on ${input.referenceId}`,
       html: renderEmail({
-        greeting: `Hi ${input.userName},`,
-        lines: [`You have a new reply on ticket <strong>${input.referenceId}</strong>.`, p(snippet)],
+      greeting: `Hi ${escapeHtml(input.userName)},`,
+      lines: [
+        `You have a new reply on ticket <strong>${escapeHtml(input.referenceId)}</strong>.`,
+        p(escapeHtml(snippet)),
+      ],
         cta: { label: "Open Support", href: `${SITE_URL}/dashboard/support` },
       }),
     });
@@ -166,7 +173,10 @@ export async function notifySupportReply(input: {
       subject: `New reply on ${input.referenceId}`,
       html: renderEmail({
         greeting: "New user reply",
-        lines: [`<strong>${input.referenceId}</strong> — ${input.userName}`, p(snippet)],
+        lines: [
+          `<strong>${escapeHtml(input.referenceId)}</strong> — ${escapeHtml(input.userName)}`,
+          p(escapeHtml(snippet)),
+        ],
         cta: { label: "Open Admin Support", href: `${SITE_URL}/admin/support` },
       }),
       text: `New user reply on ${input.referenceId}`,
@@ -191,7 +201,9 @@ export async function notifyChatStarted(input: {
     subject: `New live chat — ${input.referenceId}`,
     html: renderEmail({
       greeting: "New live chat session",
-      lines: [`<strong>${input.referenceId}</strong> — ${input.userName} (${input.userEmail})`],
+      lines: [
+        `<strong>${escapeHtml(input.referenceId)}</strong> — ${escapeHtml(input.userName)} (${escapeHtml(input.userEmail)})`,
+      ],
       cta: { label: "Open Live Chat", href: `${SITE_URL}/admin/chat` },
     }),
     text: `New live chat ${input.referenceId} from ${input.userName}.`,
@@ -233,7 +245,10 @@ export async function notifyChatMessage(input: {
       subject: `Live chat message — ${input.referenceId}`,
       html: renderEmail({
         greeting: "New live chat message",
-        lines: [`<strong>${input.referenceId}</strong> — ${input.userName}`, p(snippet)],
+        lines: [
+          `<strong>${escapeHtml(input.referenceId)}</strong> — ${escapeHtml(input.userName)}`,
+          p(escapeHtml(snippet)),
+        ],
         cta: { label: "Open Live Chat", href: `${SITE_URL}/admin/chat` },
       }),
       text: `New live chat message on ${input.referenceId}`,

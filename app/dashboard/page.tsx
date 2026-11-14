@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/portal/page-header";
 import { LoadError } from "@/components/portal/load-error";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { APPOINTMENT_CLIENT_COLUMNS } from "@/lib/constants";
 import type { Appointment, Notification, SupportTicket } from "@/types/dashboard";
 
 function formatDate(d: string) {
@@ -63,7 +64,7 @@ export default function DashboardOverviewPage() {
           .gte("appointment_date", today),
         supabase
           .from("appointments")
-          .select("*")
+          .select(APPOINTMENT_CLIENT_COLUMNS)
           .order("created_at", { ascending: false })
           .limit(5),
         supabase.from("appointments").select("id").eq("status", "pending"),

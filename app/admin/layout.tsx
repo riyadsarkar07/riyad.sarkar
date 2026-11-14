@@ -4,8 +4,11 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { AdminDashboardShell } from "@/components/portal/admin-shell";
 
 /**
- * Server-side admin gate — verifies the signed-in user is an authorized admin
- * via the SECURITY DEFINER is_admin() check. UI hiding alone is not enough.
+ * Server-side gate for the /admin area.
+ *
+ * Full admins keep access to every page. Support staff (agent / senior_agent /
+ * supervisor) may only reach the Live Chat workspace; middleware blocks every
+ * other /admin path for them, and the nav is filtered to match.
  */
 export default async function AdminLayout({
   children,
@@ -20,9 +23,17 @@ export default async function AdminLayout({
   if (!user) redirect("/login");
 
   const { data: isAdmin } = await supabase.rpc("is_admin");
+
+  let staffRole: string | null = null;
   if (!isAdmin) {
-    redirect("/dashboard");
+    const { data } = await supabase.rpc("staff_role");
+    staffRole = (data as string | null) ?? null;
+    if (!staffRole) redirect("/dashboard");
   }
 
-  return <AdminDashboardShell>{children}</AdminDashboardShell>;
+  return (
+    <AdminDashboardShell staffRole={isAdmin ? "admin" : staffRole}>
+      {children}
+    </AdminDashboardShell>
+  );
 }

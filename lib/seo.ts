@@ -32,7 +32,7 @@ export const siteConfig = {
     whatsapp: "https://wa.me/8801577174050",
     email: "riyadsarkar1243@gmail.com",
   },
-  ogImage: "/opengraph-image.png",
+  ogImage: "/opengraph-image",
 };
 
 /** Build a consistent Metadata object for every page. */

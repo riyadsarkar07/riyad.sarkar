@@ -42,5 +42,11 @@ export async function updateSession(request: NextRequest) {
     isAdmin = !!data;
   }
 
-  return { supabaseResponse, user, isAdmin };
+  let staffRole: string | null = null;
+  if (user && !isAdmin) {
+    const { data } = await supabase.rpc("staff_role");
+    staffRole = (data as string | null) ?? null;
+  }
+
+  return { supabaseResponse, user, isAdmin, staffRole };
 }

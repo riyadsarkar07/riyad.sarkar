@@ -45,6 +45,16 @@ export default function AdminSettingsPage() {
   };
 
   const notifyValue = settings["notify_admin_email"] ?? "true";
+  const adminEmail =
+    (process.env.NEXT_PUBLIC_ADMIN_EMAIL || process.env.NEXT_PUBLIC_PROFILE_EMAIL || "").trim();
+  const supabaseProject = (() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    try {
+      return url ? new URL(url).hostname.split(".")[0] : "Not configured";
+    } catch {
+      return "Not configured";
+    }
+  })();
 
   return (
     <div>
@@ -62,7 +72,7 @@ export default function AdminSettingsPage() {
               <div>
                 <p className="text-sm font-semibold">Email the admin for activity</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  riyadsarkar1243@gmail.com is notified when clients book appointments or open tickets.
+                  {adminEmail || "The admin address"} is notified when clients book appointments or open tickets.
                 </p>
               </div>
               {savingKey === "notify_admin_email" ? (
@@ -92,7 +102,7 @@ export default function AdminSettingsPage() {
           <dl className="space-y-3 text-sm">
             <div className="flex items-center justify-between rounded-xl bg-primary/5 px-4 py-3">
               <dt className="text-muted-foreground">Supabase project</dt>
-              <dd className="font-mono text-xs">iixuowpwmumtpjrurztn</dd>
+              <dd className="font-mono text-xs">{supabaseProject}</dd>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-primary/5 px-4 py-3">
               <dt className="text-muted-foreground">Email provider</dt>
@@ -100,7 +110,7 @@ export default function AdminSettingsPage() {
             </div>
             <div className="flex items-center justify-between rounded-xl bg-primary/5 px-4 py-3">
               <dt className="text-muted-foreground">Admin email</dt>
-              <dd className="text-xs">riyadsarkar1243@gmail.com</dd>
+              <dd className="text-xs">{adminEmail || "Not configured"}</dd>
             </div>
           </dl>
         </section>

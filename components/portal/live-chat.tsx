@@ -4,33 +4,88 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
   ChevronLeft,
+  Clock,
   Headset,
+  History,
   Loader2,
+  Mail,
   MessageCircle,
+  Phone,
   Radio,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
+  StickyNote,
+  Timer,
+  User,
+  UserPlus,
   WifiOff,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSupabase } from "@/hooks/use-supabase";
 import {
+  addChatInternalNoteAction,
+  assignChatSessionAction,
+  claimChatSessionAction,
+  clientEndChatSessionAction,
   closeChatSessionAction,
-  joinChatSessionAction,
+  escalateChatSessionAction,
+  loadChatAgentEventsAction,
+  loadChatCaseTimelineAction,
+  loadChatRoutingDirectoryAction,
+  loadChatStaffDirectoryAction,
   loadLiveChatInboxAction,
   loadLiveChatMessagesAction,
+  markChatPendingClientAction,
   markChatReadAction,
+  offerChatSessionAction,
+  reopenChatSessionAction,
+  resolveChatSessionAction,
+  respondChatAssignmentAction,
+  respondChatEscalationAction,
+  returnChatEscalationToQueueAction,
+  returnChatSessionToQueueAction,
   sendChatMessageAction,
+  setChatAgentStatusAction,
   startChatSessionAction,
+  updateChatPriorityAction,
 } from "@/app/actions";
 import { StatusBadge } from "@/components/portal/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { ChatMessage, ChatSession } from "@/types/dashboard";
+import { chatStatusMatchesFilter, reconcileChatSession, selectChatSession, statusesForChatFilter } from "@/lib/chat-queue";
+import type { ChatQueueFilter } from "@/lib/chat-queue";
+import {
+  AGENT_STATUSES,
+  AGENT_STATUS_LABELS,
+  CHAT_PRIORITIES,
+  CHAT_STAFF_RANK,
+  CHAT_STAFF_ROLE_LABELS,
+  PRIORITY_LABELS,
+} from "@/lib/constants";
+import type { AgentStatus } from "@/lib/constants";
+import type {
+  ChatAssignment,
+  ChatCaseEvent,
+  ChatDepartment,
+  ChatEscalation,
+  ChatStaffMember,
+  ChatTeam,
+} from "@/types/dashboard";
+import type { ChatAgentEvent, ChatCustomer, ChatMessage, ChatSession } from "@/types/dashboard";
+
+type Mode = "user" | "admin";
+type FilterValue = ChatQueueFilter;
+
+const PAGE_SIZE = 25;
 
 function fmtTime(d: string) {
   return new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -40,7 +95,55 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function senderLabel(m: ChatMessage, session: ChatSession | null, mode: "user" | "admin") {
+function fmtDateTime(d: string) {
+  return new Date(d).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function fmtDuration(from: string, to = Date.now()) {
+  const seconds = Math.max(0, Math.floor((to - new Date(from).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${minutes % 60}m`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
+}
+
+/** Human SLA state derived from real server timestamps, never invented. */
+function slaState(s: ChatSession, nowMs: number) {
+  const out: {
+    firstOverdue: boolean;
+    resolutionOverdue: boolean;
+    firstDueIn: number | null;
+    resolutionDueIn: number | null;
+  } = {
+    firstOverdue: !!s.first_response_breached,
+    resolutionOverdue: !!s.resolution_breached,
+    firstDueIn: null,
+    resolutionDueIn: null,
+  };
+  const paused = !!s.sla_paused_since;
+  if (paused) return out;
+  if (s.first_response_due_at && !s.first_response_at) {
+    const inMs = new Date(s.first_response_due_at).getTime() - nowMs;
+    out.firstDueIn = inMs;
+    if (inMs < 0) out.firstOverdue = true;
+  }
+  if (s.resolution_due_at && s.status !== "resolved" && s.status !== "closed") {
+    const inMs = new Date(s.resolution_due_at).getTime() - nowMs;
+    out.resolutionDueIn = inMs;
+    if (inMs < 0) out.resolutionOverdue = true;
+  }
+  return out;
+}
+
+function senderLabel(m: ChatMessage, session: ChatSession | null, mode: Mode) {
   if (m.sender_role === "admin") {
     return m.sender_name || session?.assigned_admin_name || "Support";
   }
@@ -59,40 +162,121 @@ function mergeChatMessages(prev: ChatMessage[], next: ChatMessage[]): ChatMessag
   });
 }
 
+function priorityStyle(priority: string | undefined) {
+  switch (priority) {
+    case "critical":
+      return "border-fuchsia-500/50 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400";
+    case "urgent":
+      return "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400";
+    case "high":
+      return "border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400";
+    case "low":
+      return "border-slate-400/30 bg-slate-400/10 text-slate-500";
+    default:
+      return "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400";
+  }
+}
+
 export function LiveChat({
   mode,
   initialSessionId,
+  staffRole = null,
 }: {
-  mode: "user" | "admin";
+  mode: Mode;
   initialSessionId?: string | null;
+  staffRole?: string | null;
 }) {
   const { user, isLoaded } = useAuth();
   const supabase = useSupabase();
+  const [activeStaffRole, setActiveStaffRole] = useState<string | null>(staffRole);
+  const rank = activeStaffRole
+    ? (CHAT_STAFF_RANK as Record<string, number>)[activeStaffRole] ?? 0
+    : 0;
+  const isStaff = mode === "admin" && rank >= 1;
+  const canSupervise = rank >= 3;
+
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  // Counts come from a database aggregate across the complete accessible
+  // inbox, not the currently paginated or filtered queue.
+  const [serverCounts, setServerCounts] = useState<{
+    waiting: number;
+    active: number;
+    pendingClient: number;
+    resolved: number;
+    closed: number;
+    all: number;
+  } | null>(null);
+  const [customers, setCustomers] = useState<Record<string, ChatCustomer>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({});
+  const [threadHasMore, setThreadHasMore] = useState<Record<string, boolean>>({});
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [unread, setUnread] = useState<Record<string, number>>({});
-  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loadingList, setLoadingList] = useState(true);
-  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [loadingThreads, setLoadingThreads] = useState<Record<string, boolean>>({});
   const [listErr, setListErr] = useState<string | null>(null);
   const [chatErr, setChatErr] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [sendOk, setSendOk] = useState(false);
   const [query, setQuery] = useState("");
-  const [fStatus, setFStatus] = useState("open");
+  const [fStatus, setFStatus] = useState<FilterValue>(mode === "admin" ? "waiting" : "open");
   const [agentOnline, setAgentOnline] = useState<boolean | null>(null);
   const [connected, setConnected] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const [nextCursor, setNextCursor] = useState<{ updated_at: string | null; id: string | null; has_more: boolean } | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const [agentEvents, setAgentEvents] = useState<ChatAgentEvent[]>([]);
+  const [eventsUnavailable, setEventsUnavailable] = useState(false);
+  const [noteBody, setNoteBody] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [showResolvedHint, setShowResolvedHint] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const [timeline, setTimeline] = useState<{
+    events: ChatCaseEvent[];
+    escalations: ChatEscalation[];
+    assignments: ChatAssignment[];
+  }>({ events: [], escalations: [], assignments: [] });
+  const [timelineSessionId, setTimelineSessionId] = useState<string | null>(null);
+  const [staffDir, setStaffDir] = useState<ChatStaffMember[]>([]);
+  const [departments, setDepartments] = useState<ChatDepartment[]>([]);
+  const [teams, setTeams] = useState<ChatTeam[]>([]);
+
+  const [dialog, setDialog] = useState<
+    | null
+    | { kind: "resolve" }
+    | { kind: "close" }
+    | { kind: "reopen" }
+    | { kind: "return" }
+    | { kind: "assign" }
+    | { kind: "offer" }
+    | { kind: "escalate" }
+  >(null);
+  const [dialogReason, setDialogReason] = useState("");
+  const [dialogStaff, setDialogStaff] = useState<string>("");
+  const [dialogAssignTarget, setDialogAssignTarget] = useState<"staff" | "team" | "department" | "queue">("staff");
+  const [dialogEscType, setDialogEscType] = useState<"staff" | "role" | "team" | "department">("staff");
+  const [dialogEscRole, setDialogEscRole] = useState<string>("supervisor");
+  const [dialogEscTeam, setDialogEscTeam] = useState<string>("");
+  const [dialogEscDept, setDialogEscDept] = useState<string>("");
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
-  const messagesSessionRef = useRef<string | null>(null);
+  const sessionsRef = useRef<ChatSession[]>([]);
   const loadSeq = useRef(0);
   const lastMsgIdRef = useRef<string | null>(null);
   const bootstrapped = useRef(false);
-  const sessionsRef = useRef<ChatSession[]>([]);
-  const [joining, setJoining] = useState(false);
+  const refreshing = useRef(false);
+  const reloadTimer = useRef<number | null>(null);
+  const loadSessionsRef = useRef<((opts?: { initial?: boolean; append?: boolean }) => Promise<ChatSession[]>) | null>(null);
+  const inboxRequestSeq = useRef(0);
+  const startingRef = useRef(false);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -102,151 +286,166 @@ export function LiveChat({
     sessionsRef.current = sessions;
   }, [sessions]);
 
-  const loadSessions = useCallback(async () => {
-    const res = await loadLiveChatInboxAction(mode);
-    if (!res.ok) {
-      setListErr(res.error || "Could not load live chat sessions.");
-      setLoadingList(false);
-      return sessionsRef.current;
-    }
-    const list = res.sessions ?? [];
-    setSessions(list);
-    setListErr(null);
-    setLoadingList(false);
-    if (res.profiles) setProfiles((prev) => ({ ...prev, ...res.profiles }));
-    if (res.unread) setUnread(res.unread);
-    if (res.agentOnline !== undefined) setAgentOnline(res.agentOnline ?? null);
-    return list;
-  }, [mode]);
-
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!user) {
-      setLoadingList(false);
-      setListErr("Not signed in");
-      return;
-    }
-    let active = true;
-    (async () => {
-      const list = await loadSessions();
-      if (!active) return;
-      if (initialSessionId) setSelectedId(initialSessionId);
-      else if (mode === "user" && !bootstrapped.current) {
-        const open = list.find((s) => s.status === "waiting" || s.status === "active");
-        if (open) setSelectedId(open.id);
-      }
-      bootstrapped.current = true;
-    })();
-    return () => {
-      active = false;
-    };
-  }, [isLoaded, user, loadSessions, initialSessionId, mode]);
-
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel(`live-chat-list-${mode}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_sessions" }, (payload) => {
-        const s = payload.new as ChatSession;
-        if (mode === "user" && s.user_id !== user.id) return;
-        setSessions((prev) => (prev.some((x) => x.id === s.id) ? prev : [s, ...prev]));
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_sessions" }, (payload) => {
-        const s = payload.new as ChatSession;
-        if (mode === "user" && s.user_id !== user.id) return;
-        setSessions((prev) => {
-          const exists = prev.some((x) => x.id === s.id);
-          if (!exists) return [s, ...prev];
-          return prev
-            .map((x) =>
-              x.id === s.id
-                ? {
-                    ...x,
-                    ...s,
-                    assigned_admin_id: s.assigned_admin_id ?? x.assigned_admin_id,
-                    assigned_admin_name: s.assigned_admin_name ?? x.assigned_admin_name,
-                    welcome_sent_at: s.welcome_sent_at ?? x.welcome_sent_at,
-                    joined_at: s.joined_at ?? x.joined_at,
-                  }
-                : x,
-            )
-            .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
-        });
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-        const msg = payload.new as ChatMessage;
-        const incoming = mode === "admin" ? msg.sender_role === "user" : msg.sender_role === "admin";
-        if (incoming && msg.session_id !== selectedIdRef.current) {
-          setUnread((prev) => ({ ...prev, [msg.session_id]: (prev[msg.session_id] ?? 0) + 1 }));
-        }
-        setSessions((prev) =>
-          prev.map((x) =>
-            x.id === msg.session_id
-              ? { ...x, last_message_at: msg.created_at, last_message_preview: msg.message.slice(0, 140), updated_at: msg.created_at }
-              : x,
-          ),
-        );
-      })
-      .subscribe((status) => {
-        setConnected(status === "SUBSCRIBED");
-      });
-
-    const onVis = () => {
-      if (document.visibilityState === "visible") void loadSessions();
-    };
-    document.addEventListener("visibilitychange", onVis);
-
-    return () => {
-      supabase.removeChannel(channel);
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [supabase, loadSessions, mode, user]);
-
-  const loadMessages = useCallback(async (sessionId: string, opts?: { showLoader?: boolean }) => {
-    const seq = ++loadSeq.current;
-    const showLoader = opts?.showLoader === true;
-    if (showLoader) setLoadingMsgs(true);
-    const res = await loadLiveChatMessagesAction(sessionId);
-    if (seq !== loadSeq.current || selectedIdRef.current !== sessionId) return;
-    if (!res.ok) {
-      setChatErr(res.error || "Could not load messages.");
-      if (showLoader) setLoadingMsgs(false);
-      return;
-    }
-    messagesSessionRef.current = sessionId;
-    setChatErr(null);
-    const incoming = res.messages ?? [];
-    setMessages((prev) => {
-      const merged = mergeChatMessages(
-        prev.filter((m) => m.session_id === sessionId),
-        incoming,
-      );
-      if (
-        merged.length === prev.length &&
-        merged.every(
-          (m, i) =>
-            m.id === prev[i]?.id &&
-            m.message === prev[i]?.message &&
-            m.read === prev[i]?.read &&
-            m.created_at === prev[i]?.created_at,
-        )
-      ) {
-        return prev;
-      }
-      return merged;
-    });
-    setLoadingMsgs(false);
+    const t = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    if (!user || connected) return;
-    const ping = window.setInterval(() => {
-      void loadSessions();
-      const sid = selectedIdRef.current;
-      if (sid) void loadMessages(sid, { showLoader: false });
-    }, 20_000);
-    return () => window.clearInterval(ping);
-  }, [user, connected, loadSessions, loadMessages]);
+  const applySessions = useCallback((list: ChatSession[]) => {
+    setSessions((prev) => {
+      const byId = new Map(prev.map((s) => [s.id, s]));
+      return list
+        .map((s) => {
+          const current = byId.get(s.id);
+          return current ? reconcileChatSession(current, s) : s;
+        })
+        .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
+    });
+  }, []);
+
+  const statusFilters = useCallback((): string[] | null => statusesForChatFilter(fStatus), [fStatus]);
+
+  const loadSessions = useCallback(
+    async (opts?: { initial?: boolean; append?: boolean }) => {
+      const requestSeq = ++inboxRequestSeq.current;
+      const res = await loadLiveChatInboxAction(mode, {
+        statuses: statusFilters(),
+        query: query.trim() || null,
+        cursorUpdatedAt: opts?.append ? nextCursor?.updated_at ?? null : null,
+        cursorId: opts?.append ? nextCursor?.id ?? null : null,
+        limit: PAGE_SIZE,
+      });
+      // Reject stale requests from an older filter or query.
+      if (requestSeq !== inboxRequestSeq.current) return sessionsRef.current;
+      if (!res.ok) {
+        if (opts?.initial) {
+          setListErr(res.error || "Could not load live chat sessions.");
+          setLoadingList(false);
+        } else {
+          setListErr(res.error || "Could not refresh live chat sessions.");
+        }
+        return sessionsRef.current;
+      }
+      const list = res.sessions ?? [];
+      if (opts?.append) {
+        setSessions((prev) => {
+          const byId = new Map(prev.map((s) => [s.id, s]));
+          for (const s of list) {
+            const current = byId.get(s.id);
+            byId.set(s.id, current ? reconcileChatSession(current, s) : s);
+          }
+          return Array.from(byId.values()).sort(
+            (a, b) => +new Date(b.updated_at) - +new Date(a.updated_at),
+          );
+        });
+      } else {
+        applySessions(list);
+      }
+      if (res.counts) {
+        setServerCounts({
+          waiting: Number(res.counts.waiting ?? 0),
+          active: Number(res.counts.active ?? 0),
+          pendingClient: Number(res.counts.pending_client ?? 0),
+          resolved: Number(res.counts.resolved ?? 0),
+          closed: Number(res.counts.closed ?? 0),
+          all: Number(res.counts.all ?? 0),
+        });
+      }
+      setNextCursor(res.nextCursor ?? null);
+      setListErr(null);
+      setLoadingList(false);
+      setLoadingMore(false);
+      if (res.profiles) {
+        setCustomers((prev) => {
+          const next = { ...prev };
+          for (const [id, name] of Object.entries(res.profiles ?? {})) {
+            next[id] = next[id]
+              ? { ...next[id], name }
+              : { id, name, email: null, phone: null };
+          }
+          for (const [id, customer] of Object.entries(res.customers ?? {})) {
+            next[id] = customer;
+          }
+          return next;
+        });
+      }
+      if (res.unread) setUnread(res.unread);
+      if (res.agentOnline !== undefined) setAgentOnline(res.agentOnline ?? null);
+      if (res.staffRole !== undefined && res.staffRole !== null) setActiveStaffRole(res.staffRole);
+      return list;
+    },
+    [applySessions, mode, statusFilters, query, nextCursor],
+  );
+
+  loadSessionsRef.current = loadSessions;
+
+  const loadThread = useCallback(
+    async (sessionId: string, opts?: { showLoader?: boolean; older?: boolean }) => {
+      const seq = ++loadSeq.current;
+      if (opts?.showLoader) {
+        setLoadingThreads((prev) => ({ ...prev, [sessionId]: true }));
+      }
+      const existing = threads[sessionId] ?? [];
+      const oldest = existing[0];
+      const res = await loadLiveChatMessagesAction(sessionId, {
+        beforeCreatedAt: opts?.older && oldest ? oldest.created_at : null,
+        beforeId: opts?.older && oldest ? oldest.id : null,
+        limit: 50,
+      });
+      if (seq !== loadSeq.current) return;
+      setLoadingThreads((prev) => ({ ...prev, [sessionId]: false }));
+      setLoadingOlder(false);
+      if (!res.ok) {
+        if (selectedIdRef.current === sessionId) {
+          setChatErr(res.error || "Could not load messages.");
+        }
+        return;
+      }
+      const incoming = res.messages ?? [];
+      setThreadHasMore((prev) => ({ ...prev, [sessionId]: !!res.hasMore }));
+      setThreads((prev) => {
+        const merged = mergeChatMessages(prev[sessionId] ?? [], incoming);
+        return { ...prev, [sessionId]: merged };
+      });
+    },
+    [threads],
+  );
+
+  const loadAgentEvents = useCallback(
+    async (sessionId: string) => {
+      if (mode !== "admin") return;
+      const res = await loadChatAgentEventsAction(sessionId);
+      if (!res.ok || selectedIdRef.current !== sessionId) return;
+      setAgentEvents(res.events ?? []);
+      setEventsUnavailable(!!res.unavailable);
+    },
+    [mode],
+  );
+
+  const loadTimeline = useCallback(async (sessionId: string) => {
+    if (mode !== "admin") return;
+    const res = await loadChatCaseTimelineAction(sessionId);
+    if (!res.ok || !res.timeline || selectedIdRef.current !== sessionId) return;
+    setTimelineSessionId(sessionId);
+    setTimeline({
+      events: res.timeline.events,
+      escalations: res.timeline.escalations,
+      assignments: res.timeline.assignments,
+    });
+  }, [mode]);
+
+  const loadDirectories = useCallback(async () => {
+    if (mode !== "admin") return;
+    if (rank >= 2) {
+      const res = await loadChatStaffDirectoryAction();
+      if (res.ok) setStaffDir(res.staff ?? []);
+    }
+    const routing = await loadChatRoutingDirectoryAction();
+    if (routing.ok) {
+      setDepartments(routing.departments ?? []);
+      setTeams(routing.teams ?? []);
+    }
+  }, [mode, rank]);
 
   const markRead = useCallback(async (sessionId: string) => {
     await markChatReadAction(sessionId);
@@ -258,25 +457,170 @@ export function LiveChat({
     });
   }, []);
 
+  const scheduleSilentReload = useCallback(() => {
+    if (reloadTimer.current) return;
+    reloadTimer.current = window.setTimeout(() => {
+      reloadTimer.current = null;
+      if (refreshing.current) return;
+      refreshing.current = true;
+      void (loadSessionsRef.current?.() ?? Promise.resolve([])).finally(() => {
+        refreshing.current = false;
+      });
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!user) {
+      setLoadingList(false);
+      setListErr("Not signed in");
+      return;
+    }
+    let active = true;
+    (async () => {
+      const list = await loadSessions({ initial: true });
+      if (!active) return;
+      void loadDirectories();
+      if (initialSessionId) {
+        setFStatus("all");
+        setSelectedId(initialSessionId);
+      } else if (mode === "user" && !bootstrapped.current) {
+        const open = list.find((s) => s.status === "waiting" || s.status === "active");
+        if (open) setSelectedId(open.id);
+      }
+      bootstrapped.current = true;
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user, initialSessionId, mode]);
+
+  // Reload the list when filters/search change (not on every render).
+  useEffect(() => {
+    if (!bootstrapped.current) return;
+    const t = window.setTimeout(() => void loadSessions(), 250);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fStatus, query]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`live-chat-list-${mode}-${user.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_sessions" }, (payload) => {
+        const s = payload.new as ChatSession;
+        if (mode === "user" && s.user_id !== user.id) return;
+        scheduleSilentReload();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_sessions" }, (payload) => {
+        const s = payload.new as ChatSession;
+        if (mode === "user" && s.user_id !== user.id) return;
+        setSessions((prev) => {
+          const exists = prev.some((x) => x.id === s.id);
+          if (!exists) {
+            scheduleSilentReload();
+            return prev;
+          }
+          return prev
+            .map((x) => (x.id === s.id ? reconcileChatSession(x, s) : x))
+            .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at));
+        });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+        const msg = payload.new as ChatMessage;
+        const known = sessionsRef.current.some((x) => x.id === msg.session_id);
+        if (!known) {
+          scheduleSilentReload();
+          return;
+        }
+        const incoming = mode === "admin" ? msg.sender_role === "user" : msg.sender_role === "admin";
+        if (incoming && msg.session_id !== selectedIdRef.current) {
+          setUnread((prev) => ({ ...prev, [msg.session_id]: (prev[msg.session_id] ?? 0) + 1 }));
+        }
+        if (msg.session_id === selectedIdRef.current) {
+          setThreads((prev) => {
+            const current = prev[msg.session_id] ?? [];
+            if (current.some((m) => m.id === msg.id)) return prev;
+            return { ...prev, [msg.session_id]: [...current, msg] };
+          });
+          if (incoming) void markRead(msg.session_id);
+        }
+        setSessions((prev) =>
+          prev.map((x) =>
+            x.id === msg.session_id
+              ? {
+                  ...x,
+                  last_message_at: msg.created_at,
+                  last_message_preview: msg.message.slice(0, 140),
+                  updated_at: msg.created_at,
+                }
+              : x,
+          ),
+        );
+      })
+      .subscribe((status) => {
+        setConnected(status === "SUBSCRIBED");
+        if (status === "SUBSCRIBED") {
+          // Resync after any reconnect so no message is missed.
+          void loadSessionsRef.current?.();
+          const sid = selectedIdRef.current;
+          if (sid) void loadThread(sid);
+        }
+      });
+
+    const onVis = () => {
+      if (document.visibilityState === "visible") void loadSessionsRef.current?.();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVis);
+      if (reloadTimer.current) {
+        window.clearTimeout(reloadTimer.current);
+        reloadTimer.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, user, mode]);
+
+  useEffect(() => {
+    if (!user) return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible" || refreshing.current) return;
+      refreshing.current = true;
+      const sid = selectedIdRef.current;
+      Promise.all([loadSessionsRef.current?.() ?? Promise.resolve([]), sid ? loadThread(sid) : Promise.resolve()]).finally(() => {
+        refreshing.current = false;
+      });
+    }, mode === "admin" ? 12_000 : 25_000);
+    return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, mode]);
+
   useEffect(() => {
     if (!selectedId) {
-      setMessages([]);
-      setLoadingMsgs(false);
       setChatErr(null);
-      messagesSessionRef.current = null;
       lastMsgIdRef.current = null;
+      setAgentEvents([]);
+      setTimeline({ events: [], escalations: [], assignments: [] });
+      setTimelineSessionId(null);
       return;
     }
     const sessionId = selectedId;
-    const isSwitch = messagesSessionRef.current !== sessionId;
-    if (isSwitch) {
-      setMessages([]);
-      setChatErr(null);
-      setLoadingMsgs(true);
-      lastMsgIdRef.current = null;
-    }
-    void loadMessages(sessionId, { showLoader: isSwitch });
+    const hasCache = (threads[sessionId] ?? []).length > 0;
+    if (!hasCache) setLoadingThreads((prev) => ({ ...prev, [sessionId]: true }));
+    setChatErr(null);
+    setActionMsg(null);
+    setShowResolvedHint(false);
+    void loadThread(sessionId, { showLoader: !hasCache });
     void markRead(sessionId);
+    if (mode === "admin") {
+      void loadAgentEvents(sessionId);
+      void loadTimeline(sessionId);
+    }
+
     const channel = supabase
       .channel(`chat-thread-${sessionId}`)
       .on(
@@ -285,7 +629,11 @@ export function LiveChat({
         (payload) => {
           const msg = payload.new as ChatMessage;
           if (msg.session_id !== selectedIdRef.current) return;
-          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+          setThreads((prev) => {
+            const current = prev[msg.session_id] ?? [];
+            if (current.some((m) => m.id === msg.id)) return prev;
+            return { ...prev, [msg.session_id]: [...current, msg] };
+          });
           const incoming = mode === "admin" ? msg.sender_role === "user" : msg.sender_role === "admin";
           if (incoming) void markRead(sessionId);
         },
@@ -295,99 +643,174 @@ export function LiveChat({
         { event: "UPDATE", schema: "public", table: "chat_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
           const s = payload.new as ChatSession;
-          setSessions((prev) =>
-            prev.map((x) =>
-              x.id === s.id
-                ? {
-                    ...x,
-                    ...s,
-                    assigned_admin_id: s.assigned_admin_id ?? x.assigned_admin_id,
-                    assigned_admin_name: s.assigned_admin_name ?? x.assigned_admin_name,
-                    welcome_sent_at: s.welcome_sent_at ?? x.welcome_sent_at,
-                    joined_at: s.joined_at ?? x.joined_at,
-                  }
-                : x,
-            ),
-          );
+          setSessions((prev) => prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)));
         },
       )
       .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedId, supabase, loadMessages, markRead, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, supabase, loadThread, markRead, mode, loadAgentEvents, loadTimeline]);
 
   useEffect(() => {
-    const last = messages[messages.length - 1]?.id ?? null;
+    if (!selectedId) return;
+    const list = threads[selectedId] ?? [];
+    const last = list[list.length - 1]?.id ?? null;
     if (!last || last === lastMsgIdRef.current) return;
     lastMsgIdRef.current = last;
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [threads, selectedId]);
 
   const selected = useMemo(
-    () => sessions.find((s) => s.id === selectedId) ?? null,
-    [sessions, selectedId],
+    () => selectChatSession(sessions, selectedId, fStatus),
+    [sessions, selectedId, fStatus],
   );
 
-  const joinSession = async () => {
-    if (mode !== "admin" || !selectedId || joining) return;
+  const messages = useMemo(
+    () => (selectedId ? threads[selectedId] ?? [] : []),
+    [threads, selectedId],
+  );
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const row = sessions.find((item) => item.id === selectedId);
+    // The detail selector already rejects mismatches during render. Clear the
+    // old ID too, so the mobile queue is visible after a realtime transition.
+    if (row && !chatStatusMatchesFilter(row.status, fStatus)) {
+      setSelectedId(null);
+    }
+  }, [selectedId, sessions, fStatus]);
+
+  const customer = selected ? customers[selected.user_id] : undefined;
+
+  const previousCases = useMemo(() => {
+    if (mode !== "admin" || !selected) return [];
+    return sessions.filter((s) => s.user_id === selected.user_id && s.id !== selected.id);
+  }, [mode, sessions, selected]);
+
+  const counts = useMemo(() => {
+    if (serverCounts) return serverCounts;
+    // Temporary fallback during initial load only; never present page-sized
+    // counts as authoritative once the server aggregate is available.
+    const waiting = sessions.filter((s) => s.status === "waiting").length;
+    const active = sessions.filter((s) => s.status === "active").length;
+    const pendingClient = sessions.filter((s) => s.status === "pending_client").length;
+    const resolved = sessions.filter((s) => s.status === "resolved").length;
+    const closed = sessions.filter((s) => s.status === "closed").length;
+    return { waiting, active, pendingClient, resolved, closed, all: sessions.length };
+  }, [sessions, serverCounts]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = sessions.filter((s) => {
+      // Even when Realtime wins a race against an older inbox RPC snapshot,
+      // an Active case may never render inside the Closed queue.
+      if (!chatStatusMatchesFilter(s.status, fStatus)) return false;
+      const matchQ =
+        !q ||
+        (s.reference_id ?? "").toLowerCase().includes(q) ||
+        (s.last_message_preview ?? "").toLowerCase().includes(q) ||
+        (s.assigned_admin_name ?? "").toLowerCase().includes(q) ||
+        (customers[s.user_id]?.name ?? "").toLowerCase().includes(q) ||
+        (customers[s.user_id]?.email ?? "").toLowerCase().includes(q);
+      if (!matchQ) return false;
+      return true;
+    });
+    if (mode === "admin") {
+      const rankOf = (s: ChatSession) =>
+        s.status === "waiting" ? 0 : s.status === "active" ? 1 : s.status === "pending_client" ? 2 : 3;
+      return [...list].sort((a, b) => {
+        const r = rankOf(a) - rankOf(b);
+        if (r !== 0) return r;
+        return +new Date(b.updated_at) - +new Date(a.updated_at);
+      });
+    }
+    return list;
+  }, [sessions, query, customers, mode, fStatus]);
+
+  const selectedEscalation = useMemo(
+    () => timelineSessionId === selectedId
+      ? timeline.escalations.find((e) => e.status === "pending" || e.status === "accepted") ?? null
+      : null,
+    [timeline.escalations, timelineSessionId, selectedId],
+  );
+
+  const myPendingOffer = useMemo(() => {
+    if (!user) return null;
+    return (
+      timeline.assignments.find((a) => a.status === "offered" && a.assignee_id === user.id) ?? null
+    );
+  }, [timeline.assignments, user]);
+
+  const isAssignedToMe = !!selected && !!user && selected.assigned_admin_id === user.id;
+  const canWriteSelected = canSupervise || isAssignedToMe;
+  const sla = selected ? slaState(selected, now) : null;
+
+  /* ---------------------------------------------------------------- */
+  /*  Actions                                                          */
+  /* ---------------------------------------------------------------- */
+
+  const claim = async () => {
+    if (!selectedId || joining) return;
     setJoining(true);
     setChatErr(null);
-    const res = await joinChatSessionAction(selectedId);
-    if (!res.ok) {
+    setActionMsg(null);
+    const res = await claimChatSessionAction(selectedId);
+    if (!res.ok || !res.session) {
       setJoining(false);
-      setChatErr(res.error ?? "Could not join this session. Please retry.");
+      setChatErr(res.error ?? "Agent assignment could not be confirmed by the database.");
       return;
     }
+    const persisted = res.session;
     setSessions((prev) =>
-      prev.map((s) =>
-        s.id === selectedId
-          ? {
-              ...s,
-              status: (res.status as ChatSession["status"]) ?? "active",
-              assigned_admin_name: res.adminName ?? s.assigned_admin_name,
-              assigned_admin_id: res.assignedAdminId ?? user?.id ?? s.assigned_admin_id,
-              welcome_sent_at: res.welcome ? new Date().toISOString() : s.welcome_sent_at,
-              joined_at: s.joined_at ?? new Date().toISOString(),
-            }
-          : s,
-      ),
+      prev.map((row) => row.id === persisted.id ? persisted : row),
     );
-    await loadMessages(selectedId, { showLoader: false });
-    await loadSessions();
+    // Claimed waiting cases become Active in the database; move the queue
+    // selector to the committed status instead of showing Active under Waiting.
+    setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
+    setActionMsg("You are now the assigned agent. Database ownership confirmed.");
+    await loadThread(selectedId);
+    void loadSessions();
+    void loadTimeline(selectedId);
     setJoining(false);
   };
 
-  const filtered = sessions.filter((s) => {
-    const q = query.toLowerCase();
-    const matchQ =
-      !q ||
-      (s.reference_id ?? "").toLowerCase().includes(q) ||
-      (s.last_message_preview ?? "").toLowerCase().includes(q) ||
-      (s.assigned_admin_name ?? "").toLowerCase().includes(q) ||
-      (profiles[s.user_id] ?? "").toLowerCase().includes(q);
-    if (!matchQ) return false;
-    if (fStatus === "all") return true;
-    if (fStatus === "open") return s.status === "waiting" || s.status === "active";
-    return s.status === fStatus;
-  });
-
   const startChat = async () => {
-    if (starting) return;
+    // Prevent two clicks before React commits the loading state; otherwise
+    // the second request's conflict error could overwrite a successful case.
+    if (startingRef.current) return;
+    startingRef.current = true;
     setStarting(true);
     setChatErr(null);
-    const res = await startChatSessionAction();
+    let res: Awaited<ReturnType<typeof startChatSessionAction>>;
+    try {
+      res = await startChatSessionAction();
+    } catch {
+      startingRef.current = false;
+      setStarting(false);
+      setChatErr("Could not contact the server. Check the session list before retrying.");
+      return;
+    }
     if (!res.ok || !res.sessionId) {
+      startingRef.current = false;
       setStarting(false);
       setChatErr(res.error ?? "Could not start live chat. Please retry.");
       return;
     }
-    const list = await loadSessions();
-    const created = list.find((s) => s.id === res.sessionId) ?? list.find((s) => s.reference_id === res.referenceId);
+    // Render ONLY the newly inserted database row and its own empty thread.
+    // Cancel stale filtered responses before clearing any previous selection.
+    inboxRequestSeq.current += 1;
+    setThreads((prev) => ({ ...prev, [res.sessionId!]: [] }));
+    if (res.session) {
+      setSessions((prev) => [res.session!, ...prev.filter((item) => item.id !== res.sessionId)]);
+    }
+    setQuery("");
     setFStatus("open");
-    if (created) setSelectedId(created.id);
-    else setSelectedId(res.sessionId);
+    setSelectedId(res.sessionId);
     setChatErr(null);
+    startingRef.current = false;
     setStarting(false);
   };
 
@@ -405,45 +828,265 @@ export function LiveChat({
     setReply("");
     setSendOk(true);
     window.setTimeout(() => setSendOk(false), 2500);
-    await loadMessages(selectedId, { showLoader: false });
+    await loadThread(selectedId);
   };
 
-  const closeSession = async () => {
-    if (!selectedId) return;
-    const res = await closeChatSessionAction(selectedId);
-    if (res.ok) {
-      setSessions((prev) => prev.map((s) => (s.id === selectedId ? { ...s, status: "closed" as const } : s)));
-      if (fStatus === "open") setFStatus("closed");
-    } else {
-      setChatErr(res.error ?? "Could not close session");
+  const runDialogAction = async () => {
+    if (!selectedId || !dialog || busy) return;
+    setBusy(true);
+    setChatErr(null);
+    let res: { ok: boolean; error?: string; session?: ChatSession } = { ok: false, error: "Unknown action" };
+    if (dialog.kind === "resolve") {
+      res = await resolveChatSessionAction(selectedId, dialogReason.trim() || undefined);
+      if (res.ok) {
+        setActionMsg("Case resolved and confirmed in the database; history is preserved.");
+        setShowResolvedHint(true);
+        setFStatus("resolved");
+      }
+    } else if (dialog.kind === "close") {
+      res = await closeChatSessionAction(selectedId, dialogReason.trim() || undefined);
+      if (res.ok) {
+        setActionMsg("Case closure confirmed in the database; history is preserved.");
+        setFStatus("closed");
+      }
+    } else if (dialog.kind === "reopen") {
+      res = await reopenChatSessionAction(selectedId, dialogReason.trim());
+      if (res.ok) {
+        setActionMsg("Case reopen confirmed in the database.");
+        setFStatus("open");
+      }
+    } else if (dialog.kind === "return") {
+      res = await returnChatSessionToQueueAction({ sessionId: selectedId, reason: dialogReason.trim() });
+      if (res.ok) {
+        setActionMsg("Case returned to waiting queue. Database state confirmed.");
+        setFStatus("waiting");
+      }
+    } else if (dialog.kind === "assign") {
+      if (
+        (dialogAssignTarget === "staff" && !dialogStaff)
+        || (dialogAssignTarget === "team" && !dialogEscTeam)
+        || (dialogAssignTarget === "department" && !dialogEscDept)
+      ) {
+        setBusy(false);
+        setChatErr("Select a staff member, team, or department before routing the case.");
+        return;
+      }
+      const selectedTeam = teams.find((team) => team.id === dialogEscTeam);
+      res = await assignChatSessionAction({
+        sessionId: selectedId,
+        assigneeId: dialogAssignTarget === "staff" ? dialogStaff : null,
+        teamId: dialogAssignTarget === "team" ? dialogEscTeam : null,
+        departmentId: dialogAssignTarget === "department" ? dialogEscDept : (
+          dialogAssignTarget === "team" ? selectedTeam?.department_id ?? null : null
+        ),
+        reason: dialogReason.trim() || null,
+      });
+      if (res.ok && res.session) {
+        setActionMsg("Assignment and routing verified in the database. Case history is preserved.");
+        const row = res.session;
+        setFStatus(row.status === "waiting" ? "waiting" :
+          row.status === "pending_client" ? "pending_client" : "active");
+      }
+    } else if (dialog.kind === "offer") {
+      res = await offerChatSessionAction({
+        sessionId: selectedId,
+        targetStaffId: dialogStaff,
+        reason: dialogReason.trim(),
+      });
+      if (res.ok) setActionMsg("Transfer offer sent.");
+    } else if (dialog.kind === "escalate") {
+      res = await escalateChatSessionAction({
+        sessionId: selectedId,
+        targetType: dialogEscType,
+        targetStaffId: dialogEscType === "staff" ? dialogStaff || null : null,
+        targetRole: dialogEscType === "role" ? dialogEscRole : null,
+        targetTeamId: dialogEscType === "team" ? dialogEscTeam || null : null,
+        targetDepartmentId: dialogEscType === "department" ? dialogEscDept || null : null,
+        reason: dialogReason.trim(),
+      });
+      if (res.ok) setActionMsg("Escalation created.");
     }
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Action failed.");
+      return;
+    }
+    // Lifecycle badges use only the database row returned after the RPC.
+    if (res.session) {
+      setSessions((prev) => prev.map((row) => row.id === res.session!.id ? res.session! : row));
+    }
+    setDialog(null);
+    setDialogReason("");
+    setDialogStaff("");
+    if (selectedId) {
+      void loadTimeline(selectedId);
+      void loadSessions();
+    }
+  };
+
+  const respondOffer = async (accept: boolean) => {
+    if (!myPendingOffer) return;
+    setBusy(true);
+    const res = await respondChatAssignmentAction({
+      assignmentId: myPendingOffer.id,
+      accept,
+      reason: accept ? null : "Declined by agent",
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Could not respond to the offer.");
+      return;
+    }
+    setActionMsg(accept ? "Transfer accepted by the database." : "Transfer offer declined.");
+    if (accept) setFStatus("active");
+    void loadSessionsRef.current?.();
+    if (selectedId) void loadTimeline(selectedId);
+  };
+
+  const respondEscalation = async (action: "accept" | "reject" | "return" | "cancel") => {
+    if (!selectedEscalation || busy) return;
+    if ((action === "reject" || action === "return") && dialogReason.trim().length < 3) {
+      setChatErr("Enter a reason of at least 3 characters before rejecting or returning an escalation.");
+      return;
+    }
+    setBusy(true);
+    setChatErr(null);
+    const res: { ok: boolean; error?: string; session?: ChatSession } = action === "return"
+      ? await returnChatEscalationToQueueAction(selectedEscalation.id, dialogReason.trim())
+      : await respondChatEscalationAction({
+          escalationId: selectedEscalation.id,
+          action,
+          reason: action === "accept" ? null : dialogReason.trim() || null,
+        });
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Could not respond to the escalation.");
+      return;
+    }
+    if (res.session) {
+      const persisted = res.session;
+      setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+      setFStatus("waiting");
+    }
+    setActionMsg(({
+      accept: "Escalation accepted.",
+      reject: "Escalation rejected.",
+      return: "Escalation and its case returned to the waiting queue.",
+      cancel: "Escalation cancelled.",
+    } as const)[action]);
+    setDialog(null);
+    setDialogReason("");
+    void loadSessionsRef.current?.();
+    if (selectedId) void loadTimeline(selectedId);
+  };
+
+  const saveNote = async () => {
+    if (!selectedId || savingNote) return;
+    const body = noteBody.trim();
+    if (body.length < 2) return;
+    setSavingNote(true);
+    setChatErr(null);
+    const res = await addChatInternalNoteAction({ sessionId: selectedId, body });
+    setSavingNote(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Could not save the internal note.");
+      return;
+    }
+    setNoteBody("");
+    setActionMsg("Internal note saved. Clients cannot see it.");
+    void loadAgentEvents(selectedId);
+  };
+
+  const changePriority = async (priority: ChatSession["priority"]) => {
+    if (!selectedId || !priority) return;
+    const res = await updateChatPriorityAction({ sessionId: selectedId, priority });
+    if (!res.ok || !res.session) {
+      setChatErr(res.error ?? "Priority was not confirmed by the database.");
+      return;
+    }
+    const persisted = res.session;
+    setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+    setActionMsg("Priority saved and verified.");
+    void loadTimeline(selectedId);
+  };
+
+  const togglePendingClient = async () => {
+    if (!selectedId) return;
+    setBusy(true);
+    const res = await markChatPendingClientAction(selectedId);
+    setBusy(false);
+    if (!res.ok) {
+      setChatErr(res.error ?? "Could not update the case.");
+      return;
+    }
+    if (!res.session) {
+      setChatErr("Could not confirm this case status from the database.");
+      return;
+    }
+    const persisted = res.session;
+    setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+    setFStatus("pending_client");
+    setActionMsg("Case is awaiting the customer. Database state confirmed.");
+  };
+
+  const changePresence = async (status: AgentStatus) => {
+    const res = await setChatAgentStatusAction(status);
+    if (!res.ok) setChatErr(res.error ?? "Could not update presence.");
   };
 
   const supportHref = mode === "admin" ? "/admin/support" : "/dashboard/support";
   const presenceLabel =
     agentOnline === null ? "Checking agent status" : agentOnline ? "Agents online" : "Agents offline";
+  const showThreadLoader = selectedId ? loadingThreads[selectedId] && messages.length === 0 : false;
+
+  const filterTabs: { value: FilterValue; label: string; count: number }[] =
+    mode === "admin"
+      ? [
+          { value: "waiting", label: "Waiting", count: counts.waiting },
+          { value: "active", label: "Active", count: counts.active },
+          { value: "pending_client", label: "Awaiting", count: counts.pendingClient },
+          { value: "resolved", label: "Resolved", count: counts.resolved },
+          { value: "closed", label: "Closed", count: counts.closed },
+          { value: "all", label: "All", count: counts.all },
+        ]
+      : [
+          { value: "open", label: "Open", count: counts.waiting + counts.active + counts.pendingClient },
+          { value: "resolved", label: "Resolved", count: counts.resolved },
+          { value: "closed", label: "Closed", count: counts.closed },
+          { value: "all", label: "All", count: counts.all },
+        ];
+
+  const openDialog = (kind: NonNullable<typeof dialog>["kind"]) => {
+    setDialog({ kind } as NonNullable<typeof dialog>);
+    setDialogReason("");
+    setDialogStaff("");
+    setDialogAssignTarget("staff");
+    setDialogEscTeam("");
+    setDialogEscDept("");
+    setChatErr(null);
+  };
 
   return (
-    <div className="glass gradient-border flex h-[calc(100dvh-13rem)] min-h-[480px] flex-col overflow-hidden rounded-3xl lg:flex-row">
-      <aside className={cn("flex w-full flex-col border-b border-border/60 lg:w-80 lg:border-b-0 lg:border-r", selectedId ? "hidden lg:flex" : "")}>
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-          <div>
-            <h2 className="font-display text-sm font-bold">{mode === "admin" ? "Client sessions" : "Your sessions"}</h2>
+    <div className="glass gradient-border flex h-[calc(100dvh-11rem)] min-h-[560px] flex-col overflow-hidden rounded-3xl lg:h-[calc(100dvh-9rem)] lg:flex-row">
+      {/* Queue / list panel */}
+      <aside
+        className={cn(
+          "flex w-full flex-col border-b border-border/60 lg:w-[20rem] lg:shrink-0 lg:border-b-0 lg:border-r",
+          selectedId ? "hidden lg:flex" : "",
+        )}
+      >
+        <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="font-display text-sm font-bold">
+              {mode === "admin" ? "Support queue" : "Your sessions"}
+            </h2>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <span className={cn("h-1.5 w-1.5 rounded-full", agentOnline ? "bg-emerald-500" : "bg-slate-400")} />
               {presenceLabel}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                if (sessions.length === 0) setLoadingList(true);
-                void loadSessions();
-              }}
-              aria-label="Refresh sessions"
-            >
+            <Button size="sm" variant="outline" onClick={() => void loadSessions()} aria-label="Refresh sessions">
               <RefreshCw className="h-4 w-4" />
             </Button>
             {mode === "user" && (
@@ -454,26 +1097,72 @@ export function LiveChat({
             )}
           </div>
         </div>
+
+        {mode === "admin" && isStaff && (
+          <div className="border-b border-border/60 px-3 py-2">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              My presence
+            </label>
+            <select
+              className="mt-1 h-8 w-full rounded-lg border border-input bg-white/60 px-2 text-xs dark:bg-white/5"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) void changePresence(e.target.value as AgentStatus);
+              }}
+              aria-label="Set my agent presence"
+            >
+              <option value="" disabled>
+                Set status…
+              </option>
+              {AGENT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {AGENT_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="space-y-2 border-b border-border/60 px-3 py-3">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={mode === "admin" ? "Search client or session ID…" : "Search session ID…"}
+              placeholder={mode === "admin" ? "Search client, email, case ID…" : "Search case ID…"}
               className="h-9 pl-9 text-xs"
             />
           </div>
-          <select
-            value={fStatus}
-            onChange={(e) => setFStatus(e.target.value)}
-            className="h-9 w-full rounded-xl border border-input bg-white/60 px-3 text-xs dark:bg-white/5"
-            aria-label="Filter sessions"
-          >
-            <option value="open">Open sessions</option>
-            <option value="closed">Closed sessions</option>
-            <option value="all">All sessions</option>
-          </select>
+          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Session filters">
+            {filterTabs.map((tab) => {
+              const activeTab = fStatus === tab.value;
+              const alert = tab.value === "waiting" && tab.count > 0;
+              return (
+                <button
+                  key={tab.value}
+                  role="tab"
+                  aria-selected={activeTab}
+                  onClick={() => {
+                    inboxRequestSeq.current += 1;
+                    setSelectedId(null);
+                    setFStatus(tab.value);
+                  }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                    activeTab
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border/60 text-muted-foreground hover:bg-primary/5",
+                  )}
+                >
+                  {alert && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+                  {tab.label}
+                  <span className={cn("tabular-nums", activeTab ? "text-primary/80" : "text-muted-foreground/70")}>
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
           {listErr && sessions.length > 0 && (
             <p className="text-xs text-red-500" role="alert">
               {listErr}{" "}
@@ -482,15 +1171,12 @@ export function LiveChat({
               </button>
             </p>
           )}
-          {chatErr && !selectedId && (
-            <p className="text-xs text-red-500" role="alert">
-              {chatErr}
-            </p>
-          )}
         </div>
+
         <div className="flex-1 overflow-y-auto">
           {loadingList && sessions.length === 0 ? (
             <div className="space-y-3 p-4">
+              <Skeleton className="h-16" />
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
             </div>
@@ -502,7 +1188,7 @@ export function LiveChat({
                 variant="outline"
                 onClick={() => {
                   setLoadingList(true);
-                  void loadSessions();
+                  void loadSessions({ initial: true });
                 }}
               >
                 Retry
@@ -514,29 +1200,16 @@ export function LiveChat({
               <p className="text-sm text-muted-foreground">
                 {fStatus === "closed"
                   ? "No closed live chat sessions yet."
-                  : fStatus === "open" && sessions.length > 0
-                    ? "No open sessions. Closed cases are under Closed sessions."
-                    : "No live chat sessions yet."}
+                  : fStatus === "resolved"
+                    ? "No resolved cases right now."
+                    : fStatus === "waiting"
+                      ? "The waiting queue is empty. New client sessions appear here automatically."
+                      : "No live chat sessions yet."}
               </p>
-              {chatErr && (
-                <p className="text-sm text-red-500" role="alert">
-                  {chatErr}
-                </p>
-              )}
               {mode === "user" && fStatus !== "closed" && (
                 <Button size="sm" variant="outline" onClick={startChat} disabled={starting}>
                   {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {chatErr ? "Retry live chat" : "Start a live chat"}
-                </Button>
-              )}
-              {fStatus === "closed" && sessions.some((s) => s.status === "waiting" || s.status === "active") && (
-                <Button size="sm" variant="outline" onClick={() => setFStatus("open")}>
-                  View open sessions
-                </Button>
-              )}
-              {fStatus === "open" && sessions.some((s) => s.status === "closed") && (
-                <Button size="sm" variant="outline" onClick={() => setFStatus("closed")}>
-                  View closed sessions
                 </Button>
               )}
             </div>
@@ -545,23 +1218,30 @@ export function LiveChat({
               {filtered.map((s) => {
                 const active = s.id === selectedId;
                 const unreadCount = unread[s.id] ?? 0;
-                const isNew = s.status === "waiting";
+                const who = customers[s.user_id];
+                const waitFrom = s.status === "waiting" ? s.created_at : s.joined_at ?? s.created_at;
+                const rowSla = slaState(s, now);
                 return (
                   <li key={s.id}>
                     <button
-                      onClick={() => setSelectedId(s.id)}
+                      onClick={() => {
+                        setSelectedId(s.id);
+                        setDetailsOpen(false);
+                      }}
                       className={cn(
-                        "flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors",
-                        active ? "bg-gradient-to-r from-blue-600/10 to-cyan-400/10" : "hover:bg-primary/5",
+                        "flex w-full items-start gap-3 border-l-2 px-4 py-3.5 text-left transition-colors",
+                        active
+                          ? "border-primary bg-gradient-to-r from-blue-600/10 to-cyan-400/10"
+                          : "border-transparent hover:bg-primary/5",
                       )}
                     >
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
                           <span className="truncate text-sm font-semibold">
-                            {mode === "admin" ? profiles[s.user_id] ?? "Client" : s.reference_id ?? "Pending ID"}
+                            {mode === "admin" ? who?.name ?? "Client" : s.reference_id ?? "Pending ID"}
                           </span>
                           <span className="flex shrink-0 items-center gap-1">
-                            {isNew && (
+                            {s.status === "waiting" && (
                               <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                                 New
                               </span>
@@ -573,20 +1253,38 @@ export function LiveChat({
                             )}
                           </span>
                         </span>
-                        <span className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">
-                          {mode === "admin" ? s.reference_id ?? "Pending ID" : s.last_message_preview || "No messages yet"}
-                        </span>
                         {mode === "admin" && (
-                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                            {s.last_message_preview || "Waiting for first message"}
+                          <span className="mt-0.5 flex items-center gap-1.5 text-[11px] font-medium text-cyan-600 dark:text-cyan-400">
+                            <span className="font-mono tracking-wide">{s.reference_id ?? "Pending ID"}</span>
                           </span>
                         )}
-                        <span className="mt-1 flex items-center gap-2">
+                        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                          {s.last_message_preview || "No messages yet"}
+                        </span>
+                        <span className="mt-1.5 flex flex-wrap items-center gap-2">
                           <StatusBadge status={s.status} />
-                          <span className="text-[10px] text-muted-foreground">
-                            {s.status === "closed"
-                              ? `Opened ${fmtDate(s.created_at)}`
-                              : `${fmtDate(s.updated_at)} ${fmtTime(s.updated_at)}`}
+                          {mode === "admin" && s.priority && s.priority !== "normal" && (
+                            <span
+                              className={cn(
+                                "rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                                priorityStyle(s.priority),
+                              )}
+                            >
+                              {PRIORITY_LABELS[s.priority] ?? s.priority}
+                            </span>
+                          )}
+                          {(rowSla.firstOverdue || rowSla.resolutionOverdue) && (
+                            <span className="rounded-full border border-red-500/40 bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-600 dark:text-red-400">
+                              SLA
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {s.status === "closed" || s.status === "resolved"
+                              ? fmtDate(s.created_at)
+                              : s.status === "waiting"
+                                ? `Waiting ${fmtDuration(waitFrom, now)}`
+                                : `Open ${fmtDuration(waitFrom, now)}`}
                           </span>
                         </span>
                       </span>
@@ -594,12 +1292,35 @@ export function LiveChat({
                   </li>
                 );
               })}
+              {nextCursor?.has_more && (
+                <li className="p-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    disabled={loadingMore}
+                    onClick={() => {
+                      setLoadingMore(true);
+                      void loadSessions({ append: true });
+                    }}
+                  >
+                    {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Load more
+                  </Button>
+                </li>
+              )}
             </ul>
           )}
         </div>
       </aside>
 
-      <section className={cn("flex min-w-0 flex-1 flex-col", !selectedId ? "hidden lg:flex" : "")}>
+      {/* Thread panel */}
+      <section
+        className={cn(
+          "flex min-w-0 flex-1 flex-col border-b border-border/60 lg:border-b-0",
+          !selectedId ? "hidden lg:flex" : "",
+        )}
+      >
         {!selected ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/20 to-cyan-400/20 text-cyan-500">
@@ -608,17 +1329,13 @@ export function LiveChat({
             {mode === "user" ? (
               <>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  Start a live session for realtime help. Support cases stay in Support Inbox and are never mixed with chat.
+                  Start a live session for realtime help. Each case keeps a permanent reference ID, and closed cases
+                  stay in your history. Support cases live in Support Inbox.
                 </p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className={cn("h-2 w-2 rounded-full", agentOnline ? "bg-emerald-500" : "bg-slate-400")} />
                   {presenceLabel}
                 </div>
-                {agentOnline === false && (
-                  <p className="max-w-sm text-xs text-amber-600 dark:text-amber-400">
-                    Agents are offline right now. You can still start a session, or open a support case instead.
-                  </p>
-                )}
                 {chatErr && (
                   <p className="max-w-sm text-sm text-red-500" role="alert">
                     {chatErr}
@@ -635,14 +1352,24 @@ export function LiveChat({
                 </div>
               </>
             ) : (
-              <p className="max-w-sm text-sm text-muted-foreground">
-                Admin console. Select a client session, then Join session to take the case. Opening the list does not join.
-              </p>
+              <div className="max-w-md space-y-2">
+                <p className="font-display text-sm font-bold">Select a conversation to begin</p>
+                <p className="text-sm text-muted-foreground">
+                  New client sessions arrive in the Waiting queue automatically. Opening the list does not join a
+                  case — use Claim case to take it.
+                </p>
+                {counts.waiting > 0 && (
+                  <p className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    {counts.waiting} waiting for an agent
+                  </p>
+                )}
+              </div>
             )}
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3 border-b border-border/60 px-5 py-3">
+            <div className="flex flex-wrap items-start gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
               <button
                 className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary lg:hidden"
                 onClick={() => setSelectedId(null)}
@@ -651,159 +1378,297 @@ export function LiveChat({
                 <ChevronLeft className="h-4 w-4" /> Sessions
               </button>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-sm font-bold">
-                  {mode === "admin"
-                    ? profiles[selected.user_id] ?? "Client"
-                    : selected.reference_id ?? "Session"}
+                <p className="truncate font-display text-base font-bold">
+                  {mode === "admin" ? customer?.name ?? "Client" : selected.reference_id ?? "Session"}
                 </p>
-                <p className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  {mode === "admin" ? (
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground">
+                  {mode === "admin" && (
                     <>
-                      <span>Case {selected.reference_id ?? "pending"}</span>
-                      {selected.assigned_admin_name ? (
-                        <span>Joined as {selected.assigned_admin_name}</span>
-                      ) : selected.status === "waiting" ? (
-                        <span>Waiting — join to take this case</span>
-                      ) : (
-                        <span>Not joined</span>
-                      )}
+                      <span className="inline-flex items-center gap-1 font-mono text-cyan-600 dark:text-cyan-400">
+                        Case {selected.reference_id ?? "pending"}
+                      </span>
+                      <span>
+                        {selected.status === "resolved"
+                          ? `Resolved ${fmtDate(selected.resolved_at ?? selected.updated_at)}`
+                          : selected.status === "closed"
+                            ? `Closed ${fmtDate(selected.closed_at ?? selected.updated_at)}`
+                            : `${fmtDuration(
+                                selected.status === "waiting" ? selected.created_at : selected.joined_at ?? selected.created_at,
+                                now,
+                              )}`}
+                      </span>
+                      {selected.assigned_admin_name && <span>Owner: {selected.assigned_admin_name}</span>}
+                      {selected.team_id && <span>Team routed</span>}
                     </>
-                  ) : selected.assigned_admin_name ? (
-                    `Connected with ${selected.assigned_admin_name}`
-                  ) : selected.status === "waiting" ? (
-                    "Waiting for an agent"
-                  ) : (
-                    "Support team"
                   )}
-                  <span className="inline-flex items-center gap-1">
+                  {mode === "user" && (
+                    <span>
+                      {selected.assigned_admin_name
+                        ? `Connected with ${selected.assigned_admin_name}`
+                        : selected.status === "waiting"
+                          ? "Waiting for an agent"
+                          : selected.status === "resolved"
+                            ? `Resolved ${fmtDate(selected.resolved_at ?? selected.updated_at)}`
+                            : selected.status === "closed"
+                              ? `Closed ${fmtDate(selected.closed_at ?? selected.updated_at)}`
+                              : "Support team"}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1" aria-live="polite">
                     {connected ? <Radio className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3" />}
-                    {connected ? "Realtime connected" : "Refreshing…"}
+                    {connected ? "Realtime" : "Auto-refresh"}
                   </span>
-                </p>
+                </div>
               </div>
-              <StatusBadge status={selected.status} />
-              {mode === "admin" && selected.status !== "closed" && !selected.assigned_admin_id && (
-                <Button size="sm" onClick={joinSession} disabled={joining}>
-                  {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Join session
-                </Button>
-              )}
-              {selected.status !== "closed" && (mode === "user" || selected.assigned_admin_id) && (
-                <Button size="sm" variant="outline" onClick={closeSession}>
-                  End session
-                </Button>
-              )}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <StatusBadge status={selected.status} />
+                {mode === "admin" && isStaff && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="xl:hidden"
+                    onClick={() => setDetailsOpen(true)}
+                    aria-label="Open case details"
+                  >
+                    <StickyNote className="h-4 w-4" /> Details
+                  </Button>
+                )}
+                {mode === "admin" && selected.status !== "resolved" && selected.status !== "closed" && !selected.assigned_admin_id && (
+                  <Button size="sm" onClick={claim} disabled={joining}>
+                    {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
+                    Claim case
+                  </Button>
+                )}
+                {mode === "admin" && canWriteSelected && selected.status !== "resolved" && selected.status !== "closed" && (
+                  <Button size="sm" variant="outline" onClick={() => openDialog("resolve")} disabled={busy}>
+                    <CheckCircle2 className="h-4 w-4" /> Resolve
+                  </Button>
+                )}
+                {mode === "admin" && canSupervise && selected.status !== "closed" && (
+                  <Button size="sm" variant="ghost" onClick={() => openDialog("close")} disabled={busy}>
+                    Close
+                  </Button>
+                )}
+                {mode === "admin" && (selected.status === "resolved" || selected.status === "closed") &&
+                  ((selected.status === "resolved" && rank >= 2) || (selected.status === "closed" && canSupervise)) && (
+                    <Button size="sm" variant="outline" onClick={() => openDialog("reopen")} disabled={busy}>
+                      <RotateCcw className="h-4 w-4" /> Reopen
+                    </Button>
+                  )}
+                {mode === "user" && selected.status !== "resolved" && selected.status !== "closed" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const res = await clientEndChatSessionAction(selected.id);
+                      if (res.ok && res.session) {
+                        setSessions((prev) => prev.map((s) => s.id === res.session!.id ? res.session! : s));
+                        setFStatus("resolved");
+                        setActionMsg("Case ended and confirmed in the database. New Chat creates a separate case.");
+                      } else {
+                        setChatErr(res.error ?? "Could not end the session.");
+                      }
+                    }}
+                  >
+                    End session
+                  </Button>
+                )}
+              </div>
             </div>
 
-            {selected.assigned_admin_name && selected.status !== "closed" && (
-              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-5 py-2.5 text-xs text-emerald-700 dark:text-emerald-300">
+            {mode === "admin" && isStaff && myPendingOffer && selected.assigned_admin_id !== user?.id && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-500/30 bg-cyan-500/10 px-4 py-2.5 text-xs text-cyan-700 dark:text-cyan-300 sm:px-5">
+                <span>You have a pending transfer offer for this case.</span>
+                <div className="flex gap-1.5">
+                  <Button size="sm" onClick={() => void respondOffer(true)} disabled={busy}>
+                    Accept
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => void respondOffer(false)} disabled={busy}>
+                    Decline
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {selected.assigned_admin_id === user?.id && selected.status !== "resolved" && selected.status !== "closed" && (
+              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 sm:px-5">
                 {mode === "admin"
-                  ? `You joined as ${selected.assigned_admin_name}. The client can see your name and welcome message.`
+                  ? `You are handling this case as ${selected.assigned_admin_name ?? "the assigned agent"}.`
                   : `${selected.assigned_admin_name} has joined this chat.`}
               </div>
             )}
 
-            {mode === "user" && agentOnline === false && selected.status !== "closed" && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-xs text-amber-700 dark:text-amber-300">
-                <span>Agents are offline. Messages are saved. You can also open a support case.</span>
-                <Button size="sm" variant="outline" asChild>
-                  <Link href={supportHref}>Open a support case</Link>
-                </Button>
+            {actionMsg && (
+              <div className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-primary/5 px-4 py-2 text-xs font-medium text-primary sm:px-5" role="status" aria-live="polite">
+                <span>{actionMsg}</span>
+                {showResolvedHint && (
+                  <button
+                    className="rounded-full border border-primary/40 px-2 py-0.5 text-[11px] font-semibold"
+                    onClick={() => {
+                      setFStatus("resolved");
+                      setShowResolvedHint(false);
+                    }}
+                  >
+                    Show resolved
+                  </button>
+                )}
               </div>
             )}
 
-            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-5">
-              {loadingMsgs && messages.length === 0 ? (
+            {mode === "admin" && isStaff && selectedEscalation && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-orange-500/30 bg-orange-500/10 px-4 py-2.5 text-xs text-orange-700 dark:text-orange-300 sm:px-5">
+                <span className="inline-flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Escalation {selectedEscalation.status} · {selectedEscalation.reason.slice(0, 60)}
+                </span>
+                {selectedEscalation.status === "pending" && (
+                  <div className="flex gap-1.5">
+                    <Button size="sm" onClick={() => void respondEscalation("accept")} disabled={busy}>
+                      Accept
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => openDialog("escalate")} disabled={busy}>
+                      Manage
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5" aria-live="polite">
+              {showThreadLoader ? (
                 <div className="space-y-3">
                   <Skeleton className="h-12 w-2/3" />
                   <Skeleton className="ml-auto h-12 w-1/2" />
+                  <Skeleton className="h-12 w-3/5" />
                 </div>
               ) : chatErr && messages.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-8 text-center">
                   <p className="text-sm text-red-500">{chatErr}</p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      void loadMessages(selected.id, { showLoader: true });
-                    }}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => void loadThread(selected.id, { showLoader: true })}>
                     Retry
                   </Button>
                 </div>
               ) : messages.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No messages yet. Say hello.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {mode === "admin" ? "No messages yet. Claim the case and greet the client." : "No messages yet. Say hello."}
+                </p>
               ) : (
-                <AnimatePresence initial={false}>
-                  {messages.map((m) => {
-                    const mine = mode === "admin" ? m.sender_role === "admin" : m.sender_role === "user";
-                    return (
-                      <motion.div
-                        key={m.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={cn("flex", mine ? "justify-end" : "justify-start")}
+                <>
+                  {threadHasMore[selected.id] && (
+                    <div className="flex justify-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loadingOlder}
+                        onClick={() => {
+                          setLoadingOlder(true);
+                          void loadThread(selected.id, { older: true });
+                        }}
                       >
-                        <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "text-right" : "text-left")}>
-                          <div
-                            className={cn(
-                              "inline-block rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed",
-                              mine
-                                ? "rounded-br-md bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-glow"
-                                : "rounded-bl-md bg-primary/5 text-foreground",
-                            )}
-                          >
-                            {!mine && (
-                              <p className="mb-1 text-[10px] font-semibold tracking-wide text-cyan-500">
-                                {senderLabel(m, selected, mode)}
-                              </p>
-                            )}
-                            {mine && m.sender_role === "admin" && (
-                              <p className="mb-1 text-[10px] font-semibold tracking-wide text-white/80">
-                                {senderLabel(m, selected, mode)}
-                              </p>
-                            )}
-                            <p className="whitespace-pre-line">{m.message}</p>
+                        {loadingOlder ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+                        Load earlier messages
+                      </Button>
+                    </div>
+                  )}
+                  <AnimatePresence initial={false}>
+                    {messages.map((m) => {
+                      const mine = mode === "admin" ? m.sender_role === "admin" : m.sender_role === "user";
+                      const isWelcome = m.kind === "welcome";
+                      return (
+                        <motion.div
+                          key={m.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={cn("flex", mine ? "justify-end" : "justify-start")}
+                        >
+                          <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "text-right" : "text-left")}>
+                            <div
+                              className={cn(
+                                "inline-block rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed",
+                                mine
+                                  ? "rounded-br-md bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-glow"
+                                  : "rounded-bl-md bg-primary/5 text-foreground",
+                                isWelcome && "ring-1 ring-cyan-400/40",
+                              )}
+                            >
+                              {!mine && (
+                                <p className="mb-1 text-[10px] font-semibold tracking-wide text-cyan-500">
+                                  {senderLabel(m, selected, mode)}
+                                </p>
+                              )}
+                              {mine && m.sender_role === "admin" && (
+                                <p className="mb-1 text-[10px] font-semibold tracking-wide text-white/80">
+                                  {senderLabel(m, selected, mode)}
+                                </p>
+                              )}
+                              <p className="whitespace-pre-line">{m.message}</p>
+                            </div>
+                            <p className={cn("mt-1 text-[10px] text-muted-foreground", mine ? "text-right" : "text-left")}>
+                              {fmtTime(m.created_at)}
+                              {" · "}
+                              {senderLabel(m, selected, mode)}
+                            </p>
                           </div>
-                          <p className={cn("mt-1 text-[10px] text-muted-foreground", mine ? "text-right" : "text-left")}>
-                            {fmtTime(m.created_at)}
-                            {" · "}
-                            {senderLabel(m, selected, mode)}
-                          </p>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </>
               )}
             </div>
 
-            {selected.status !== "closed" ? (
-              <div className="border-t border-border/60 p-4">
-                {chatErr && (
-                  <p className="mb-2 text-xs text-red-500" role="alert">
-                    {chatErr}{" "}
-                    {mode === "admin" && !selected.assigned_admin_id ? (
-                      <button className="font-semibold underline" onClick={() => void joinSession()}>
-                        Retry join
+            {chatErr && messages.length > 0 && (
+              <p className="px-4 pt-2 text-xs text-red-500 sm:px-5" role="alert">
+                {chatErr}
+              </p>
+            )}
+
+            <div className="border-t border-border/60 p-3 sm:p-4">
+              {selected.status === "resolved" || selected.status === "closed" ? (
+                <div className="text-center text-sm text-muted-foreground">
+                  {selected.status === "resolved" ? "This case is resolved." : "This case is closed."} Its reference ID
+                  and full history are kept.{" "}
+                  {mode === "user" ? (
+                    <>
+                      Send a message to reopen it (within 72 hours), or{" "}
+                      <button className="font-semibold text-primary hover:underline" onClick={startChat}>
+                        start a new case
                       </button>
-                    ) : null}
+                      {"."}
+                    </>
+                  ) : (
+                    <span>Use Reopen to continue working on it, or ask the client to start a new case.</span>
+                  )}
+                </div>
+              ) : mode === "admin" && !selected.assigned_admin_id ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    Claim this case to reply as the assigned agent.
                   </p>
-                )}
-                {sendOk && (
-                  <p className="mb-2 text-xs text-emerald-600 dark:text-emerald-400" role="status">
-                    Message sent
+                  <Button size="sm" onClick={claim} disabled={joining}>
+                    {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
+                    Claim case
+                  </Button>
+                </div>
+              ) : mode === "admin" && !canWriteSelected ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-primary/5 px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    This case is owned by {selected.assigned_admin_name ?? "another agent"}. Only the owner or a
+                    supervisor can reply.
                   </p>
-                )}
-                {mode === "admin" && !selected.assigned_admin_id ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm text-muted-foreground">Join this waiting session to send the welcome message and reply as support.</p>
-                    <Button size="sm" onClick={joinSession} disabled={joining}>
-                      {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Join session
+                  {rank >= 2 && (
+                    <Button size="sm" variant="outline" onClick={() => openDialog("offer")} disabled={busy}>
+                      <ArrowUpRight className="h-4 w-4" /> Offer transfer
                     </Button>
-                  </div>
-                ) : (
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {sendOk && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400" role="status">
+                      Message sent
+                    </p>
+                  )}
                   <div className="flex items-end gap-2">
                     <textarea
                       value={reply}
@@ -811,12 +1676,12 @@ export function LiveChat({
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
-                          sendReply();
+                          void sendReply();
                         }
                       }}
                       placeholder={mode === "user" ? "Message the support team…" : "Reply as agent…"}
                       rows={2}
-                      className="flex-1 rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
+                      className="flex-1 resize-none rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
                       aria-label="Live chat message"
                     />
                     <Button size="sm" onClick={sendReply} disabled={sending || !reply.trim()}>
@@ -824,30 +1689,629 @@ export function LiveChat({
                       Send
                     </Button>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="border-t border-border/60 p-4 text-center text-sm text-muted-foreground">
-                This session is closed. History and case ID are kept.{" "}
-                {mode === "user" ? (
-                  <>
-                    <button className="font-semibold text-primary hover:underline" onClick={startChat}>
-                      Start a new chat
-                    </button>
-                    {" with a new case ID, or "}
-                    <Link href={supportHref} className="font-semibold text-primary hover:underline">
-                      open a support case
-                    </Link>
-                    .
-                  </>
-                ) : (
-                  "The client can start a new session if they still need help."
-                )}
-              </div>
-            )}
+                  {mode === "admin" && canWriteSelected && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button size="sm" variant="ghost" onClick={togglePendingClient} disabled={busy}>
+                        <Timer className="h-3.5 w-3.5" /> Waiting for customer
+                      </Button>
+                      {rank >= 2 && (
+                        <Button size="sm" variant="ghost" onClick={() => openDialog("offer")} disabled={busy}>
+                          <ArrowUpRight className="h-3.5 w-3.5" /> Transfer
+                        </Button>
+                      )}
+                      {canSupervise && (
+                        <Button size="sm" variant="ghost" onClick={() => openDialog("assign")} disabled={busy}>
+                          <UserPlus className="h-3.5 w-3.5" /> Assign
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => openDialog("escalate")} disabled={busy}>
+                        <AlertTriangle className="h-3.5 w-3.5" /> Escalate
+                      </Button>
+                      {(isAssignedToMe || canSupervise) && (
+                        <Button size="sm" variant="ghost" onClick={() => openDialog("return")} disabled={busy}>
+                          <RotateCcw className="h-3.5 w-3.5" /> Return to queue
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </>
         )}
       </section>
+
+      {/* Details panel: inline on wide screens, slide-over otherwise */}
+      {mode === "admin" && selected && (
+        <>
+          <aside
+            className={cn(
+              "hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/60 xl:flex",
+            )}
+          >
+            <DetailsBody
+              selected={selected}
+              customer={customer}
+              sla={sla}
+              rank={rank}
+              isAssignedToMe={isAssignedToMe}
+              canSupervise={canSupervise}
+              agentEvents={agentEvents}
+              eventsUnavailable={eventsUnavailable}
+              noteBody={noteBody}
+              setNoteBody={setNoteBody}
+              savingNote={savingNote}
+              saveNote={saveNote}
+              timeline={timeline}
+              previousCases={previousCases}
+              onSelectCase={(id) => setSelectedId(id)}
+              onChangePriority={changePriority}
+              openDialog={openDialog}
+              busy={busy}
+            />
+          </aside>
+
+          <AnimatePresence>
+            {detailsOpen && (
+              <motion.div
+                className="fixed inset-0 z-50 flex justify-end bg-black/40 xl:hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setDetailsOpen(false)}
+              >
+                <motion.aside
+                  className="flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-border bg-background"
+                  initial={{ x: "100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "100%" }}
+                  transition={{ type: "tween", duration: 0.22 }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="Case details"
+                >
+                  <div className="sticky top-0 flex items-center justify-between border-b border-border/60 bg-background px-4 py-3">
+                    <p className="font-display text-sm font-bold">Case details</p>
+                    <Button size="sm" variant="ghost" onClick={() => setDetailsOpen(false)} aria-label="Close details">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <DetailsBody
+                    selected={selected}
+                    customer={customer}
+                    sla={sla}
+                    rank={rank}
+                    isAssignedToMe={isAssignedToMe}
+                    canSupervise={canSupervise}
+                    agentEvents={agentEvents}
+                    eventsUnavailable={eventsUnavailable}
+                    noteBody={noteBody}
+                    setNoteBody={setNoteBody}
+                    savingNote={savingNote}
+                    saveNote={saveNote}
+                    timeline={timeline}
+                    previousCases={previousCases}
+                    onSelectCase={(id) => {
+                      setSelectedId(id);
+                      setDetailsOpen(false);
+                    }}
+                    onChangePriority={changePriority}
+                    openDialog={openDialog}
+                    busy={busy}
+                    bare
+                  />
+                </motion.aside>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
+
+      {/* Dialogs */}
+      <AnimatePresence>
+        {dialog && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => !busy && setDialog(null)}
+          >
+            <motion.div
+              className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-xl"
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={
+                dialog.kind === "assign"
+                  ? "Assign case"
+                  : dialog.kind === "offer"
+                    ? "Offer transfer"
+                    : dialog.kind === "escalate"
+                      ? "Escalate case"
+                      : `Confirm ${dialog.kind}`
+              }
+            >
+              <h3 className="font-display text-base font-bold capitalize">
+                {`${dialog.kind} case`}
+              </h3>
+
+              {(dialog.kind === "assign" || dialog.kind === "offer") && (
+                <div className="mt-3 space-y-2">
+                  {dialog.kind === "assign" && (
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Route the case to</label>
+                      <select
+                        value={dialogAssignTarget}
+                        onChange={(e) => setDialogAssignTarget(e.target.value as typeof dialogAssignTarget)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="staff">Another staff member</option>
+                        <option value="team">A support team</option>
+                        <option value="department">A department</option>
+                        <option value="queue">Unassigned waiting queue</option>
+                      </select>
+                    </>
+                  )}
+                  {(dialog.kind === "offer" || (dialog.kind === "assign" && dialogAssignTarget === "staff")) && (
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Staff member</label>
+                      <select
+                        value={dialogStaff}
+                        onChange={(e) => setDialogStaff(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="">Select staff…</option>
+                        {staffDir.filter((m) => m.id !== user?.id).map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} · {CHAT_STAFF_ROLE_LABELS[m.staff_role] ?? m.staff_role} · {m.active_cases} active
+                          </option>
+                        ))}
+                      </select>
+                      {staffDir.length <= 1 && (
+                        <p className="text-[11px] text-amber-600">No additional agent is configured. An administrator must provision real staff accounts first.</p>
+                      )}
+                    </>
+                  )}
+                  {dialog.kind === "assign" && dialogAssignTarget === "team" && (
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Support team</label>
+                      <select
+                        value={dialogEscTeam}
+                        onChange={(e) => setDialogEscTeam(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="">Select team…</option>
+                        {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+                      </select>
+                      {teams.length === 0 && <p className="text-[11px] text-amber-600">No support teams have been configured.</p>}
+                    </>
+                  )}
+                  {dialog.kind === "assign" && dialogAssignTarget === "department" && (
+                    <>
+                      <label className="text-xs font-semibold text-muted-foreground">Department</label>
+                      <select
+                        value={dialogEscDept}
+                        onChange={(e) => setDialogEscDept(e.target.value)}
+                        className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                      >
+                        <option value="">Select department…</option>
+                        {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+                      </select>
+                      {departments.length === 0 && <p className="text-[11px] text-amber-600">No support departments have been configured.</p>}
+                    </>
+                  )}
+                  {dialog.kind === "assign" && dialogAssignTarget === "queue" && (
+                    <p className="text-xs text-muted-foreground">Remove the current assignee and return the case to the waiting queue.</p>
+                  )}
+                </div>
+              )}
+
+              {dialog.kind === "escalate" && !selectedEscalation && (
+                <div className="mt-3 space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground">Escalate to</label>
+                  <select
+                    value={dialogEscType}
+                    onChange={(e) => setDialogEscType(e.target.value as typeof dialogEscType)}
+                    className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                  >
+                    <option value="staff">A specific staff member</option>
+                    <option value="role">A role queue</option>
+                    <option value="team">A team</option>
+                    <option value="department">A department</option>
+                  </select>
+                  {dialogEscType === "staff" && (
+                    <select
+                      value={dialogStaff}
+                      onChange={(e) => setDialogStaff(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                    >
+                      <option value="">Select staff…</option>
+                      {staffDir.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} · {CHAT_STAFF_ROLE_LABELS[m.staff_role] ?? m.staff_role}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {dialogEscType === "role" && (
+                    <select
+                      value={dialogEscRole}
+                      onChange={(e) => setDialogEscRole(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                    >
+                      <option value="senior_agent">Senior Agent</option>
+                      <option value="supervisor">Supervisor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  )}
+                  {dialogEscType === "team" && (
+                    <select
+                      value={dialogEscTeam}
+                      onChange={(e) => setDialogEscTeam(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                    >
+                      <option value="">Select team…</option>
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {dialogEscType === "department" && (
+                    <select
+                      value={dialogEscDept}
+                      onChange={(e) => setDialogEscDept(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
+                    >
+                      <option value="">Select department…</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {dialog.kind !== "assign" && dialog.kind !== "offer" && dialog.kind !== "escalate" && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {dialog.kind === "resolve" && "Resolving keeps the full history and case ID. The customer can reopen within 72 hours."}
+                  {dialog.kind === "close" && "Closing archives the case. Only supervisors and admins can close."}
+                  {dialog.kind === "reopen" && "Reopening restarts SLA tracking and requires a reason."}
+                  {dialog.kind === "return" && "Returning the case sends it back to the waiting queue."}
+                </p>
+              )}
+
+              <label className="mt-3 block text-xs font-semibold text-muted-foreground">
+                {dialog.kind === "resolve"
+                  ? "Resolution summary (optional)"
+                  : dialog.kind === "assign" || dialog.kind === "offer"
+                    ? "Reason"
+                    : dialog.kind === "escalate"
+                      ? "Reason (required)"
+                      : "Reason (required)"}
+              </label>
+              <textarea
+                value={dialogReason}
+                onChange={(e) => setDialogReason(e.target.value)}
+                rows={3}
+                className="mt-1 w-full resize-none rounded-xl border border-input bg-white/60 px-3 py-2 text-sm dark:bg-white/5"
+                aria-label="Reason"
+              />
+
+              {dialog.kind === "escalate" && selectedEscalation && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selectedEscalation.status === "pending" && (
+                    <Button size="sm" variant="outline" onClick={() => void respondEscalation("reject")} disabled={busy}>
+                      Reject escalation
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => void respondEscalation("return")} disabled={busy}>
+                    Return case to queue
+                  </Button>
+                  {selectedEscalation.status === "pending" && (
+                    <Button size="sm" variant="ghost" onClick={() => void respondEscalation("cancel")} disabled={busy}>
+                      Cancel escalation
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setDialog(null)} disabled={busy}>
+                  Cancel
+                </Button>
+                {!(dialog.kind === "escalate" && selectedEscalation) && (
+                  <Button onClick={runDialogAction} disabled={busy}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Confirm
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Case details panel                                                 */
+/* ------------------------------------------------------------------ */
+
+function DetailsBody({
+  selected,
+  customer,
+  sla,
+  rank,
+  isAssignedToMe,
+  canSupervise,
+  agentEvents,
+  eventsUnavailable,
+  noteBody,
+  setNoteBody,
+  savingNote,
+  saveNote,
+  timeline,
+  previousCases,
+  onSelectCase,
+  onChangePriority,
+  openDialog,
+  busy,
+  bare,
+}: {
+  selected: ChatSession;
+  customer: ChatCustomer | undefined;
+  sla: ReturnType<typeof slaState> | null;
+  rank: number;
+  isAssignedToMe: boolean;
+  canSupervise: boolean;
+  agentEvents: ChatAgentEvent[];
+  eventsUnavailable: boolean;
+  noteBody: string;
+  setNoteBody: (v: string) => void;
+  savingNote: boolean;
+  saveNote: () => void;
+  timeline: { events: ChatCaseEvent[]; escalations: ChatEscalation[]; assignments: ChatAssignment[] };
+  previousCases: ChatSession[];
+  onSelectCase: (id: string) => void;
+  onChangePriority: (p: ChatSession["priority"]) => void;
+  openDialog: (kind: "resolve" | "close" | "reopen" | "return" | "assign" | "offer" | "escalate") => void;
+  busy: boolean;
+  bare?: boolean;
+}) {
+  return (
+    <div className={cn(bare ? "px-4 py-3" : "")}>
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Customer</p>
+        <p className="mt-1 truncate font-display text-sm font-bold">{customer?.name ?? "Client"}</p>
+        <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5 text-cyan-500" />
+            <span className="truncate">{customer?.email ?? "No email on file"}</span>
+          </p>
+          <p className="flex items-center gap-1.5">
+            <Phone className="h-3.5 w-3.5 text-cyan-500" />
+            <span className="truncate">{customer?.phone ?? "No phone on file"}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Case</p>
+        <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-cyan-600 dark:text-cyan-400">
+          {selected.reference_id ?? "Pending ID"}
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Opened {fmtDateTime(selected.created_at)}
+          {typeof selected.reopen_count === "number" && selected.reopen_count > 0
+            ? ` · reopened ${selected.reopen_count}×`
+            : ""}
+        </p>
+        {selected.resolved_at && (
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Resolved {fmtDateTime(selected.resolved_at)}</p>
+        )}
+        {selected.closed_at && (
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Closed {fmtDateTime(selected.closed_at)}</p>
+        )}
+
+        {sla && (sla.firstDueIn !== null || sla.resolutionDueIn !== null || sla.firstOverdue || sla.resolutionOverdue) && (
+          <div className="mt-2 space-y-1 rounded-lg border border-border/60 bg-primary/5 p-2 text-[11px]">
+            <p className="font-semibold text-muted-foreground">SLA</p>
+            {selected.first_response_due_at && (
+              <p className={cn(sla.firstOverdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                First response:{" "}
+                {selected.first_response_at
+                  ? "met"
+                  : sla.firstOverdue
+                    ? "overdue"
+                    : `${fmtDuration(new Date().toISOString(), Date.now() + (sla.firstDueIn ?? 0))} left`}
+              </p>
+            )}
+            {selected.resolution_due_at && selected.status !== "resolved" && selected.status !== "closed" && (
+              <p className={cn(sla.resolutionOverdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                Resolution:{" "}
+                {sla.resolutionOverdue
+                  ? "overdue"
+                  : `${fmtDuration(new Date().toISOString(), Date.now() + (sla.resolutionDueIn ?? 0))} left`}
+              </p>
+            )}
+            {selected.sla_paused_since && <p className="text-amber-600 dark:text-amber-400">Paused (waiting on customer)</p>}
+          </div>
+        )}
+
+        <label className="mt-3 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Priority
+        </label>
+        <select
+          value={selected.priority ?? "normal"}
+          onChange={(e) => void onChangePriority(e.target.value as ChatSession["priority"])}
+          disabled={selected.status === "resolved" || selected.status === "closed" || !(isAssignedToMe || canSupervise)}
+          className="mt-1 h-9 w-full rounded-xl border border-input bg-white/60 px-2 text-xs capitalize dark:bg-white/5"
+          aria-label="Case priority"
+        >
+          {CHAT_PRIORITIES.map((p) => (
+            <option key={p} value={p} disabled={p === "critical" && rank < 3}>
+              {PRIORITY_LABELS[p]}
+              {p === "critical" && rank < 3 ? " (supervisor only)" : ""}
+            </option>
+          ))}
+        </select>
+
+        {selected.status !== "resolved" && selected.status !== "closed" && (
+          <div className="mt-3 grid grid-cols-2 gap-1.5">
+            {(isAssignedToMe || canSupervise) && (
+              <Button size="sm" variant="outline" onClick={() => openDialog("resolve")} disabled={busy}>
+                Resolve
+              </Button>
+            )}
+            {rank >= 2 && (
+              <Button size="sm" variant="outline" onClick={() => openDialog("offer")} disabled={busy}>
+                Transfer
+              </Button>
+            )}
+            {canSupervise && (
+              <Button size="sm" variant="outline" onClick={() => openDialog("assign")} disabled={busy}>
+                Assign
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => openDialog("escalate")} disabled={busy}>
+              Escalate
+            </Button>
+            {canSupervise && (
+              <Button size="sm" variant="ghost" onClick={() => openDialog("close")} disabled={busy}>
+                Close
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Assignment</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {selected.assigned_admin_name ? `Owner: ${selected.assigned_admin_name}` : "Unassigned (queue)"}
+        </p>
+        {timeline.assignments.length > 0 && (
+          <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
+            {timeline.assignments.slice(0, 8).map((a) => (
+              <li key={a.id} className="rounded-lg border border-border/60 px-2 py-1.5 text-[10px] text-muted-foreground">
+                <span className="font-semibold text-foreground">{a.assignee_name ?? "Team queue"}</span> · {a.status}
+                {a.reason ? ` · ${a.reason}` : ""}
+                <span className="block">{fmtDate(a.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <StickyNote className="h-3.5 w-3.5" /> Internal notes
+        </p>
+        {eventsUnavailable ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Apply the latest database migration to enable internal notes.
+          </p>
+        ) : (
+          <>
+            <div className="mt-2 max-h-40 space-y-2 overflow-y-auto">
+              {agentEvents.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No internal notes yet.</p>
+              ) : (
+                agentEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-2 text-[11px]",
+                      event.kind === "escalation"
+                        ? "border-orange-500/30 bg-orange-500/5"
+                        : "border-border/60 bg-primary/5",
+                    )}
+                  >
+                    <p className="mb-1 flex items-center justify-between gap-2 font-semibold text-muted-foreground">
+                      <span>{event.kind === "escalation" ? "Escalation" : "Note"}</span>
+                      <span className="font-normal">{fmtDate(event.created_at)}</span>
+                    </p>
+                    <p className="whitespace-pre-line text-foreground">{event.body}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">by {event.author_name ?? "Agent"}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            <textarea
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+              rows={2}
+              placeholder="Private note (clients never see this)…"
+              className="mt-2 w-full resize-none rounded-lg border border-input bg-white/60 px-2.5 py-2 text-xs dark:bg-white/5"
+              aria-label="Internal note"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-1.5 w-full"
+              onClick={saveNote}
+              disabled={savingNote || noteBody.trim().length < 2}
+            >
+              {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <StickyNote className="h-3.5 w-3.5" />}
+              Save note
+            </Button>
+          </>
+        )}
+      </div>
+
+      {timeline.escalations.length > 0 && (
+        <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Escalations</p>
+          <ul className="mt-2 space-y-1.5">
+            {timeline.escalations.slice(0, 6).map((e) => (
+              <li key={e.id} className="rounded-lg border border-orange-500/30 bg-orange-500/5 px-2.5 py-2 text-[10px]">
+                <p className="flex items-center justify-between gap-2 font-semibold">
+                  <span className="uppercase">{e.status}</span>
+                  <span className="font-normal text-muted-foreground">{fmtDate(e.created_at)}</span>
+                </p>
+                <p className="mt-0.5 text-foreground">{e.reason}</p>
+                <p className="mt-0.5 text-muted-foreground">to {e.target_type}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className={cn("py-3", bare ? "" : "px-4")}>
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <History className="h-3.5 w-3.5" /> Previous cases
+        </p>
+        {previousCases.length === 0 ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">This is the client&apos;s first live chat.</p>
+        ) : (
+          <ul className="mt-2 space-y-1.5">
+            {previousCases.slice(0, 8).map((c) => (
+              <li key={c.id}>
+                <button
+                  onClick={() => onSelectCase(c.id)}
+                  className="w-full rounded-lg border border-border/60 px-2.5 py-2 text-left text-[11px] transition-colors hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-cyan-600 dark:text-cyan-400">{c.reference_id ?? "Pending ID"}</span>
+                    <StatusBadge status={c.status} />
+                  </span>
+                  <span className="mt-0.5 block truncate text-muted-foreground">
+                    {c.last_message_preview || fmtDate(c.created_at)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { LoadError } from "@/components/portal/load-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { APPOINTMENT_CLIENT_COLUMNS } from "@/lib/constants";
 import type { Appointment } from "@/types/dashboard";
 
 const STATUSES = ["all", "pending", "confirmed", "in_progress", "completed", "cancelled", "reschedule_requested"];
@@ -33,7 +34,7 @@ export default function MyAppointmentsPage() {
       setLoadError(null);
       const { data, error } = await supabase
         .from("appointments")
-        .select("*")
+        .select(APPOINTMENT_CLIENT_COLUMNS)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (!active) return;

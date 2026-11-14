@@ -374,9 +374,8 @@ export function SupportMessenger({
       setShowNew(false);
       setNewTicket({ subject: "", category: "general", priority: "normal", message: "" });
       setNewFile(null);
-      await loadTickets();
+      const list = await loadTickets();
       if (res.referenceId) {
-        const list = await loadTickets();
         const created = list.find((t) => t.reference_id === res.referenceId);
         if (created) setSelectedId(created.id);
       }
@@ -473,12 +472,7 @@ export function SupportMessenger({
                 return (
                   <li key={t.id}>
                     <button
-                      onClick={() => {
-                        setSelectedId(t.id);
-                        if (mode === "user" && typeof window !== "undefined" && window.innerWidth < 1024) {
-                          setSelectedId(t.id);
-                        }
-                      }}
+                      onClick={() => setSelectedId(t.id)}
                       className={cn(
                         "flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors",
                         active ? "bg-gradient-to-r from-blue-600/10 to-cyan-400/10" : "hover:bg-primary/5",
@@ -658,7 +652,7 @@ export function SupportMessenger({
                         </div>
                         <p className={cn("mt-1 text-[10px] text-muted-foreground", mine ? "text-right" : "text-left")}>
                           {fmtTime(m.created_at)}
-                          {m.sender_role === "user" ? " · You" : " · Support"}
+                          {mine ? " · You" : mode === "admin" ? " · Client" : " · Support"}
                         </p>
                       </div>
                     </motion.div>

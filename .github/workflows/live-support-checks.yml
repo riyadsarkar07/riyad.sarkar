@@ -1,0 +1,37 @@
+name: Live Support — Typecheck, Lint and Production Build
+
+on:
+  push:
+    branches:
+      - 261106-feat-live-chat-agent-workspace
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  static-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Queue status regression tests (Node)
+        run: node --experimental-strip-types --test tests/chat-queue.test.mjs
+      - name: Production Next.js build
+        run: npm run build
+      - name: Report commit
+        run: echo "Verified source commit $GITHUB_SHA"
