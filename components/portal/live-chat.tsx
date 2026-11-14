@@ -32,7 +32,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import {
   addChatInternalNoteAction,
   assignChatSessionAction,
-  claimChatSessionAction,
+  joinChatSessionAction,
   clientEndChatSessionAction,
   closeChatSessionAction,
   escalateChatSessionAction,
@@ -770,6 +770,25 @@ export function LiveChat({
   const isAssignedToMe = !!selected && !!user && selected.assigned_admin_id === user.id;
   const canWriteSelected = canSupervise || isAssignedToMe;
   const sla = selected ? slaState(selected, now) : null;
+  // Only offer destinations the current staff member can actually select.
+  // Admins are already the highest role: escalating to a lower role queue
+  // would be rejected by the database. An agent cannot target themselves.
+  const eligibleEscalationStaff = staffDir.filter((member) =>
+    member.id !== user?.id && (rank >= 3 ||
+      ((CHAT_STAFF_RANK as Record<string, number>)[member.staff_role] ?? 0) > rank)
+  );
+  const eligibleEscalationRoles = (["senior_agent", "supervisor", "admin"] as const)
+    .filter((role) =>
+      CHAT_STAFF_RANK[role] > rank &&
+      (rank < 2 || staffDir.some((member) => member.staff_role === role && member.id !== user?.id))
+    );
+  const validEscalationTarget = dialogEscType === "staff"
+    ? eligibleEscalationStaff.some((member) => member.id === dialogStaff)
+    : dialogEscType === "role"
+      ? eligibleEscalationRoles.some((role) => role === dialogEscRole)
+      : dialogEscType === "team"
+        ? teams.some((team) => team.id === dialogEscTeam)
+        : departments.some((department) => department.id === dialogEscDept);
 
   /* ---------------------------------------------------------------- */
   /*  Actions                                                          */
@@ -777,27 +796,32 @@ export function LiveChat({
 
   const claim = async () => {
     if (!selectedId || joining) return;
+    const caseId = selectedId;
     setJoining(true);
     setChatErr(null);
     setActionMsg(null);
-    const res = await claimChatSessionAction(selectedId);
-    if (!res.ok || !res.session) {
+    try {
+      // `claim_chat_session` only assigns ownership; `join_chat_session`
+      // also inserts the one-time welcome message and notifies the client.
+      const res = await joinChatSessionAction(caseId);
+      if (!res.ok || !res.session) {
+        setChatErr(res.error ?? "Agent join could not be confirmed by the database.");
+        return;
+      }
+      const persisted = res.session;
+      setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+      setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
+      setActionMsg(res.welcome
+        ? "Agent joined. An automatic welcome message was saved in this case."
+        : "Agent joined. The welcome message was already saved for this case.");
+      await loadThread(caseId);
+      void loadSessionsRef.current?.();
+      void loadTimeline(caseId);
+    } catch {
+      setChatErr("Could not finish joining this case. Refresh before retrying.");
+    } finally {
       setJoining(false);
-      setChatErr(res.error ?? "Agent assignment could not be confirmed by the database.");
-      return;
     }
-    const persisted = res.session;
-    setSessions((prev) =>
-      prev.map((row) => row.id === persisted.id ? persisted : row),
-    );
-    // Claimed waiting cases become Active in the database; move the queue
-    // selector to the committed status instead of showing Active under Waiting.
-    setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
-    setActionMsg("You are now the assigned agent. Database ownership confirmed.");
-    await loadThread(selectedId);
-    void loadSessions();
-    void loadTimeline(selectedId);
-    setJoining(false);
   };
 
   const startChat = async () => {
@@ -918,6 +942,11 @@ export function LiveChat({
       });
       if (res.ok) setActionMsg("Transfer offer sent.");
     } else if (dialog.kind === "escalate") {
+      if (!validEscalationTarget || dialogReason.trim().length < 3) {
+        setBusy(false);
+        setChatErr("Select an eligible destination and enter an escalation reason of at least 3 characters.");
+        return;
+      }
       res = await escalateChatSessionAction({
         sessionId: selectedId,
         targetType: dialogEscType,
@@ -1379,7 +1408,7 @@ export function LiveChat({
                 <p className="font-display text-sm font-bold">Select a conversation to begin</p>
                 <p className="text-sm text-muted-foreground">
                   New client sessions arrive in the Waiting queue automatically. Opening the list does not join a
-                  case — use Claim case to take it.
+                  case — use Join chat to take it.
                 </p>
                 {counts.waiting > 0 && (
                   <p className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -1459,7 +1488,14 @@ export function LiveChat({
                 {mode === "admin" && selected.status !== "resolved" && selected.status !== "closed" && !selected.assigned_admin_id && (
                   <Button size="sm" onClick={claim} disabled={joining}>
                     {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                    Claim case
+                    Join chat
+                  </Button>
+                )}
+                {mode === "admin" && selected.assigned_admin_id === user?.id && !selected.welcome_sent_at &&
+                  selected.status !== "resolved" && selected.status !== "closed" && (
+                  <Button size="sm" variant="outline" onClick={claim} disabled={joining}>
+                    {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                    Send welcome
                   </Button>
                 )}
                 {mode === "admin" && canWriteSelected && selected.status !== "resolved" && selected.status !== "closed" && (
@@ -1513,11 +1549,12 @@ export function LiveChat({
               </div>
             )}
 
-            {selected.assigned_admin_id === user?.id && selected.status !== "resolved" && selected.status !== "closed" && (
-              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 sm:px-5">
+            {!!selected.assigned_admin_id && selected.status !== "resolved" && selected.status !== "closed" &&
+              (mode === "user" || selected.assigned_admin_id === user?.id) && (
+              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 sm:px-5" role="status">
                 {mode === "admin"
                   ? `You are handling this case as ${selected.assigned_admin_name ?? "the assigned agent"}.`
-                  : `${selected.assigned_admin_name} has joined this chat.`}
+                  : `${selected.assigned_admin_name ?? "A support agent"} has joined this chat.`}
               </div>
             )}
 
@@ -1666,11 +1703,11 @@ export function LiveChat({
               ) : mode === "admin" && !selected.assigned_admin_id ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
                   <p className="text-sm text-muted-foreground">
-                    Claim this case to reply as the assigned agent.
+                    Join this chat to reply as the assigned agent.
                   </p>
                   <Button size="sm" onClick={claim} disabled={joining}>
                     {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                    Claim case
+                    Join chat
                   </Button>
                 </div>
               ) : mode === "admin" && !canWriteSelected ? (
@@ -1952,7 +1989,7 @@ export function LiveChat({
                       className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
                     >
                       <option value="">Select staff…</option>
-                      {staffDir.map((m) => (
+                      {eligibleEscalationStaff.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name} · {CHAT_STAFF_ROLE_LABELS[m.staff_role] ?? m.staff_role}
                         </option>
@@ -1965,9 +2002,12 @@ export function LiveChat({
                       onChange={(e) => setDialogEscRole(e.target.value)}
                       className="h-10 w-full rounded-xl border border-input bg-white/60 px-3 text-sm dark:bg-white/5"
                     >
-                      <option value="senior_agent">Senior Agent</option>
-                      <option value="supervisor">Supervisor</option>
-                      <option value="admin">Admin</option>
+                      <option value="">Select an eligible role…</option>
+                      {eligibleEscalationRoles.map((role) => (
+                        <option key={role} value={role}>
+                          {CHAT_STAFF_ROLE_LABELS[role] ?? role}
+                        </option>
+                      ))}
                     </select>
                   )}
                   {dialogEscType === "team" && (
@@ -1997,6 +2037,28 @@ export function LiveChat({
                         </option>
                       ))}
                     </select>
+                  )}
+                  {!validEscalationTarget && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300" role="alert">
+                      <p>
+                        {dialogEscType === "staff" && eligibleEscalationStaff.length === 0
+                          ? "No eligible agent is configured to receive this escalation."
+                          : dialogEscType === "role" && eligibleEscalationRoles.length === 0
+                            ? "There is no higher staffed role available for escalation."
+                            : dialogEscType === "team" && teams.length === 0
+                              ? "No support team exists yet."
+                              : dialogEscType === "department" && departments.length === 0
+                                ? "No support department exists yet."
+                                : "Choose a valid escalation destination."}
+                      </p>
+                      {rank >= 3 ? (
+                        <Link href="/admin/support-team" className="mt-2 inline-block font-semibold underline">
+                          Set up real support agents and teams
+                        </Link>
+                      ) : (
+                        <p className="mt-2">Ask a supervisor to configure the required support team.</p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -2050,7 +2112,9 @@ export function LiveChat({
                   Cancel
                 </Button>
                 {!(dialog.kind === "escalate" && selectedEscalation) && (
-                  <Button onClick={runDialogAction} disabled={busy}>
+                  <Button onClick={runDialogAction} disabled={busy ||
+                    (dialog.kind === "escalate" &&
+                      (!validEscalationTarget || dialogReason.trim().length < 3))}>
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     Confirm
                   </Button>
