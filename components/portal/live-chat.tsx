@@ -32,7 +32,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import {
   addChatInternalNoteAction,
   assignChatSessionAction,
-  claimChatSessionAction,
+  joinChatSessionAction,
   clientEndChatSessionAction,
   closeChatSessionAction,
   escalateChatSessionAction,
@@ -777,27 +777,32 @@ export function LiveChat({
 
   const claim = async () => {
     if (!selectedId || joining) return;
+    const caseId = selectedId;
     setJoining(true);
     setChatErr(null);
     setActionMsg(null);
-    const res = await claimChatSessionAction(selectedId);
-    if (!res.ok || !res.session) {
+    try {
+      // `claim_chat_session` only assigns ownership; `join_chat_session`
+      // also inserts the one-time welcome message and notifies the client.
+      const res = await joinChatSessionAction(caseId);
+      if (!res.ok || !res.session) {
+        setChatErr(res.error ?? "Agent join could not be confirmed by the database.");
+        return;
+      }
+      const persisted = res.session;
+      setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+      setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
+      setActionMsg(res.welcome
+        ? "Agent joined. An automatic welcome message was saved in this case."
+        : "Agent joined. The welcome message was already saved for this case.");
+      await loadThread(caseId);
+      void loadSessionsRef.current?.();
+      void loadTimeline(caseId);
+    } catch {
+      setChatErr("Could not finish joining this case. Refresh before retrying.");
+    } finally {
       setJoining(false);
-      setChatErr(res.error ?? "Agent assignment could not be confirmed by the database.");
-      return;
     }
-    const persisted = res.session;
-    setSessions((prev) =>
-      prev.map((row) => row.id === persisted.id ? persisted : row),
-    );
-    // Claimed waiting cases become Active in the database; move the queue
-    // selector to the committed status instead of showing Active under Waiting.
-    setFStatus(persisted.status === "pending_client" ? "pending_client" : "active");
-    setActionMsg("You are now the assigned agent. Database ownership confirmed.");
-    await loadThread(selectedId);
-    void loadSessions();
-    void loadTimeline(selectedId);
-    setJoining(false);
   };
 
   const startChat = async () => {
@@ -1379,7 +1384,7 @@ export function LiveChat({
                 <p className="font-display text-sm font-bold">Select a conversation to begin</p>
                 <p className="text-sm text-muted-foreground">
                   New client sessions arrive in the Waiting queue automatically. Opening the list does not join a
-                  case — use Claim case to take it.
+                  case — use Join chat to take it.
                 </p>
                 {counts.waiting > 0 && (
                   <p className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -1459,7 +1464,7 @@ export function LiveChat({
                 {mode === "admin" && selected.status !== "resolved" && selected.status !== "closed" && !selected.assigned_admin_id && (
                   <Button size="sm" onClick={claim} disabled={joining}>
                     {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                    Claim case
+                    Join chat
                   </Button>
                 )}
                 {mode === "admin" && canWriteSelected && selected.status !== "resolved" && selected.status !== "closed" && (
@@ -1513,11 +1518,12 @@ export function LiveChat({
               </div>
             )}
 
-            {selected.assigned_admin_id === user?.id && selected.status !== "resolved" && selected.status !== "closed" && (
-              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 sm:px-5">
+            {!!selected.assigned_admin_id && selected.status !== "resolved" && selected.status !== "closed" &&
+              (mode === "user" || selected.assigned_admin_id === user?.id) && (
+              <div className="border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 sm:px-5" role="status">
                 {mode === "admin"
                   ? `You are handling this case as ${selected.assigned_admin_name ?? "the assigned agent"}.`
-                  : `${selected.assigned_admin_name} has joined this chat.`}
+                  : `${selected.assigned_admin_name ?? "A support agent"} has joined this chat.`}
               </div>
             )}
 
@@ -1666,11 +1672,11 @@ export function LiveChat({
               ) : mode === "admin" && !selected.assigned_admin_id ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
                   <p className="text-sm text-muted-foreground">
-                    Claim this case to reply as the assigned agent.
+                    Join this chat to reply as the assigned agent.
                   </p>
                   <Button size="sm" onClick={claim} disabled={joining}>
                     {joining ? <Loader2 className="h-4 w-4 animate-spin" /> : <User className="h-4 w-4" />}
-                    Claim case
+                    Join chat
                   </Button>
                 </div>
               ) : mode === "admin" && !canWriteSelected ? (
