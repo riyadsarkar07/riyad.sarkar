@@ -1461,7 +1461,7 @@ export async function respondChatAssignmentAction(input: {
   assignmentId: string;
   accept: boolean;
   reason?: string | null;
-}): Promise<ActionResult> {
+}): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -1472,9 +1472,25 @@ export async function respondChatAssignmentAction(input: {
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
 
-  const result = (data ?? {}) as { ok?: boolean; accepted?: boolean; status?: string };
+  const result = (data ?? {}) as {
+    ok?: boolean; accepted?: boolean; session_id?: string;
+    assigned_admin_id?: string | null; status?: string;
+  };
   if (result.ok !== true || result.accepted !== input.accept) {
     return { ok: false, error: "Transfer decision was not confirmed by the database." };
+  }
+  if (input.accept) {
+    if (!result.session_id || result.assigned_admin_id !== user.id) {
+      return { ok: false, error: "Transfer acceptance did not confirm the new case owner." };
+    }
+    const { data: row, error: readError } = await supabase
+      .from("chat_sessions").select("*").eq("id", result.session_id).maybeSingle();
+    if (readError || !row || row.assigned_admin_id !== user.id ||
+        !["active", "pending_client"].includes(row.status)) {
+      return { ok: false, error: "Case ownership could not be verified. Refresh the queue." };
+    }
+    revalidatePath("/admin/chat");
+    return { ok: true, status: row.status, session: row as ChatSession };
   }
   revalidatePath("/admin/chat");
   return { ok: true, status: result.status };
