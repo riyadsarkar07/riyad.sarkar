@@ -1226,7 +1226,7 @@ export async function respondChatEscalationAction(input: {
 }
 
 export async function claimChatSessionAction(sessionId: string): Promise<
-  ActionResult & { assignedAdminId?: string | null; assignedAdminName?: string | null }
+  ActionResult & { session?: ChatSession; assignedAdminId?: string | null; assignedAdminName?: string | null }
 > {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
@@ -1236,17 +1236,18 @@ export async function claimChatSessionAction(sessionId: string): Promise<
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
 
+  const { data: persisted, error: readError } = await supabase.from("chat_sessions")
+    .select("*").eq("id", sessionId).maybeSingle();
+  if (readError || !persisted || persisted.assigned_admin_id !== user.id) {
+    return { ok: false, error: readError?.message ?? "Agent claim could not be confirmed from the database." };
+  }
   revalidatePath("/admin/chat");
-  const result = (data ?? {}) as {
-    status?: string;
-    assigned_admin_id?: string | null;
-    assigned_admin_name?: string | null;
-  };
   return {
     ok: true,
-    status: result.status,
-    assignedAdminId: result.assigned_admin_id ?? null,
-    assignedAdminName: result.assigned_admin_name ?? null,
+    session: persisted as ChatSession,
+    status: persisted.status,
+    assignedAdminId: persisted.assigned_admin_id,
+    assignedAdminName: persisted.assigned_admin_name ?? null,
   };
 }
 
