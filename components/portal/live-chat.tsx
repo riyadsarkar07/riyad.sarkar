@@ -1102,8 +1102,21 @@ export function LiveChat({
       setChatErr(res.error ?? "Could not respond to the offer.");
       return;
     }
-    setActionMsg(accept ? "Transfer accepted by the database." : "Transfer offer declined.");
-    if (accept) switchQueueFilter("active");
+    if (accept) {
+      if (!res.session) {
+        setChatErr("Transfer was accepted, but the case ownership was not returned. Refresh the queue.");
+        return;
+      }
+      const persisted = res.session;
+      setSessions((prev) => {
+        const exists = prev.some((row) => row.id === persisted.id);
+        return exists
+          ? prev.map((row) => row.id === persisted.id ? persisted : row)
+          : [persisted, ...prev];
+      });
+      switchQueueFilter(persisted.status === "pending_client" ? "pending_client" : "active");
+    }
+    setActionMsg(accept ? "Transfer accepted; case ownership verified." : "Transfer offer declined.");
     scheduleSilentReload();
     if (selectedId) void loadTimeline(selectedId);
   };
