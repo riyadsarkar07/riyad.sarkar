@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -60,17 +61,21 @@ async function runJoinChatSession(
   if (error) return { ok: false, error: error.message };
   const result = (data ?? {}) as ChatJoinResult;
   if (result.joined && result.user_id && result.admin_name && result.reference_id) {
-    // A notification integration must never make a committed chat join look
-    // like it failed. The welcome chat message is written by the database RPC.
-    try {
-      await notifyChatJoined({
-        userId: result.user_id,
-        adminName: result.admin_name,
-        referenceId: result.reference_id,
-      });
-    } catch (notificationError) {
-      console.error("Chat join succeeded but secondary notification failed", notificationError);
-    }
+    // The RPC already committed ownership and the welcome chat message.
+    // Deliver the secondary notification after the Server Action response
+    // so email/push latency cannot stall the Join chat button.
+    const notification = {
+      userId: result.user_id,
+      adminName: result.admin_name,
+      referenceId: result.reference_id,
+    };
+    after(async () => {
+      try {
+        await notifyChatJoined(notification);
+      } catch (notificationError) {
+        console.error("Chat joined; secondary notification failed", notificationError);
+      }
+    });
   }
   return { ok: true, result };
 }
@@ -668,51 +673,56 @@ export async function loadLiveChatInboxAction(
   const page = (data ?? {}) as ChatInboxResult;
   const sessions = (page.sessions ?? []) as ChatSession[];
 
-  const profiles: Record<string, string> = {};
-  const customers: Record<string, ChatCustomer> = {};
-  if (asAdmin && sessions.length > 0) {
-    const ids = Array.from(new Set(sessions.map((s) => s.user_id)));
-    const isAdmin = await isAdminUser();
-    let rows: {
-      id: string;
-      full_name: string | null;
-      email: string | null;
-      phone: string | null;
-    }[] = [];
-    if (isAdmin) {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, phone")
-        .in("id", ids);
-      rows = (data ?? []) as typeof rows;
-    } else {
-      const { data } = await supabase.rpc("chat_customer_directory", { p_ids: ids });
-      const result = (data ?? {}) as { customers?: typeof rows };
-      rows = result.customers ?? [];
-    }
-    for (const p of rows) {
-      const name = p.full_name?.trim() || p.email || "Client";
-      profiles[p.id] = name;
-      customers[p.id] = { id: p.id, name, email: p.email, phone: p.phone };
-    }
-  }
-
+  // Parallelize profile lookup, unread counts and presence; previously each
+  // was awaited sequentially, making the Admin queue much slower to refresh.
+  type CustomerRow = {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+  };
+  const ids = Array.from(new Set(sessions.map((s) => s.user_id)));
   const sessionIds = sessions.map((s) => s.id);
-  const unread: Record<string, number> = {};
-  if (sessionIds.length > 0) {
-    const { data: msgRows } = await supabase
-      .from("chat_messages")
+
+  const customerPromise = (async (): Promise<CustomerRow[]> => {
+    if (!asAdmin || ids.length === 0) return [];
+    if (role === "admin") {
+      const { data } = await supabase.from("profiles")
+        .select("id, full_name, email, phone").in("id", ids);
+      return (data ?? []) as CustomerRow[];
+    }
+    const { data } = await supabase.rpc("chat_customer_directory", { p_ids: ids });
+    return ((data ?? {}) as { customers?: CustomerRow[] }).customers ?? [];
+  })();
+
+  const unreadPromise = (async (): Promise<{ session_id: string }[]> => {
+    if (sessionIds.length === 0) return [];
+    const { data } = await supabase.from("chat_messages")
       .select("session_id")
       .eq("read", false)
       .eq("sender_role", asAdmin ? "user" : "admin")
       .in("session_id", sessionIds);
-    for (const r of (msgRows ?? []) as { session_id: string }[]) {
-      unread[r.session_id] = (unread[r.session_id] ?? 0) + 1;
-    }
-  }
+    return (data ?? []) as { session_id: string }[];
+  })();
 
-  const { data: onlineCount, error: onlineErr } = await supabase.rpc("admin_online_count");
-  const agentOnline = onlineErr
+  const [rows, msgRows, onlineResult] = await Promise.all([
+    customerPromise,
+    unreadPromise,
+    supabase.rpc("admin_online_count"),
+  ]);
+  const profiles: Record<string, string> = {};
+  const customers: Record<string, ChatCustomer> = {};
+  for (const p of rows) {
+    const name = p.full_name?.trim() || p.email || "Client";
+    profiles[p.id] = name;
+    customers[p.id] = { id: p.id, name, email: p.email, phone: p.phone };
+  }
+  const unread: Record<string, number> = {};
+  for (const row of msgRows) {
+    unread[row.session_id] = (unread[row.session_id] ?? 0) + 1;
+  }
+  const onlineCount = onlineResult.data;
+  const agentOnline = onlineResult.error
     ? null
     : typeof onlineCount === "number"
       ? onlineCount > 0
@@ -732,6 +742,47 @@ export async function loadLiveChatInboxAction(
   };
 }
 
+/** Read a customer's complete previous case history independently of the
+ * active queue filter. RLS on both queries restricts each staff member to
+ * cases they are permitted to see. No service-role bypasses. */
+export async function loadChatCustomerHistoryAction(
+  caseId: string,
+  offset = 0,
+): Promise<{
+  ok: boolean;
+  error?: string;
+  customerId?: string;
+  cases?: ChatSession[];
+  nextOffset?: number | null;
+}> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if (!(await getStaffRole(supabase))) return { ok: false, error: "Not authorized" };
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > 5000) {
+    return { ok: false, error: "Invalid case history offset." };
+  }
+  const { data: current, error: currentError } = await supabase
+    .from("chat_sessions").select("id, user_id").eq("id", caseId).maybeSingle();
+  if (currentError || !current) {
+    return { ok: false, error: currentError?.message ?? "This case is no longer accessible." };
+  }
+  const pageSize = 40;
+  const { data, error: historyError } = await supabase.from("chat_sessions")
+    .select("*")
+    .eq("user_id", current.user_id)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(offset, offset + pageSize);
+  if (historyError) return { ok: false, error: historyError.message };
+  const cases = (data ?? []) as ChatSession[];
+  return {
+    ok: true,
+    customerId: current.user_id,
+    cases: cases.slice(0, pageSize),
+    nextOffset: cases.length > pageSize ? offset + pageSize : null,
+  };
+}
+
 export async function loadLiveChatMessagesAction(
   sessionId: string,
   opts: { beforeCreatedAt?: string | null; beforeId?: string | null; limit?: number } = {},
@@ -745,11 +796,12 @@ export async function loadLiveChatMessagesAction(
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
-  const { data: session } = await supabase.from("chat_sessions").select("id, user_id").eq("id", sessionId).maybeSingle();
-  if (!session) return { ok: false, error: "Chat session not found." };
-  const role = await getStaffRole(supabase);
-  const isAdmin = await isAdminUser();
-  if (!isAdmin && !role && session.user_id !== user.id) return { ok: false, error: "Not authorized" };
+  // The table SELECT is RLS protected (owner, admin or authorized staff).
+  // Avoid two more serial auth RPCs for every message poll.
+  const { data: session, error: sessionError } = await supabase
+    .from("chat_sessions").select("id").eq("id", sessionId).maybeSingle();
+  if (sessionError) return { ok: false, error: sessionError.message };
+  if (!session) return { ok: false, error: "Chat session not found or access denied." };
 
   const { data, error: rpcErr } = await supabase.rpc("chat_messages_page", {
     p_session_id: sessionId,
@@ -853,11 +905,18 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
     .eq("id", user.id)
     .maybeSingle();
 
-  await notifyChatStarted({
+  const notification = {
     userId: user.id,
     userEmail: profile?.email ?? user.email ?? "",
     userName: profile?.full_name ?? "Client",
     referenceId: session.reference_id,
+  };
+  after(async () => {
+    try {
+      await notifyChatStarted(notification);
+    } catch (notificationError) {
+      console.error("Chat created; secondary notification failed", notificationError);
+    }
   });
 
   revalidatePath("/dashboard/chat");
