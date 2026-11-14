@@ -20,6 +20,7 @@ const items = [
   { href: "/admin/tickets", label: "Project Enquiries", icon: Mail, adminOnly: true },
   { href: "/admin/support", label: "Support Inbox", icon: MessagesSquare, adminOnly: true },
   { href: "/admin/chat", label: "Live Chat", icon: Headset },
+  { href: "/admin/support-team", label: "Support Team", icon: Users, adminOnly: true },
   { href: "/admin/users", label: "Users", icon: Users, adminOnly: true },
   { href: "/admin/files", label: "Files", icon: FolderOpen, adminOnly: true },
   { href: "/admin/notifications", label: "Notifications", icon: Bell, adminOnly: true },
