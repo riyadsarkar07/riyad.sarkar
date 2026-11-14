@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSupabase } from "@/hooks/use-supabase";
+import { readLiveChatInbox, readLiveChatMessages } from "@/lib/live-chat-read";
 import {
   addChatInternalNoteAction,
   assignChatSessionAction,
@@ -41,8 +42,6 @@ import {
   loadChatCustomerHistoryAction,
   loadChatRoutingDirectoryAction,
   loadChatStaffDirectoryAction,
-  loadLiveChatInboxAction,
-  loadLiveChatMessagesAction,
   markChatPendingClientAction,
   markChatReadAction,
   offerChatSessionAction,
@@ -224,6 +223,8 @@ export function LiveChat({
   const [sendOk, setSendOk] = useState(false);
   const [query, setQuery] = useState("");
   const [fStatus, setFStatus] = useState<FilterValue>(mode === "admin" ? "waiting" : "open");
+  const viewKey = `${mode}|\u0000|${fStatus}|\u0000|${query.trim()}`;
+  const [loadedViewKey, setLoadedViewKey] = useState<string | null>(null);
   const [agentOnline, setAgentOnline] = useState<boolean | null>(null);
   const [connected, setConnected] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -285,11 +286,16 @@ export function LiveChat({
   const reloadTimer = useRef<number | null>(null);
   const loadSessionsRef = useRef<((opts?: { initial?: boolean; append?: boolean }) => Promise<ChatSession[]>) | null>(null);
   const inboxRequestSeq = useRef(0);
+  const latestFilterRef = useRef(fStatus);
+  const lastRequestedViewRef = useRef(viewKey);
   const historyRequestSeq = useRef<Record<string, number>>({});
   const connectedRef = useRef(false);
   const startingRef = useRef(false);
 
   const switchQueueFilter = useCallback((value: FilterValue) => {
+    // Re-clicking an active tab must not cancel its only in-flight response.
+    if (latestFilterRef.current === value) return;
+    latestFilterRef.current = value;
     inboxRequestSeq.current += 1;
     setFStatus(value);
   }, []);
@@ -332,9 +338,9 @@ export function LiveChat({
   const loadSessions = useCallback(
     async (opts?: { initial?: boolean; append?: boolean }) => {
       const requestSeq = ++inboxRequestSeq.current;
-      let res: Awaited<ReturnType<typeof loadLiveChatInboxAction>>;
+      let res: Awaited<ReturnType<typeof readLiveChatInbox>>;
       try {
-        res = await loadLiveChatInboxAction(mode, {
+        res = await readLiveChatInbox(supabase, mode, {
           statuses: statusFilters(),
           query: query.trim() || null,
           cursorUpdatedAt: opts?.append ? nextCursor?.updated_at ?? null : null,
@@ -387,6 +393,7 @@ export function LiveChat({
         });
       }
       setNextCursor(res.nextCursor ?? null);
+      setLoadedViewKey(viewKey);
       setListErr(null);
       setLoadingList(false);
       setLoadingMore(false);
@@ -409,7 +416,7 @@ export function LiveChat({
       if (res.staffRole !== undefined && res.staffRole !== null) setActiveStaffRole(res.staffRole);
       return list;
     },
-    [applySessions, mode, statusFilters, query, nextCursor],
+    [applySessions, mode, statusFilters, query, nextCursor, supabase, viewKey],
   );
 
   loadSessionsRef.current = loadSessions;
@@ -425,7 +432,7 @@ export function LiveChat({
       const oldest = existing[0];
 
       try {
-        const res = await loadLiveChatMessagesAction(sessionId, {
+        const res = await readLiveChatMessages(supabase, sessionId, {
           beforeCreatedAt: opts?.older && oldest ? oldest.created_at : null,
           beforeId: opts?.older && oldest ? oldest.id : null,
           limit: 50,
@@ -458,7 +465,7 @@ export function LiveChat({
         }
       }
     },
-    [],
+    [supabase],
   );
 
   const loadAgentEvents = useCallback(
@@ -601,13 +608,20 @@ export function LiveChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, user, initialSessionId, mode]);
 
-  // Reload the list when filters/search change (not on every render).
+  // A filter change must schedule its own request, even while the initial
+  // Waiting/Open request is bootstrapping. Previously a tab change during
+  // bootstrap could leave "All 16" with a permanently empty Waiting list.
   useEffect(() => {
-    if (!bootstrapped.current) return;
-    const t = window.setTimeout(() => void loadSessions(), 250);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fStatus, query]);
+    if (!isLoaded || !user) return;
+    if (lastRequestedViewRef.current === viewKey) return;
+    lastRequestedViewRef.current = viewKey;
+    setLoadingList(true);
+    setListErr(null);
+    const timer = window.setTimeout(() => {
+      void loadSessionsRef.current?.({ initial: true });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [isLoaded, user, viewKey]);
 
   useEffect(() => {
     if (!user) return;
@@ -851,6 +865,10 @@ export function LiveChat({
     const closed = sessions.filter((s) => s.status === "closed").length;
     return { waiting, active, pendingClient, resolved, closed, all: sessions.length };
   }, [sessions, serverCounts]);
+
+  // Counts belong to the global queue, but rows belong to one requested
+  // filter. Never display "No sessions" using stale rows from another tab.
+  const viewIsPending = loadedViewKey !== viewKey;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -1367,7 +1385,7 @@ export function LiveChat({
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loadingList && sessions.length === 0 ? (
+          {!listErr && (loadingList || viewIsPending) && filtered.length === 0 ? (
             <div className="space-y-3 p-4">
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
