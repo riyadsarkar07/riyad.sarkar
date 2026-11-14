@@ -29,6 +29,8 @@ jobs:
         run: npm run typecheck
       - name: ESLint
         run: npm run lint
+      - name: Queue status regression tests (Node)
+        run: node --experimental-strip-types --test tests/chat-queue.test.mjs
       - name: Production Next.js build
         run: npm run build
       - name: Report commit
