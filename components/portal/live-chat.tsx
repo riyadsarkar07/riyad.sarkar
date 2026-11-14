@@ -61,7 +61,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { chatStatusMatchesFilter, reconcileChatSession, selectChatSession, selectPreviousChatCases, statusesForChatFilter } from "@/lib/chat-queue";
+import { chatInboxViewIsCurrent, chatInboxViewKey, chatStatusMatchesFilter, reconcileChatSession, selectChatSession, selectPreviousChatCases, statusesForChatFilter } from "@/lib/chat-queue";
 import type { ChatQueueFilter } from "@/lib/chat-queue";
 import {
   AGENT_STATUSES,
@@ -223,7 +223,7 @@ export function LiveChat({
   const [sendOk, setSendOk] = useState(false);
   const [query, setQuery] = useState("");
   const [fStatus, setFStatus] = useState<FilterValue>(mode === "admin" ? "waiting" : "open");
-  const viewKey = `${mode}|\u0000|${fStatus}|\u0000|${query.trim()}`;
+  const viewKey = chatInboxViewKey(mode, fStatus, query);
   const [loadedViewKey, setLoadedViewKey] = useState<string | null>(null);
   const [agentOnline, setAgentOnline] = useState<boolean | null>(null);
   const [connected, setConnected] = useState(false);
@@ -866,7 +866,7 @@ export function LiveChat({
 
   // Counts belong to the global queue, but rows belong to one requested
   // filter. Never display "No sessions" using stale rows from another tab.
-  const viewIsPending = loadedViewKey !== viewKey;
+  const viewIsPending = !chatInboxViewIsCurrent(loadedViewKey, viewKey);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
