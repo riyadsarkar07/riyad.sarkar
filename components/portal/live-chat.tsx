@@ -2524,6 +2524,26 @@ function DetailsBody({
         </div>
       )}
 
+      {timeline.events.length > 0 && (
+        <div className={cn("border-b border-border/60 py-3", bare ? "" : "px-4")}>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <History className="h-3.5 w-3.5" /> Case activity
+          </p>
+          <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
+            {timeline.events.slice(0, 25).map((event) => (
+              <li key={event.id} className="rounded-lg border border-border/60 px-2 py-1.5 text-[10px]">
+                <p className="font-semibold capitalize">{event.event_type.replaceAll("_", " ")}</p>
+                <p className="text-muted-foreground">
+                  {event.actor_name ?? "System"}
+                  {event.from_value && event.to_value ? ` · ${event.from_value} → ${event.to_value}` : ""}
+                </p>
+                <p className="text-muted-foreground">{fmtDateTime(event.created_at)}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className={cn("py-3", bare ? "" : "px-4")}>
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           <History className="h-3.5 w-3.5" /> Previous cases
