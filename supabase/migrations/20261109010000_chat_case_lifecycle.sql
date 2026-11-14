@@ -88,7 +88,9 @@ begin
      where nsp.nspname = 'public'
        and rel.relname = 'chat_sessions'
        and con.contype = 'c'
-       and con.conname <> 'chat_sessions_status_check'
+       -- Include the existing named priority constraint from M0.
+       -- Otherwise M2 raises duplicate_object when adding the widened
+       -- constraint and the escalation workspace cannot be deployed.
        and pg_get_constraintdef(con.oid) ilike '%priority%'
        and pg_get_constraintdef(con.oid) ilike '%urgent%'
   loop
