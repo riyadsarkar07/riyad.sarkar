@@ -783,7 +783,7 @@ export async function markChatReadAction(sessionId: string): Promise<ActionResul
   return { ok: true };
 }
 
-export async function startChatSessionAction(): Promise<ActionResult & { sessionId?: string }> {
+export async function startChatSessionAction(): Promise<ActionResult & { sessionId?: string; session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -856,7 +856,14 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
 
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
-  return { ok: true, referenceId: session.reference_id, sessionId: session.id };
+  // Return the actual inserted row so the UI can render the new case even
+  // before the queue's next database refresh, without borrowing a prior case.
+  return {
+    ok: true,
+    referenceId: session.reference_id,
+    sessionId: session.id,
+    session: session as ChatSession,
+  };
 }
 
 export async function joinChatSessionAction(sessionId: string): Promise<
