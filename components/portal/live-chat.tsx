@@ -805,6 +805,26 @@ export function LiveChat({
     setDetailsOpen(false);
   };
 
+  const historyCustomerId = selected?.user_id ?? "";
+  const isHistoryLoaded = !!historyCustomerId &&
+    Object.prototype.hasOwnProperty.call(customerHistory, historyCustomerId);
+  const isHistoryLoading = !!historyLoading[historyCustomerId];
+  const historyError = historyErrors[historyCustomerId] ?? "";
+  const nextHistoryOffset = historyNextOffset[historyCustomerId] ?? null;
+  const loadMoreHistory = () => {
+    if (selected && nextHistoryOffset !== null && !isHistoryLoading) {
+      void loadCustomerHistory(selected.id, selected.user_id, nextHistoryOffset);
+    }
+  };
+  const retryHistory = () => {
+    if (selected && !isHistoryLoading) {
+      void loadCustomerHistory(selected.id, selected.user_id);
+    }
+  };
+  const visibleTimeline = timelineSessionId === selectedId
+    ? timeline
+    : { events: [], escalations: [], assignments: [] };
+
   const counts = useMemo(() => {
     if (serverCounts) return serverCounts;
     // Temporary fallback during initial load only; never present page-sized
@@ -1894,9 +1914,15 @@ export function LiveChat({
               setNoteBody={setNoteBody}
               savingNote={savingNote}
               saveNote={saveNote}
-              timeline={timeline}
+              timeline={visibleTimeline}
               previousCases={previousCases}
-              onSelectCase={(id) => setSelectedId(id)}
+              historyLoaded={isHistoryLoaded}
+              historyLoading={isHistoryLoading}
+              historyError={historyError}
+              historyHasMore={nextHistoryOffset !== null}
+              onLoadMoreHistory={loadMoreHistory}
+              onRetryHistory={retryHistory}
+              onSelectCase={openHistoricalCase}
               onChangePriority={changePriority}
               openDialog={openDialog}
               busy={busy}
@@ -1940,12 +1966,15 @@ export function LiveChat({
                     setNoteBody={setNoteBody}
                     savingNote={savingNote}
                     saveNote={saveNote}
-                    timeline={timeline}
+                    timeline={visibleTimeline}
                     previousCases={previousCases}
-                    onSelectCase={(id) => {
-                      setSelectedId(id);
-                      setDetailsOpen(false);
-                    }}
+              historyLoaded={isHistoryLoaded}
+              historyLoading={isHistoryLoading}
+              historyError={historyError}
+              historyHasMore={nextHistoryOffset !== null}
+              onLoadMoreHistory={loadMoreHistory}
+              onRetryHistory={retryHistory}
+                    onSelectCase={openHistoricalCase}
                     onChangePriority={changePriority}
                     openDialog={openDialog}
                     busy={busy}
@@ -2239,6 +2268,12 @@ function DetailsBody({
   saveNote,
   timeline,
   previousCases,
+  historyLoaded,
+  historyLoading,
+  historyError,
+  historyHasMore,
+  onLoadMoreHistory,
+  onRetryHistory,
   onSelectCase,
   onChangePriority,
   openDialog,
@@ -2259,6 +2294,12 @@ function DetailsBody({
   saveNote: () => void;
   timeline: { events: ChatCaseEvent[]; escalations: ChatEscalation[]; assignments: ChatAssignment[] };
   previousCases: ChatSession[];
+  historyLoaded: boolean;
+  historyLoading: boolean;
+  historyError: string;
+  historyHasMore: boolean;
+  onLoadMoreHistory: () => void;
+  onRetryHistory: () => void;
   onSelectCase: (id: string) => void;
   onChangePriority: (p: ChatSession["priority"]) => void;
   openDialog: (kind: "resolve" | "close" | "reopen" | "return" | "assign" | "offer" | "escalate") => void;
@@ -2468,13 +2509,26 @@ function DetailsBody({
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           <History className="h-3.5 w-3.5" /> Previous cases
         </p>
-        {previousCases.length === 0 ? (
-          <p className="mt-2 text-[11px] text-muted-foreground">This is the client&apos;s first live chat.</p>
+        {historyError && (
+          <div role="alert" className="mt-2 text-xs text-red-500">
+            {historyError}{" "}
+            <button type="button" className="font-semibold underline" onClick={onRetryHistory}>Retry</button>
+          </div>
+        )}
+        {!historyLoaded && historyLoading ? (
+          <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading previous cases…
+          </p>
+        ) : !historyLoaded && historyError ? null : previousCases.length === 0 ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {historyLoaded ? "No earlier cases for this customer." : "Select a case to load customer history."}
+          </p>
         ) : (
-          <ul className="mt-2 space-y-1.5">
-            {previousCases.slice(0, 8).map((c) => (
+          <ul className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
+            {previousCases.map((c) => (
               <li key={c.id}>
                 <button
+                  type="button"
                   onClick={() => onSelectCase(c.id)}
                   className="w-full rounded-lg border border-border/60 px-2.5 py-2 text-left text-[11px] transition-colors hover:border-primary/40 hover:bg-primary/5"
                 >
@@ -2489,6 +2543,13 @@ function DetailsBody({
               </li>
             ))}
           </ul>
+        )}
+        {historyHasMore && (
+          <Button type="button" size="sm" variant="outline" className="mt-2 w-full"
+            disabled={historyLoading} onClick={onLoadMoreHistory}>
+            {historyLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
+            Load older cases
+          </Button>
         )}
       </div>
     </div>
