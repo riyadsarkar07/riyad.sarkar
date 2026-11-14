@@ -873,11 +873,14 @@ export async function joinChatSessionAction(sessionId: string): Promise<
     adminName?: string | null;
     status?: string;
     assignedAdminId?: string | null;
+    session?: ChatSession;
   }
 > {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
-  if (!(await isAdminUser())) return { ok: false, error: "Not authorized" };
+  // The new staff workspace is available to authorized agents, not only
+  // legacy global administrators. The RPC enforces the same staff policy.
+  if (!(await getStaffRole(supabase))) return { ok: false, error: "Not authorized" };
 
   const joined = await runJoinChatSession(supabase, sessionId);
   if (!joined.ok) {
@@ -899,16 +902,27 @@ export async function joinChatSessionAction(sessionId: string): Promise<
     return { ok: false, error: joined.error };
   }
 
+  if (joined.result.ok !== true || !["active", "pending_client"].includes(joined.result.status ?? "")) {
+    return { ok: false, error: "Only an open case can be joined. Refresh the queue and select a current case." };
+  }
+  const { data: row, error: readError } = await supabase
+    .from("chat_sessions").select("*").eq("id", sessionId).maybeSingle();
+  if (readError || !row || row.assigned_admin_id !== user.id ||
+      !["active", "pending_client"].includes(row.status)) {
+    return { ok: false, error: "The agent assignment was not confirmed in the database. Refresh the queue." };
+  }
+
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
   return {
     ok: true,
     joined: !!joined.result.joined,
     welcome: !!joined.result.welcome,
-    adminName: joined.result.admin_name ?? null,
-    status: joined.result.status,
-    assignedAdminId: joined.result.assigned_admin_id ?? null,
-    referenceId: joined.result.reference_id ?? undefined,
+    adminName: row.assigned_admin_name ?? null,
+    status: row.status,
+    assignedAdminId: row.assigned_admin_id,
+    referenceId: row.reference_id ?? undefined,
+    session: row as ChatSession,
   };
 }
 
