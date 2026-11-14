@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  chatInboxViewIsCurrent,
+  chatInboxViewKey,
   chatStatusMatchesFilter,
   selectChatSession,
   selectPreviousChatCases,
@@ -92,4 +94,27 @@ test("Admin previous cases list retains resolved/closed history outside Waiting 
   assert.deepEqual(selectPreviousChatCases(history, null), []);
   // The active filter excludes historical rows from the inbox, not history.
   assert.equal(chatStatusMatchesFilter(result[0].status, "active"), false);
+});
+
+test("An Admin All-tab transition cannot render the old empty Waiting page", () => {
+  const waiting = chatInboxViewKey("admin", "waiting", "");
+  const all = chatInboxViewKey("admin", "all", "");
+  assert.equal(chatInboxViewIsCurrent(waiting, all), false);
+  assert.equal(chatInboxViewIsCurrent(null, all), false);
+  assert.equal(chatInboxViewIsCurrent(all, all), true);
+});
+
+test("Queue view identity changes only for meaningful search/filter changes", () => {
+  assert.equal(
+    chatInboxViewKey("user", "open", "  CASE-123 "),
+    chatInboxViewKey("user", "open", "case-123"),
+  );
+  assert.notEqual(
+    chatInboxViewKey("user", "open", ""),
+    chatInboxViewKey("admin", "open", ""),
+  );
+  assert.notEqual(
+    chatInboxViewKey("admin", "waiting", ""),
+    chatInboxViewKey("admin", "resolved", ""),
+  );
 });
