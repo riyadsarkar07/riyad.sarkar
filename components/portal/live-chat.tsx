@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSupabase } from "@/hooks/use-supabase";
-import { readLiveChatInbox, readLiveChatMessages } from "@/lib/live-chat-read";
+import { readLiveChatEnrichment, readLiveChatInbox, readLiveChatMessages } from "@/lib/live-chat-read";
 import {
   addChatInternalNoteAction,
   assignChatSessionAction,
@@ -397,23 +397,21 @@ export function LiveChat({
       setListErr(null);
       setLoadingList(false);
       setLoadingMore(false);
-      if (res.profiles) {
-        setCustomers((prev) => {
-          const next = { ...prev };
-          for (const [id, name] of Object.entries(res.profiles ?? {})) {
-            next[id] = next[id]
-              ? { ...next[id], name }
-              : { id, name, email: null, phone: null };
-          }
-          for (const [id, customer] of Object.entries(res.customers ?? {})) {
-            next[id] = customer;
-          }
-          return next;
-        });
-      }
-      if (res.unread) setUnread(res.unread);
-      if (res.agentOnline !== undefined) setAgentOnline(res.agentOnline ?? null);
-      if (res.staffRole !== undefined && res.staffRole !== null) setActiveStaffRole(res.staffRole);
+      // The case list and status counts are already visible. Populate
+      // metadata independently so a slow unread/presence/profile request
+      // never leaves Admin "All" waiting on another network round trip.
+      void readLiveChatEnrichment(supabase, mode, list).then((enriched) => {
+        if (requestSeq !== inboxRequestSeq.current) return;
+        if (enriched.customers) {
+          setCustomers((prev) => ({ ...prev, ...enriched.customers }));
+        }
+        if (enriched.unread) setUnread(enriched.unread);
+        if (enriched.agentOnline !== undefined) {
+          setAgentOnline(enriched.agentOnline ?? null);
+        }
+      }).catch(() => {
+        // Metadata is best-effort; the authenticated queue remains usable.
+      });
       return list;
     },
     [applySessions, mode, statusFilters, query, nextCursor, supabase, viewKey],
