@@ -60,11 +60,17 @@ async function runJoinChatSession(
   if (error) return { ok: false, error: error.message };
   const result = (data ?? {}) as ChatJoinResult;
   if (result.joined && result.user_id && result.admin_name && result.reference_id) {
-    await notifyChatJoined({
-      userId: result.user_id,
-      adminName: result.admin_name,
-      referenceId: result.reference_id,
-    });
+    // A notification integration must never make a committed chat join look
+    // like it failed. The welcome chat message is written by the database RPC.
+    try {
+      await notifyChatJoined({
+        userId: result.user_id,
+        adminName: result.admin_name,
+        referenceId: result.reference_id,
+      });
+    } catch (notificationError) {
+      console.error("Chat join succeeded but secondary notification failed", notificationError);
+    }
   }
   return { ok: true, result };
 }
@@ -910,6 +916,19 @@ export async function joinChatSessionAction(sessionId: string): Promise<
   if (readError || !row || row.assigned_admin_id !== user.id ||
       !["active", "pending_client"].includes(row.status)) {
     return { ok: false, error: "The agent assignment was not confirmed in the database. Refresh the queue." };
+  }
+
+  // A successful claim alone does not imply that an automatic welcome was
+  // saved. Verify the actual message row written by join_chat_session.
+  const { data: welcomeRow, error: welcomeError } = await supabase
+    .from("chat_messages").select("id")
+    .eq("session_id", sessionId).eq("kind", "welcome")
+    .limit(1).maybeSingle();
+  if (welcomeError || !welcomeRow || !row.welcome_sent_at) {
+    return {
+      ok: false,
+      error: "Agent ownership was saved, but the automatic welcome was not confirmed. Refresh the case and retry Send welcome.",
+    };
   }
 
   revalidatePath("/dashboard/chat");
