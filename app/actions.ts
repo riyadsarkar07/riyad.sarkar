@@ -787,17 +787,22 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
-  const { data: existing } = await supabase
+  // A "New chat" request must never silently resume an old case.
+  // The partial unique index still protects against concurrent starts.
+  const { data: existing, error: existingError } = await supabase
     .from("chat_sessions")
-    .select("*")
+    .select("id, reference_id, status")
     .eq("user_id", user.id)
     .in("status", ["waiting", "active", "pending_client"])
-    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
+  if (existingError) return { ok: false, error: existingError.message };
   if (existing) {
-    if (!existing.reference_id) return { ok: false, error: "Chat session is missing a session ID." };
-    return { ok: true, referenceId: existing.reference_id, sessionId: existing.id };
+    return {
+      ok: false,
+      error: `Case ${existing.reference_id ?? existing.id} is still ${existing.status}. End that case before starting a completely new one, or continue it from your session list.`,
+    };
   }
 
   const { data: session, error: insertError } = await supabase
@@ -808,15 +813,9 @@ export async function startChatSessionAction(): Promise<ActionResult & { session
 
   if (insertError) {
     if (insertError.code === "23505") {
-      const { data: raced } = await supabase
-        .from("chat_sessions")
-        .select("*")
-        .eq("user_id", user.id)
-        .in("status", ["waiting", "active", "pending_client"])
-        .maybeSingle();
-      if (raced?.id) {
-        return { ok: true, referenceId: raced.reference_id ?? undefined, sessionId: raced.id };
-      }
+      // A concurrent request may have created an active case, but it is
+      // not a new case for THIS request. Never silently return its ID.
+      return { ok: false, error: "You already have an open case. Return to your session list or end it before starting a new chat." };
     }
     console.error("[live-chat] start session insert failed", {
       code: insertError.code ?? "unknown",
@@ -984,10 +983,37 @@ export async function sendChatMessageAction(input: {
   return { ok: true, referenceId: session.reference_id ?? undefined };
 }
 
+/** Read back the exact committed row after a transition.
+ * An RPC response alone is not evidence that the database status persisted. */
+async function verifyChatSessionStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sessionId: string,
+  expected: ChatSession["status"],
+): Promise<(ActionResult & { session?: ChatSession })> {
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .select("*")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "Case status could not be confirmed from the database. Refresh and retry." };
+  }
+  const session = data as ChatSession;
+  if (session.status !== expected) {
+    return {
+      ok: false,
+      status: session.status,
+      session,
+      error: `Case status is still ${session.status}, not ${expected}. No success was reported; refresh before taking another action.`,
+    };
+  }
+  return { ok: true, session, status: session.status, referenceId: session.reference_id ?? undefined };
+}
+
 export async function resolveChatSessionAction(
   id: string,
   summary?: string,
-): Promise<ActionResult> {
+): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -996,17 +1022,21 @@ export async function resolveChatSessionAction(
     p_summary: summary ?? null,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
-
+  const result = (data ?? {}) as { ok?: boolean; status?: string };
+  if (result.ok !== true || result.status !== "resolved") {
+    return { ok: false, error: "Resolve was not confirmed by the database." };
+  }
+  const persisted = await verifyChatSessionStatus(supabase, id, "resolved");
+  if (!persisted.ok) return persisted;
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
-  const result = (data ?? {}) as { status?: string };
-  return { ok: true, status: result.status };
+  return persisted;
 }
 
 export async function closeChatSessionAction(
   id: string,
   reason?: string,
-): Promise<ActionResult> {
+): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -1015,14 +1045,18 @@ export async function closeChatSessionAction(
     p_reason: reason ?? null,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
-
+  const result = (data ?? {}) as { ok?: boolean; status?: string };
+  if (result.ok !== true || result.status !== "closed") {
+    return { ok: false, error: "Close was not confirmed by the database." };
+  }
+  const persisted = await verifyChatSessionStatus(supabase, id, "closed");
+  if (!persisted.ok) return persisted;
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
-  const result = (data ?? {}) as { status?: string };
-  return { ok: true, status: result.status };
+  return persisted;
 }
 
-export async function clientEndChatSessionAction(id: string): Promise<ActionResult> {
+export async function clientEndChatSessionAction(id: string): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -1030,16 +1064,20 @@ export async function clientEndChatSessionAction(id: string): Promise<ActionResu
     p_session_id: id,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
-
+  const result = (data ?? {}) as { ok?: boolean; status?: string };
+  if (result.ok !== true || result.status !== "resolved") {
+    return { ok: false, error: "End session was not confirmed by the database." };
+  }
+  const persisted = await verifyChatSessionStatus(supabase, id, "resolved");
+  if (!persisted.ok) return persisted;
   revalidatePath("/dashboard/chat");
-  const result = (data ?? {}) as { status?: string };
-  return { ok: true, status: result.status };
+  return persisted;
 }
 
 export async function reopenChatSessionAction(
   id: string,
   reason: string,
-): Promise<ActionResult> {
+): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -1048,11 +1086,15 @@ export async function reopenChatSessionAction(
     p_reason: reason,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
-
+  const result = (data ?? {}) as { ok?: boolean; status?: string };
+  if (result.ok !== true || result.status !== "active") {
+    return { ok: false, error: "Reopen was not confirmed by the database." };
+  }
+  const persisted = await verifyChatSessionStatus(supabase, id, "active");
+  if (!persisted.ok) return persisted;
   revalidatePath("/dashboard/chat");
   revalidatePath("/admin/chat");
-  const result = (data ?? {}) as { status?: string };
-  return { ok: true, status: result.status };
+  return persisted;
 }
 
 export async function loadChatAgentEventsAction(sessionId: string): Promise<{
