@@ -80,3 +80,24 @@ export function selectPreviousChatCases<T extends {
     .filter((item) => item.user_id === selected.user_id && item.id !== selected.id)
     .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
 }
+
+/**
+ * Distinguish the currently requested inbox tab/search from the last response.
+ * Global badge counts may say "All 16" while the previously requested
+ * Waiting page legitimately contained zero rows. That must be a loading
+ * state, never a misleading "No live chat sessions yet" empty state.
+ */
+export function chatInboxViewKey(
+  mode: "user" | "admin",
+  filter: ChatQueueFilter,
+  query: string,
+): string {
+  return JSON.stringify([mode, filter, query.trim().toLowerCase()]);
+}
+
+export function chatInboxViewIsCurrent(
+  loadedViewKey: string | null,
+  requestedViewKey: string,
+): boolean {
+  return loadedViewKey === requestedViewKey;
+}
