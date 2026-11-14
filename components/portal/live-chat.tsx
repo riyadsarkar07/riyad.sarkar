@@ -269,7 +269,11 @@ export function LiveChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
   const sessionsRef = useRef<ChatSession[]>([]);
-  const loadSeq = useRef(0);
+  // The latest message cache is needed for pagination, but must not be a
+  // dependency of loadThread: fetching an empty case also updates `threads`.
+  const threadsRef = useRef(threads);
+  // Separate in-flight generations per case; loading case B must not cancel A.
+  const loadSeq = useRef<Record<string, number>>({});
   const lastMsgIdRef = useRef<string | null>(null);
   const bootstrapped = useRef(false);
   const refreshing = useRef(false);
@@ -285,6 +289,10 @@ export function LiveChat({
   useEffect(() => {
     sessionsRef.current = sessions;
   }, [sessions]);
+
+  useEffect(() => {
+    threadsRef.current = threads;
+  }, [threads]);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -381,34 +389,49 @@ export function LiveChat({
 
   const loadThread = useCallback(
     async (sessionId: string, opts?: { showLoader?: boolean; older?: boolean }) => {
-      const seq = ++loadSeq.current;
+      const seq = (loadSeq.current[sessionId] ?? 0) + 1;
+      loadSeq.current[sessionId] = seq;
       if (opts?.showLoader) {
         setLoadingThreads((prev) => ({ ...prev, [sessionId]: true }));
       }
-      const existing = threads[sessionId] ?? [];
+      const existing = threadsRef.current[sessionId] ?? [];
       const oldest = existing[0];
-      const res = await loadLiveChatMessagesAction(sessionId, {
-        beforeCreatedAt: opts?.older && oldest ? oldest.created_at : null,
-        beforeId: opts?.older && oldest ? oldest.id : null,
-        limit: 50,
-      });
-      if (seq !== loadSeq.current) return;
-      setLoadingThreads((prev) => ({ ...prev, [sessionId]: false }));
-      setLoadingOlder(false);
-      if (!res.ok) {
-        if (selectedIdRef.current === sessionId) {
-          setChatErr(res.error || "Could not load messages.");
+
+      try {
+        const res = await loadLiveChatMessagesAction(sessionId, {
+          beforeCreatedAt: opts?.older && oldest ? oldest.created_at : null,
+          beforeId: opts?.older && oldest ? oldest.id : null,
+          limit: 50,
+        });
+        // A newer request for this case won the race. Do not replace its
+        // pagination/loader state with an out-of-order older response.
+        if (seq !== loadSeq.current[sessionId]) return;
+        if (!res.ok) {
+          if (selectedIdRef.current === sessionId) {
+            setChatErr(res.error || "Could not load messages.");
+          }
+          return;
         }
-        return;
+        const incoming = res.messages ?? [];
+        setThreadHasMore((prev) => ({ ...prev, [sessionId]: !!res.hasMore }));
+        setThreads((prev) => {
+          const merged = mergeChatMessages(prev[sessionId] ?? [], incoming);
+          return { ...prev, [sessionId]: merged };
+        });
+      } catch {
+        if (seq === loadSeq.current[sessionId] && selectedIdRef.current === sessionId) {
+          setChatErr("Messages could not be loaded. Please retry.");
+        }
+      } finally {
+        // An empty thread must settle to the empty-state message, not an
+        // endless three-bubble loading skeleton on both admin/client screens.
+        if (seq === loadSeq.current[sessionId]) {
+          setLoadingThreads((prev) => ({ ...prev, [sessionId]: false }));
+          setLoadingOlder(false);
+        }
       }
-      const incoming = res.messages ?? [];
-      setThreadHasMore((prev) => ({ ...prev, [sessionId]: !!res.hasMore }));
-      setThreads((prev) => {
-        const merged = mergeChatMessages(prev[sessionId] ?? [], incoming);
-        return { ...prev, [sessionId]: merged };
-      });
     },
-    [threads],
+    [],
   );
 
   const loadAgentEvents = useCallback(
@@ -643,7 +666,7 @@ export function LiveChat({
         { event: "UPDATE", schema: "public", table: "chat_sessions", filter: `id=eq.${sessionId}` },
         (payload) => {
           const s = payload.new as ChatSession;
-          setSessions((prev) => prev.map((x) => (x.id === s.id ? { ...x, ...s } : x)));
+          setSessions((prev) => prev.map((x) => (x.id === s.id ? reconcileChatSession(x, s) : x)));
         },
       )
       .subscribe();
