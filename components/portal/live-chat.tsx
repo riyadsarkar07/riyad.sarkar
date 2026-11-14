@@ -770,16 +770,11 @@ export function LiveChat({
     [threads, selectedId],
   );
 
-  useEffect(() => {
-    if (!selectedId) return;
-    const row = sessions.find((item) => item.id === selectedId)
-      ?? Object.values(customerHistory).flat().find((item) => item.id === selectedId);
-    // The detail selector already rejects mismatches during render. Clear the
-    // old ID too, so the mobile queue is visible after a realtime transition.
-    if (row && !chatStatusMatchesFilter(row.status, fStatus)) {
-      setSelectedId(null);
-    }
-  }, [selectedId, sessions, fStatus]);
+  // Do not clear selectedId when Realtime reports a status transition.
+  // During Join/Accept the case moves Waiting -> Active before the server
+  // action returns; clearing here permanently lost the currently viewed
+  // conversation. selectChatSession already hides a mismatched detail in
+  // the old tab, while explicit tab clicks clear selection deliberately.
 
   useEffect(() => {
     if (mode !== "admin" || !selected?.user_id) return;
@@ -922,6 +917,7 @@ export function LiveChat({
       }
       const persisted = res.session;
       setSessions((prev) => prev.map((row) => row.id === persisted.id ? persisted : row));
+      setSelectedId(caseId);
       switchQueueFilter(persisted.status === "pending_client" ? "pending_client" : "active");
       setActionMsg(res.welcome
         ? "Agent joined. An automatic welcome message was saved in this case."
