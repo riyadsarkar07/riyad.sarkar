@@ -1316,7 +1316,7 @@ export async function respondChatAssignmentAction(input: {
 export async function returnChatSessionToQueueAction(input: {
   sessionId: string;
   reason: string;
-}): Promise<ActionResult> {
+}): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
   if (input.reason.trim().length < 3) return { ok: false, error: "A reason is required." };
@@ -1326,15 +1326,17 @@ export async function returnChatSessionToQueueAction(input: {
     p_reason: input.reason.trim(),
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+  const persisted = await verifyChatSessionStatus(supabase, input.sessionId, "waiting");
+  if (!persisted.ok) return persisted;
 
   revalidatePath("/admin/chat");
-  return { ok: true };
+  return persisted;
 }
 
 export async function updateChatPriorityAction(input: {
   sessionId: string;
   priority: (typeof CHAT_PRIORITIES)[number];
-}): Promise<ActionResult> {
+}): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
   if (!(await isAdminUser()) && !(await getStaffRole(supabase))) {
@@ -1350,11 +1352,15 @@ export async function updateChatPriorityAction(input: {
     p_priority: input.priority,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
-
-  return { ok: true };
+  const { data: row, error: readErr } = await supabase.from("chat_sessions")
+    .select("*").eq("id", input.sessionId).maybeSingle();
+  if (readErr || !row || row.priority !== input.priority) {
+    return { ok: false, error: "Priority could not be confirmed from the database. Refresh and retry." };
+  }
+  return { ok: true, session: row as ChatSession, status: row.status };
 }
 
-export async function markChatPendingClientAction(sessionId: string): Promise<ActionResult> {
+export async function markChatPendingClientAction(sessionId: string): Promise<ActionResult & { session?: ChatSession }> {
   const { supabase, user, error } = await requireUser();
   if (!supabase || !user) return { ok: false, error };
 
@@ -1362,9 +1368,11 @@ export async function markChatPendingClientAction(sessionId: string): Promise<Ac
     p_session_id: sessionId,
   });
   if (rpcErr) return { ok: false, error: chatRpcError(rpcErr.message) };
+  const persisted = await verifyChatSessionStatus(supabase, sessionId, "pending_client");
+  if (!persisted.ok) return persisted;
 
   revalidatePath("/admin/chat");
-  return { ok: true };
+  return persisted;
 }
 
 export async function setChatAgentStatusAction(
