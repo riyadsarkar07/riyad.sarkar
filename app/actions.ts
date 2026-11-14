@@ -1228,6 +1228,40 @@ export async function escalateChatSessionAction(input: {
   return { ok: true };
 }
 
+/** Atomically return an escalation and its case to the waiting queue.
+ * Requires the additive M9 RPC; never split these into separate writes. */
+export async function returnChatEscalationToQueueAction(
+  escalationId: string,
+  reason: string,
+): Promise<ActionResult & { session?: ChatSession }> {
+  const { supabase, user, error } = await requireUser();
+  if (!supabase || !user) return { ok: false, error };
+  if ((await getStaffRole(supabase)) === null) return { ok: false, error: "Not authorized" };
+  const cleanReason = reason.trim();
+  if (cleanReason.length < 3 || cleanReason.length > 2000) {
+    return { ok: false, error: "Enter a return reason of 3–2000 characters." };
+  }
+  const { data, error: rpcError } = await supabase.rpc("return_chat_escalation_to_queue", {
+    p_escalation_id: escalationId,
+    p_reason: cleanReason,
+  });
+  if (rpcError) return { ok: false, error: chatRpcError(rpcError.message) };
+  const result = (data ?? {}) as {
+    ok?: boolean; session_id?: string; case_status?: string;
+    escalation_status?: string;
+  };
+  if (result.ok !== true || !result.session_id ||
+      result.case_status !== "waiting" || result.escalation_status !== "returned") {
+    return { ok: false, error: "The escalation return was not confirmed by the server." };
+  }
+  const persisted = await verifyChatSessionStatus(supabase, result.session_id, "waiting");
+  if (!persisted.ok || persisted.session?.assigned_admin_id) {
+    return { ok: false, error: "The case was not confirmed unassigned in the waiting queue." };
+  }
+  revalidatePath("/admin/chat");
+  return persisted;
+}
+
 export async function respondChatEscalationAction(input: {
   escalationId: string;
   action: "accept" | "reject" | "return" | "cancel";
