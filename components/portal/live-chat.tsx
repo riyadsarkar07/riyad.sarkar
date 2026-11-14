@@ -332,13 +332,23 @@ export function LiveChat({
   const loadSessions = useCallback(
     async (opts?: { initial?: boolean; append?: boolean }) => {
       const requestSeq = ++inboxRequestSeq.current;
-      const res = await loadLiveChatInboxAction(mode, {
-        statuses: statusFilters(),
-        query: query.trim() || null,
-        cursorUpdatedAt: opts?.append ? nextCursor?.updated_at ?? null : null,
-        cursorId: opts?.append ? nextCursor?.id ?? null : null,
-        limit: PAGE_SIZE,
-      });
+      let res: Awaited<ReturnType<typeof loadLiveChatInboxAction>>;
+      try {
+        res = await loadLiveChatInboxAction(mode, {
+          statuses: statusFilters(),
+          query: query.trim() || null,
+          cursorUpdatedAt: opts?.append ? nextCursor?.updated_at ?? null : null,
+          cursorId: opts?.append ? nextCursor?.id ?? null : null,
+          limit: PAGE_SIZE,
+        });
+      } catch {
+        if (requestSeq === inboxRequestSeq.current) {
+          setListErr("Could not contact Live Support. Check the connection and retry.");
+          setLoadingList(false);
+          setLoadingMore(false);
+        }
+        return sessionsRef.current;
+      }
       // Reject stale requests from an older filter or query.
       if (requestSeq !== inboxRequestSeq.current) return sessionsRef.current;
       if (!res.ok) {
