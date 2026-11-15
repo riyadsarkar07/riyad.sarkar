@@ -73,7 +73,7 @@ export default function AccountPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="glass gradient-border rounded-3xl p-6 sm:p-8">
+        <section className="portal-surface rounded-xl p-6 sm:p-8">
           <h3 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <UserRound className="h-4 w-4 text-cyan-500" /> Account information
           </h3>
@@ -81,12 +81,12 @@ export default function AccountPage() {
             {rows.map((row) => (
               <div
                 key={row.label}
-                className="flex items-center justify-between gap-4 rounded-xl bg-primary/5 px-4 py-3"
+                className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <dt className="flex items-center gap-2 text-xs text-muted-foreground">
                   <row.icon className="h-3.5 w-3.5" /> {row.label}
                 </dt>
-                <dd className="flex items-center gap-2 text-right text-sm font-medium">
+                <dd className="flex min-w-0 flex-wrap items-center gap-2 break-all text-left text-sm font-medium sm:justify-end sm:text-right">
                   {row.value}
                   {row.trailing}
                 </dd>
@@ -95,7 +95,7 @@ export default function AccountPage() {
           </dl>
         </section>
 
-        <section id="change-password" className="glass gradient-border scroll-mt-24 rounded-3xl p-6 sm:p-8">
+        <section id="change-password" className="portal-surface scroll-mt-24 rounded-xl p-6 sm:p-8">
           <h3 className="mb-4 flex items-center gap-2 font-display text-base font-bold">
             <KeyRound className="h-4 w-4 text-cyan-500" /> Change Password
           </h3>
