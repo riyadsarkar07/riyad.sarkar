@@ -14,6 +14,12 @@
     --input: 214 38% 88%;
     --ring: 199 89% 48%;
     --radius: 0.95rem;
+    /* Calm Cyber Precision: semantic product workspace surfaces */
+    --workspace-canvas: #f7f9fc;
+    --workspace-surface: #ffffff;
+    --workspace-subtle: #f0f4f8;
+    --workspace-line: #dce5ee;
+    --workspace-shadow: 0 8px 30px rgba(15, 35, 63, 0.045);
   }
 
   .dark {
@@ -26,6 +32,11 @@
     --border: 217 32% 16%;
     --input: 217 32% 18%;
     --ring: 199 89% 55%;
+    --workspace-canvas: #07111d;
+    --workspace-surface: #0c1826;
+    --workspace-subtle: #111f30;
+    --workspace-line: #22364a;
+    --workspace-shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
   }
 
   * {
@@ -437,11 +448,71 @@
     box-shadow: 0 0 0 3px rgb(239 68 68 / 0.12);
   }
 
+  /* Product routes deliberately use a quieter palette than marketing pages. */
   .portal-canvas {
-    background-image:
-      radial-gradient(at 12% 8%, rgba(56, 189, 248, 0.14) 0, transparent 42%),
-      radial-gradient(at 88% 0%, rgba(37, 99, 235, 0.1) 0, transparent 46%),
-      radial-gradient(at 80% 100%, rgba(14, 165, 233, 0.08) 0, transparent 50%);
+    background-color: var(--workspace-canvas);
+    background-image: radial-gradient(850px 380px at 98% -12%, rgba(14, 165, 233, 0.045), transparent 75%);
+  }
+
+  .portal-workspace {
+    background-color: var(--workspace-surface);
+    border: 1px solid var(--workspace-line);
+    box-shadow: var(--workspace-shadow);
+  }
+
+  .portal-surface {
+    background-color: var(--workspace-surface);
+    border: 1px solid var(--workspace-line);
+    box-shadow: var(--workspace-shadow);
+  }
+
+  .support-workspace {
+    isolation: isolate;
+  }
+
+  .support-queue,
+  .support-inspector {
+    background-color: var(--workspace-subtle);
+  }
+
+  .support-queue-header,
+  .support-thread-header,
+  .support-composer {
+    background-color: var(--workspace-surface);
+  }
+
+  .support-queue-row {
+    border-bottom: 1px solid var(--workspace-line);
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .support-queue-row:hover {
+    background-color: hsl(var(--ring) / 0.065);
+  }
+
+  .support-queue-row[data-selected="true"] {
+    background-color: hsl(var(--ring) / 0.09);
+    box-shadow: inset 3px 0 0 hsl(var(--ring));
+  }
+
+  .support-thread-scroll {
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .support-composer {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .support-workspace :is(button, input, textarea, select):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 767px) {
+    .support-workspace {
+      min-height: min(570px, calc(100dvh - 9rem));
+    }
   }
 
   .nav-link-underline {
