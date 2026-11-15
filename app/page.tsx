@@ -3,6 +3,7 @@ import { Stats } from "@/components/sections/stats";
 import { LiveStatus } from "@/components/sections/live-status";
 import { About } from "@/components/sections/about";
 import { Services } from "@/components/sections/services";
+import { ServiceJourney } from "@/components/sections/service-journey";
 import { CyberSecurity } from "@/components/sections/cyber-security";
 import { Tools } from "@/components/sections/tools";
 import { Experience } from "@/components/sections/experience";
@@ -18,24 +19,30 @@ import { HashScroll } from "@/components/effects/hash-scroll";
 
 export default function HomePage() {
   return (
-    <>
+    <div className="portfolio-editorial">
       <HashScroll />
+      {/* Decision layer: proposition -> evidence -> services -> next step. */}
       <Hero />
       <Stats />
-      <About />
       <Services />
-      <CyberSecurity />
-      <Tools />
-      <Experience />
-      <Certificates />
-      <Achievements />
-      <ClientLogos />
+      <ServiceJourney />
       <Testimonials />
-      <Faq />
+      <ClientLogos />
+
+      {/* Deeper proof: retain existing deep links and searchable content. */}
+      <About />
+      <Experience />
+      <CyberSecurity />
+      <Achievements />
+      <Certificates />
+      <Tools />
       <Blog />
       <Gallery />
+
+      {/* Conversion and self-service. */}
+      <Faq />
       <LiveStatus />
       <Contact />
-    </>
+    </div>
   );
 }
