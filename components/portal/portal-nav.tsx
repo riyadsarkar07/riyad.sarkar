@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -57,6 +57,9 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   const { signOut, profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [hash, setHash] = useState("");
+  const mobileTrigger = useRef<HTMLButtonElement>(null);
+  const mobileDrawer = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const sync = () => setHash(window.location.hash);
@@ -64,6 +67,44 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, [pathname]);
+
+  // Keep keyboard focus inside the mobile navigation sheet and restore it on close.
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => closeButton.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !mobileDrawer.current) return;
+      const focusable = Array.from(
+        mobileDrawer.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      mobileTrigger.current?.focus();
+    };
+  }, [open]);
 
   const isActive = (item: PortalNavItem) => routeIsActive(item, pathname, hash, items);
 
@@ -138,7 +179,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
           <Logo />
           <p className="font-display text-sm font-bold">{title}</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open menu">
+        <Button ref={mobileTrigger} variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
           <Menu className="h-5 w-5" />
         </Button>
       </header>
@@ -155,6 +196,10 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               onClick={() => setOpen(false)}
             />
             <motion.div
+              ref={mobileDrawer}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Portal navigation menu"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
@@ -162,6 +207,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               className="glass-strong fixed inset-y-0 left-0 z-[61] w-72 max-w-[85vw] shadow-glass-lg lg:hidden"
             >
               <button
+                ref={closeButton}
                 onClick={() => setOpen(false)}
                 className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                 aria-label="Close menu"
