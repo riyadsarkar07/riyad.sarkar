@@ -164,6 +164,26 @@ export default function AdminOverviewPage() {
         }
       />
 
+      <section aria-labelledby="support-operations-title" className="mb-7 flex flex-col gap-5 rounded-2xl border border-border/70 bg-card p-6 shadow-sm sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">Operations hub</p>
+          <h2 id="support-operations-title" className="mt-2 font-display text-xl font-semibold tracking-tight sm:text-2xl">
+            Support cases, right where you need them.
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Review your live queue, manage incoming enquiries, and keep an eye on active work.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button asChild>
+            <Link href="/admin/chat"><Headset className="h-4 w-4" /> Open live inbox</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/support">Support tickets <ArrowRight className="h-4 w-4" /></Link>
+          </Button>
+        </div>
+      </section>
+
       {error && (
         <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between" role="alert">
           <p className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400">
@@ -198,7 +218,7 @@ export default function AdminOverviewPage() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="portal-surface rounded-xl p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
               <CalendarCheck className="h-4 w-4 text-cyan-500" /> Recent Appointments
@@ -217,7 +237,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentAppointments.map((a) => (
                 <li key={a.id}>
-                  <Link href={`/admin/appointments/${a.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/appointments/${a.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/80 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{a.service}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -233,7 +253,7 @@ export default function AdminOverviewPage() {
           )}
         </motion.section>
 
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="portal-surface rounded-xl p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
               <h2 className="flex items-center gap-2 font-display text-base font-bold">
                 <MessagesSquare className="h-4 w-4 text-cyan-500" /> Support Inbox
@@ -252,7 +272,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentTickets.map((t) => (
                 <li key={t.id}>
-                  <Link href={`/admin/support?ticket=${t.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/support?ticket=${t.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/80 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.subject}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -269,7 +289,7 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="portal-surface rounded-xl p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
               <Mail className="h-4 w-4 text-cyan-500" /> Project Enquiries
@@ -288,7 +308,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentEmailTickets.map((t) => (
                 <li key={t.id}>
-                  <Link href={`/admin/tickets/${t.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/tickets/${t.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/80 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.issue_type}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -303,7 +323,7 @@ export default function AdminOverviewPage() {
           )}
         </motion.section>
 
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="portal-surface rounded-xl p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
               <CalendarClock className="h-4 w-4 text-cyan-500" /> Public Consultation Bookings
@@ -337,7 +357,7 @@ export default function AdminOverviewPage() {
       </div>
 
       <div className="mt-6">
-        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass gradient-border rounded-2xl p-5">
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="portal-surface rounded-xl p-5 sm:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
               <Headset className="h-4 w-4 text-cyan-500" /> Live Chat
@@ -356,7 +376,7 @@ export default function AdminOverviewPage() {
             <ul className="space-y-2.5">
               {recentChats.map((s) => (
                 <li key={s.id}>
-                  <Link href={`/admin/chat?session=${s.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
+                  <Link href={`/admin/chat?session=${s.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/80 px-4 py-3 transition-colors hover:border-primary/40 dark:bg-white/5">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{s.reference_id ?? "Session"}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
