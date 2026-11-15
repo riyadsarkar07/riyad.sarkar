@@ -46,7 +46,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
           </div>
         </aside>
 
-        <main className="flex min-w-0 flex-col justify-center px-5 py-8 sm:px-10 sm:py-12 lg:px-14">
+        <div className="flex min-w-0 flex-col justify-center px-5 py-8 sm:px-10 sm:py-12 lg:px-14">
           <Link
             href="/"
             className="mb-9 inline-flex w-fit min-h-9 items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -67,11 +67,11 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
 
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-5 text-xs text-muted-foreground">
             <span>Riyad Sarkar · Client Portal</span>
-            <Link href="/contact" className="inline-flex items-center gap-1 font-medium hover:text-primary">
+            <Link href="/#contact" className="inline-flex items-center gap-1 font-medium hover:text-primary">
               Need help? <ArrowRight className="h-3 w-3" aria-hidden="true" />
             </Link>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );
@@ -82,16 +82,18 @@ export function Field({
   label,
   error,
   className,
+  htmlFor,
   children,
 }: {
   label: string;
   error?: string;
   className?: string;
+  htmlFor?: string;
   children: ReactNode;
 }) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <p className="text-sm font-medium text-foreground">{label}</p>
+      {htmlFor ? <label htmlFor={htmlFor} className="text-sm font-medium text-foreground">{label}</label> : <p className="text-sm font-medium text-foreground">{label}</p>}
       {children}
       {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
