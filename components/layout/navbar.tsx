@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 import { useScrollSpy } from "@/hooks/use-scroll-spy";
 import { navItems, sectionIds } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
@@ -27,6 +28,8 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [overHero, setOverHero] = useState(onHome);
   const active = useScrollSpy(sectionIds);
+  const primaryNav = navItems.filter((item) => ["home", "services", "about", "experience", "testimonials", "contact"].includes(item.id));
+  const secondaryNav = navItems.filter((item) => !primaryNav.some((primary) => primary.id === item.id));
 
   useEffect(() => {
     const onScroll = () => {
@@ -93,12 +96,11 @@ export function Navbar() {
         </Link>
 
         <ul className="hidden items-center lg:flex">
-          {navItems.map((item) => {
+          {primaryNav.map((item) => {
             const isActive = onHome && active === item.id;
             const label = t.nav[item.labelKey as keyof typeof t.nav];
-            const compactHidden = ["certificates", "gallery", "faq"].includes(item.id);
             return (
-              <li key={item.id} className={compactHidden ? "hidden 2xl:block" : undefined}>
+              <li key={item.id}>
                 <a
                   href={hrefFor(item.href)}
                   onClick={(e) => {
@@ -106,7 +108,7 @@ export function Navbar() {
                     go(item.href);
                   }}
                   className={cn(
-                    "relative rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors duration-200 xl:px-3.5",
+                    "relative rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors duration-200 xl:px-3.5",
                     isActive
                       ? "text-primary"
                       : overDarkHero
@@ -126,6 +128,32 @@ export function Navbar() {
               </li>
             );
           })}
+          <li>
+            <details className="group relative">
+              <summary className={cn(
+                "inline-flex min-h-10 cursor-pointer list-none items-center gap-1 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors [&::-webkit-details-marker]:hidden xl:px-3.5",
+                secondaryNav.some((item) => item.id === active) ? "text-primary" :
+                  overDarkHero ? "text-slate-200 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
+              )}>
+                More <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <ul className="absolute right-0 top-full z-[110] mt-2 grid min-w-52 gap-1 rounded-xl border border-border bg-card p-2 shadow-xl">
+                {secondaryNav.map((item) => (
+                  <li key={item.id}>
+                    <a href={hrefFor(item.href)}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.currentTarget.closest("details")?.removeAttribute("open");
+                        go(item.href);
+                      }}
+                      className="flex min-h-10 items-center rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-primary/10 focus-visible:outline-offset-0">
+                      {t.nav[item.labelKey as keyof typeof t.nav]}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </li>
         </ul>
 
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
