@@ -145,6 +145,40 @@ export default function DashboardOverviewPage() {
         }
       />
 
+      <section aria-labelledby="client-next-step" className="mb-7 grid overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="p-6 sm:p-7">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">Your workspace</p>
+          <h2 id="client-next-step" className="mt-3 font-display text-xl font-semibold tracking-tight sm:text-2xl">
+            Everything you need to move forward.
+          </h2>
+          <p className="mt-3 max-w-lg text-sm leading-7 text-muted-foreground">
+            Pick up a conversation, check an existing request, or arrange your next consultation.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <Link href={isAdmin ? "/admin/chat" : "/dashboard/chat"}>
+                <Headset className="h-4 w-4" /> Open live chat
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/dashboard/support">Support inbox <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-px border-t border-border/70 bg-border/60 lg:border-l lg:border-t-0">
+          <Link href="/dashboard/appointments" className="flex flex-col justify-center bg-muted/60 p-5 transition-colors hover:bg-primary/10 sm:p-6">
+            <CalendarDays className="h-5 w-5 text-sky-600 dark:text-sky-300" aria-hidden="true" />
+            <span className="mt-4 text-sm font-semibold">Appointments</span>
+            <span className="mt-1 text-xs leading-5 text-muted-foreground">View your schedule</span>
+          </Link>
+          <Link href="/dashboard/profile" className="flex flex-col justify-center bg-muted/60 p-5 transition-colors hover:bg-primary/10 sm:p-6">
+            <CheckCircle2 className="h-5 w-5 text-sky-600 dark:text-sky-300" aria-hidden="true" />
+            <span className="mt-4 text-sm font-semibold">My account</span>
+            <span className="mt-1 text-xs leading-5 text-muted-foreground">Review your details</span>
+          </Link>
+        </div>
+      </section>
+
       {error && (
         <LoadError message={`${error} Counts are hidden until the data loads successfully.`} onRetry={() => setReloadKey((k) => k + 1)} />
       )}
@@ -170,7 +204,7 @@ export default function DashboardOverviewPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="glass gradient-border rounded-2xl p-5"
+          className="portal-surface rounded-xl p-5 sm:p-6"
         >
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
@@ -200,7 +234,7 @@ export default function DashboardOverviewPage() {
                 <li key={a.id}>
                   <Link
                     href={`/dashboard/appointments/${a.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/80 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{a.service}</p>
@@ -222,7 +256,7 @@ export default function DashboardOverviewPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass gradient-border rounded-2xl p-5"
+          className="portal-surface rounded-xl p-5 sm:p-6"
         >
           <div className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-base font-bold">
@@ -252,7 +286,7 @@ export default function DashboardOverviewPage() {
                 <li key={t.id}>
                   <Link
                     href={`/dashboard/support/${t.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-white/40 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/80 px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow dark:bg-white/5"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{t.subject}</p>
