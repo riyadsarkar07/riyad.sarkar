@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Lenis from "lenis";
+import { usePathname } from "next/navigation";
 import { prefersReducedMotion } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -20,9 +21,11 @@ export function getLenis(): Lenis | null {
  */
 export function SmoothScrollProvider() {
   const rafRef = useRef<number | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (prefersReducedMotion()) return;
+    // Native scrolling is essential for chat threads, dialogs and portal forms.
+    if (/^\/(?:admin|dashboard|login|signup|forgot-password|reset-password|verify-email|auth)(?:\/|$)/.test(pathname) || prefersReducedMotion()) return;
 
     const lenis = new Lenis({
       lerp: 0.14,
@@ -44,7 +47,7 @@ export function SmoothScrollProvider() {
       lenis.destroy();
       sharedLenis = null;
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }

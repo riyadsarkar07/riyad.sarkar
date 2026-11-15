@@ -6,7 +6,6 @@ import { ArrowUpRight, Check, ChevronDown } from "lucide-react";
 import { serviceCategories, services } from "@/data/content";
 import { useI18n } from "@/lib/i18n";
 import { RevealGroup, RevealItem } from "@/components/effects/reveal";
-import { TiltCard } from "@/components/effects/tilt-card";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Icon } from "@/components/ui/icon";
 import { Badge } from "@/components/ui/badge";
@@ -30,17 +29,17 @@ function ServiceCard({ id }: { id: string }) {
 
   return (
     <>
-      <TiltCard className="glass gradient-border flex h-full flex-col rounded-[1.35rem] p-5 hover:shadow-glass-lg sm:p-6 md:p-7">
-          <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${service.gradient} blur-2xl transition-opacity duration-500 opacity-40 group-hover:opacity-90`} />
+      <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/95 p-5 shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-primary/25 hover:shadow-md sm:p-6 md:p-7">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-500/40 to-transparent" aria-hidden="true" />
 
           <div className="mb-5 flex items-center justify-between">
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-glow transition-all duration-500 group-hover:scale-110 group-hover:rotate-6">
+            <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-sky-500/15 bg-sky-500/10 text-sky-700 dark:text-sky-300">
               <Icon name={service.icon} className="h-7 w-7" />
             </div>
-            <ArrowUpRight className="h-5 w-5 text-muted-foreground/40 transition-all duration-300 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:text-primary" />
+            <ArrowUpRight className="h-5 w-5 text-muted-foreground/50 transition-colors group-hover:text-primary" />
           </div>
 
-          <h3 className="font-display text-lg font-bold leading-snug">{service.title}</h3>
+          <h3 className="font-display text-lg font-semibold leading-snug tracking-tight">{service.title}</h3>
           <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
             {service.description}
           </p>
@@ -59,12 +58,12 @@ function ServiceCard({ id }: { id: string }) {
 
           <button
             onClick={() => setOpen(true)}
-            className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary transition-colors hover:text-cyan-500"
+            className="inline-flex min-h-11 w-fit items-center gap-2 rounded-lg px-1 text-sm font-semibold text-sky-700 transition-colors hover:text-sky-600 focus-visible:outline-offset-2 dark:text-sky-300"
           >
             {t.common.learnMore}
-            <span className="h-px w-0 bg-current transition-all duration-300 group-hover:w-6" />
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </button>
-      </TiltCard>
+      </article>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -124,7 +123,7 @@ export function Services() {
 
   return (
     <section id="services" className="section relative overflow-hidden">
-      <div className="bg-grid pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
+      
       <div className="container relative">
         <SectionHeading
           eyebrow="Services"
@@ -132,22 +131,21 @@ export function Services() {
           description="From urgent account recovery to long-term business protection — every service is handled personally with proven, documented methods."
         />
 
-        <div className="mt-8 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Service categories">
+        <div className="mt-8 flex flex-wrap justify-center gap-2" role="group" aria-label="Filter services by category">
           {filters.map((cat) => (
             <button
               key={cat}
               type="button"
-              role="tab"
-              aria-selected={filter === cat}
+              aria-pressed={filter === cat}
               onClick={() => {
                 setFilter(cat);
                 if (cat !== "Featured") setShowAll(true);
               }}
               className={cn(
-                "rounded-full px-4 py-2 text-sm font-medium transition-all duration-300",
+                "min-h-10 rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150",
                 filter === cat
-                  ? "btn-primary-glow text-white shadow-glow"
-                  : "glass text-muted-foreground hover:text-primary",
+                  ? "border-sky-700 bg-sky-700 text-white shadow-sm"
+                  : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
               )}
             >
               {cat}

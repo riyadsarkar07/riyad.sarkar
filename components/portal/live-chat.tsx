@@ -15,7 +15,6 @@ import {
   Mail,
   MessageCircle,
   Phone,
-  Radio,
   RefreshCw,
   RotateCcw,
   Search,
@@ -24,7 +23,6 @@ import {
   Timer,
   User,
   UserPlus,
-  WifiOff,
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -56,6 +54,8 @@ import {
   updateChatPriorityAction,
 } from "@/app/actions";
 import { StatusBadge } from "@/components/portal/status-badge";
+import { ChatConnectionStatus } from "@/components/chat/connection-status";
+import { CaseHistory } from "@/components/chat/case-history";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -1276,15 +1276,15 @@ export function LiveChat({
   };
 
   return (
-    <div className="glass gradient-border flex h-[calc(100dvh-11rem)] min-h-[560px] flex-col overflow-hidden rounded-3xl lg:h-[calc(100dvh-9rem)] lg:flex-row">
+    <div className="portal-workspace support-workspace flex h-[calc(100dvh-11rem)] min-h-[560px] flex-col overflow-hidden rounded-2xl lg:h-[calc(100dvh-9rem)] lg:flex-row">
       {/* Queue / list panel */}
       <aside
         className={cn(
-          "flex w-full flex-col border-b border-border/60 lg:w-[20rem] lg:shrink-0 lg:border-b-0 lg:border-r",
+          "support-queue flex w-full flex-col border-b border-border/60 lg:w-[19rem] lg:shrink-0 lg:border-b-0 lg:border-r xl:w-[20rem]",
           selectedId ? "hidden lg:flex" : "",
         )}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
+        <div className="support-queue-header flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3.5">
           <div className="min-w-0">
             <h2 className="font-display text-sm font-bold">
               {mode === "admin" ? "Support queue" : "Your sessions"}
@@ -1342,21 +1342,20 @@ export function LiveChat({
               className="h-9 pl-9 text-xs"
             />
           </div>
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Session filters">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter sessions by status">
             {filterTabs.map((tab) => {
               const activeTab = fStatus === tab.value;
               const alert = tab.value === "waiting" && tab.count > 0;
               return (
                 <button
                   key={tab.value}
-                  role="tab"
-                  aria-selected={activeTab}
+                  aria-pressed={activeTab}
                   onClick={() => {
                     setSelectedId(null);
                     switchQueueFilter(tab.value);
                   }}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                    "inline-flex min-h-8 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors",
                     activeTab
                       ? "border-primary/40 bg-primary/10 text-primary"
                       : "border-border/60 text-muted-foreground hover:bg-primary/5",
@@ -1381,7 +1380,7 @@ export function LiveChat({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" role="region" aria-label="Conversation queue" aria-busy={loadingList || viewIsPending}>
           {!listErr && (loadingList || viewIsPending) && filtered.length === 0 ? (
             <div className="space-y-3 p-4">
               <Skeleton className="h-16" />
@@ -1446,8 +1445,10 @@ export function LiveChat({
                         setSelectedId(s.id);
                         setDetailsOpen(false);
                       }}
+                      data-selected={active ? "true" : undefined}
+                      aria-pressed={active}
                       className={cn(
-                        "flex w-full items-start gap-3 border-l-2 px-4 py-3.5 text-left transition-colors",
+                        "support-queue-row flex min-h-[84px] w-full items-start gap-3 border-l-2 px-4 py-3.5 text-left transition-colors",
                         active
                           ? "border-primary bg-gradient-to-r from-blue-600/10 to-cyan-400/10"
                           : "border-transparent hover:bg-primary/5",
@@ -1588,7 +1589,7 @@ export function LiveChat({
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-start gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
+            <div className="support-thread-header flex flex-wrap items-start gap-3 border-b border-border/60 px-4 py-3.5 sm:px-5">
               <button
                 className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary lg:hidden"
                 onClick={() => setSelectedId(null)}
@@ -1633,10 +1634,7 @@ export function LiveChat({
                               : "Support team"}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1" aria-live="polite">
-                    {connected ? <Radio className="h-3 w-3 text-emerald-500" /> : <WifiOff className="h-3 w-3" />}
-                    {connected ? "Realtime" : "Auto-refresh"}
-                  </span>
+                  <ChatConnectionStatus connected={connected} />
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -1761,7 +1759,7 @@ export function LiveChat({
               </div>
             )}
 
-            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5" aria-live="polite">
+            <div ref={scrollRef} className="support-thread-scroll flex-1 space-y-4 overflow-y-auto bg-background/30 p-4 sm:p-6" aria-live="polite" aria-busy={showThreadLoader}>
               {showThreadLoader ? (
                 <div className="space-y-3">
                   <Skeleton className="h-12 w-2/3" />
@@ -1811,10 +1809,10 @@ export function LiveChat({
                           <div className={cn("max-w-[85%] sm:max-w-[70%]", mine ? "text-right" : "text-left")}>
                             <div
                               className={cn(
-                                "inline-block rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed",
+                                "inline-block rounded-2xl border border-transparent px-4 py-2.5 text-left text-sm leading-relaxed shadow-sm",
                                 mine
-                                  ? "rounded-br-md bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-glow"
-                                  : "rounded-bl-md bg-primary/5 text-foreground",
+                                  ? "rounded-br-md bg-sky-600 text-white"
+                                  : "rounded-bl-md border-border/70 bg-card text-foreground",
                                 isWelcome && "ring-1 ring-cyan-400/40",
                               )}
                             >
@@ -1850,7 +1848,7 @@ export function LiveChat({
               </p>
             )}
 
-            <div className="border-t border-border/60 p-3 sm:p-4">
+            <div className="support-composer border-t border-border/60 p-3 sm:p-4">
               {selected.status === "resolved" || selected.status === "closed" ? (
                 <div className="text-center text-sm text-muted-foreground">
                   {selected.status === "resolved" ? "This case is resolved." : "This case is closed."} Its reference ID
@@ -1901,21 +1899,22 @@ export function LiveChat({
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                           e.preventDefault();
                           void sendReply();
                         }
                       }}
                       placeholder={mode === "user" ? "Message the support team…" : "Reply as agent…"}
                       rows={2}
-                      className="flex-1 resize-none rounded-xl border border-input bg-white/60 px-4 py-3 text-sm text-foreground shadow-sm transition-all placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none dark:bg-white/5"
+                      className="min-w-0 flex-1 resize-none rounded-xl border border-input bg-background/75 px-4 py-3 text-sm text-foreground shadow-sm transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:outline-none"
                       aria-label="Live chat message"
                     />
-                    <Button size="sm" onClick={sendReply} disabled={sending || !reply.trim()}>
+                    <Button size="sm" className="min-h-11" onClick={sendReply} disabled={sending || !reply.trim()} aria-label={sending ? "Sending message" : "Send message"}>
                       {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      Send
+                      {sending ? "Sending…" : "Send"}
                     </Button>
                   </div>
+                  <p className="text-[11px] text-muted-foreground">Enter to send · Shift + Enter for a new line</p>
                   {mode === "admin" && canWriteSelected && (
                     <div className="flex flex-wrap gap-1.5">
                       <Button size="sm" variant="ghost" onClick={togglePendingClient} disabled={busy}>
@@ -1953,7 +1952,7 @@ export function LiveChat({
         <>
           <aside
             className={cn(
-              "hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border/60 xl:flex",
+              "support-inspector hidden w-80 shrink-0 flex-col overflow-y-auto border-l border-border/60 xl:flex",
             )}
           >
             <DetailsBody
@@ -1994,7 +1993,7 @@ export function LiveChat({
                 onClick={() => setDetailsOpen(false)}
               >
                 <motion.aside
-                  className="flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-border bg-background"
+                  className="flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-border bg-card"
                   initial={{ x: "100%" }}
                   animate={{ x: 0 }}
                   exit={{ x: "100%" }}
@@ -2580,53 +2579,18 @@ function DetailsBody({
         </div>
       )}
 
-      <div className={cn("py-3", bare ? "" : "px-4")}>
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <History className="h-3.5 w-3.5" /> Previous cases
-        </p>
-        {historyError && (
-          <div role="alert" className="mt-2 text-xs text-red-500">
-            {historyError}{" "}
-            <button type="button" className="font-semibold underline" onClick={onRetryHistory}>Retry</button>
-          </div>
-        )}
-        {!historyLoaded && historyLoading ? (
-          <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading previous cases…
-          </p>
-        ) : !historyLoaded && historyError ? null : previousCases.length === 0 ? (
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            {historyLoaded ? "No earlier cases for this customer." : "Select a case to load customer history."}
-          </p>
-        ) : (
-          <ul className="mt-2 max-h-72 space-y-1.5 overflow-y-auto">
-            {previousCases.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelectCase(c.id)}
-                  className="w-full rounded-lg border border-border/60 px-2.5 py-2 text-left text-[11px] transition-colors hover:border-primary/40 hover:bg-primary/5"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-cyan-600 dark:text-cyan-400">{c.reference_id ?? "Pending ID"}</span>
-                    <StatusBadge status={c.status} />
-                  </span>
-                  <span className="mt-0.5 block truncate text-muted-foreground">
-                    {c.last_message_preview || fmtDate(c.created_at)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {historyHasMore && (
-          <Button type="button" size="sm" variant="outline" className="mt-2 w-full"
-            disabled={historyLoading} onClick={onLoadMoreHistory}>
-            {historyLoading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-            Load older cases
-          </Button>
-        )}
-      </div>
+      <CaseHistory
+        cases={previousCases}
+        loaded={historyLoaded}
+        loading={historyLoading}
+        error={historyError}
+        hasMore={historyHasMore}
+        onLoadMore={onLoadMoreHistory}
+        onRetry={onRetryHistory}
+        onSelectCase={onSelectCase}
+        formatDate={fmtDate}
+        bare={bare}
+      />
     </div>
   );
 }

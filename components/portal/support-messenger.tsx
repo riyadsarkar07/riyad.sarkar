@@ -398,9 +398,9 @@ export function SupportMessenger({
   /* ------------------------------------------------------------------ */
 
   return (
-    <div className="glass gradient-border flex h-[calc(100dvh-13rem)] min-h-[480px] flex-col overflow-hidden rounded-3xl lg:flex-row">
+    <div className="portal-workspace support-workspace flex h-[calc(100dvh-13rem)] min-h-[480px] flex-col overflow-hidden rounded-2xl lg:flex-row">
       {/* Ticket list */}
-      <aside className={cn("flex w-full flex-col border-b border-border/60 lg:w-80 lg:border-b-0 lg:border-r", selectedId ? "hidden lg:flex" : "")}>
+      <aside className={cn("support-queue flex w-full flex-col border-b border-border/60 lg:w-80 lg:border-b-0 lg:border-r", selectedId ? "hidden lg:flex" : "")}>
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <h2 className="font-display text-sm font-bold">Cases</h2>
           {mode === "user" && (

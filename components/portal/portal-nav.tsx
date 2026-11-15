@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -57,6 +57,9 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   const { signOut, profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [hash, setHash] = useState("");
+  const mobileTrigger = useRef<HTMLButtonElement>(null);
+  const mobileDrawer = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const sync = () => setHash(window.location.hash);
@@ -64,6 +67,45 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, [pathname]);
+
+  // Keep keyboard focus inside the mobile navigation sheet and restore it on close.
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const trigger = mobileTrigger.current;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => closeButton.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !mobileDrawer.current) return;
+      const focusable = Array.from(
+        mobileDrawer.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
+  }, [open]);
 
   const isActive = (item: PortalNavItem) => routeIsActive(item, pathname, hash, items);
 
@@ -75,7 +117,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-6 py-6">
+      <div className="flex items-center gap-2.5 border-b border-border/60 px-5 py-6">
         <Logo />
         <div>
           <p className="font-display text-sm font-bold leading-tight">{title}</p>
@@ -83,7 +125,8 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Portal navigation">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Portal navigation">
+        <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/75">Workspace navigation</p>
         {items.map((item) => {
           const active = isActive(item);
           return (
@@ -93,15 +136,15 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               onClick={() => setOpen(false)}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
+                "group flex min-h-11 items-center gap-3 rounded-lg border border-transparent px-3.5 py-2.5 text-sm font-medium transition-colors focus-visible:outline-offset-1",
                 active
-                  ? "bg-gradient-to-r from-blue-600/15 to-cyan-400/15 text-primary shadow-inner"
-                  : "text-muted-foreground hover:bg-primary/5 hover:text-primary",
+                  ? "border-primary/20 bg-primary/[0.09] text-foreground dark:bg-primary/[0.12]"
+                  : "text-muted-foreground hover:bg-primary/[0.045] hover:text-foreground",
               )}
             >
               <item.icon className={cn("h-4.5 w-4.5", active ? "text-cyan-500" : "text-muted-foreground group-hover:text-primary")} />
               {item.label}
-              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-glow" />}
+              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />}
             </Link>
           );
         })}
@@ -117,7 +160,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
             <p className="truncate text-[11px] text-muted-foreground">{profile?.email ?? ""}</p>
           </div>
         </div>
-        <Button variant="outline" className="w-full" onClick={handleLogout}>
+        <Button variant="outline" className="w-full" onClick={handleLogout} aria-label="Sign out of your account">
           <LogOut className="h-4 w-4" /> Logout
         </Button>
       </div>
@@ -127,7 +170,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/70 bg-background/80 shadow-[8px_0_28px_rgba(8,74,140,0.05)] backdrop-blur-xl lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/70 bg-card shadow-[8px_0_28px_rgba(8,74,140,0.035)] lg:block">
         {sidebar}
       </aside>
 
@@ -137,7 +180,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
           <Logo />
           <p className="font-display text-sm font-bold">{title}</p>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open menu">
+        <Button ref={mobileTrigger} variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
           <Menu className="h-5 w-5" />
         </Button>
       </header>
@@ -154,6 +197,10 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               onClick={() => setOpen(false)}
             />
             <motion.div
+              ref={mobileDrawer}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Portal navigation menu"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
@@ -161,6 +208,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               className="glass-strong fixed inset-y-0 left-0 z-[61] w-72 max-w-[85vw] shadow-glass-lg lg:hidden"
             >
               <button
+                ref={closeButton}
                 onClick={() => setOpen(false)}
                 className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
                 aria-label="Close menu"

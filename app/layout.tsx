@@ -57,10 +57,10 @@ export default function RootLayout({
               Skip to content
             </a>
             <TiltController />
-            <NoiseOverlay />
-            <ScrollProgress />
             <main id="main-content">{children}</main>
             <PortfolioChrome>
+              <NoiseOverlay />
+              <ScrollProgress />
               <Navbar />
               <Footer />
               <AIAssistant />

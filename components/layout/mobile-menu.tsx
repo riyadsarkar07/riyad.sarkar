@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, LayoutDashboard, Menu, MessagesSquare, UserRound, X } from "lucide-react";
@@ -17,6 +17,45 @@ export function MobileMenu({ triggerClassName }: { triggerClassName?: string }) 
   const { user } = useSession();
   const { go, hrefFor } = useSectionNav();
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => closeRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !sheetRef.current) return;
+      const focusable = Array.from(sheetRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => element.getClientRects().length > 0);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      trigger?.focus();
+    };
+  }, [open]);
 
   const closeAndGo = (target: string) => {
     setOpen(false);
@@ -26,6 +65,7 @@ export function MobileMenu({ triggerClassName }: { triggerClassName?: string }) 
   return (
     <div className="lg:hidden">
       <Button
+        ref={triggerRef}
         variant="ghost"
         size="icon"
         className={cn("h-10 w-10 sm:h-11 sm:w-11", triggerClassName)}
@@ -47,13 +87,18 @@ export function MobileMenu({ triggerClassName }: { triggerClassName?: string }) 
               onClick={() => setOpen(false)}
             />
             <motion.div
-              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-[min(100vw,320px)] flex-col overflow-y-auto p-5 pt-16 shadow-glass-lg sm:p-6 sm:pt-20"
+              ref={sheetRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Website navigation"
+              className="glass-strong fixed right-0 top-0 z-[106] flex h-full w-[min(100vw,320px)] flex-col overflow-y-auto border-l border-border bg-card p-5 pt-16 shadow-xl sm:p-6 sm:pt-20"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", stiffness: 340, damping: 34 }}
             >
               <button
+                ref={closeRef}
                 onClick={() => setOpen(false)}
                 className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Close menu"
@@ -75,7 +120,7 @@ export function MobileMenu({ triggerClassName }: { triggerClassName?: string }) 
                           e.preventDefault();
                           closeAndGo(item.href);
                         }}
-                        className="group flex items-center justify-between rounded-xl px-4 py-3 text-base font-medium text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary"
+                        className="group flex min-h-11 items-center justify-between rounded-lg px-4 py-3 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-primary/10 hover:text-primary"
                       >
                         {t.nav[item.labelKey as keyof typeof t.nav]}
                         <span className="h-1.5 w-1.5 rounded-full bg-cyber-400 opacity-0 transition-opacity group-hover:opacity-100" />

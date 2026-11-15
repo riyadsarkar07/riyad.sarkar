@@ -28,6 +28,7 @@ const roleLabel: Record<SupportRole, string> = {
 
 export default function SupportTeamPage() {
   const [profiles, setProfiles] = useState<StaffProfile[]>([]);
+  const [staffQuery, setStaffQuery] = useState("");
   const [departments, setDepartments] = useState<SupportDepartment[]>([]);
   const [teams, setTeams] = useState<SupportTeam[]>([]);
   const [members, setMembers] = useState<SupportTeamMember[]>([]);
@@ -80,9 +81,12 @@ export default function SupportTeamPage() {
   };
 
   const staff = profiles.filter((p) => p.staff_role !== null);
+  const visibleProfiles = profiles.filter((person) =>
+    `${person.full_name ?? ""} ${person.email ?? ""} ${person.staff_role ?? ""}`.toLowerCase().includes(staffQuery.toLowerCase().trim()),
+  );
   const currentMemberships = members.filter((m) => m.active);
   const field = "h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground";
-  const panel = "rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm";
+  const panel = "portal-surface rounded-xl p-5 sm:p-6";
 
   return (
     <div className="space-y-6">
@@ -119,15 +123,30 @@ export default function SupportTeamPage() {
               Only existing registered users can become staff. A full administrator cannot be demoted from this screen.
               Role changes are logged by the database.
             </p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <Input
+                type="search"
+                className="w-full max-w-sm"
+                value={staffQuery}
+                onChange={(event) => setStaffQuery(event.target.value)}
+                placeholder="Search name, email or role"
+                aria-label="Search registered people"
+              />
+              <span className="text-xs text-muted-foreground" aria-live="polite">
+                {visibleProfiles.length} of {profiles.length} people
+              </span>
+            </div>
             {profiles.length === 0 ? (
               <p className="text-sm text-muted-foreground">No registered profiles were found.</p>
+            ) : visibleProfiles.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No people match this search.</p>
             ) : (
               <div className="space-y-2">
-                {profiles.map((person) => {
+                {visibleProfiles.map((person) => {
                   const draft = draftRoles[person.id] ?? person.staff_role ?? "none";
                   const changed = draft !== (person.staff_role ?? "none");
                   return (
-                    <div key={person.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 px-3 py-3">
+                    <div key={person.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border/70 bg-muted/30 px-3 py-3">
                       <div className="min-w-44 flex-1">
                         <p className="truncate text-sm font-semibold">{person.full_name || person.email || "Registered user"}</p>
                         <p className="truncate text-xs text-muted-foreground">{person.email || person.id}</p>

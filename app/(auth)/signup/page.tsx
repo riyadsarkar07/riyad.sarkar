@@ -99,15 +99,16 @@ function SignupForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4" noValidate>
       {error && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           {error}
         </div>
       )}
-      <Field label="Full Name">
+      <Field label="Full Name" htmlFor="full-name">
         <div className="relative">
           <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             required
+            id="full-name"
             autoComplete="name"
             placeholder="Riyad Ahmed"
             value={fullName}
@@ -116,12 +117,13 @@ function SignupForm() {
           />
         </div>
       </Field>
-      <Field label="Email">
+      <Field label="Email" htmlFor="signup-email">
         <div className="relative">
           <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             required
             type="email"
+            id="signup-email"
             autoComplete="email"
             placeholder="you@example.com"
             value={email}
@@ -130,12 +132,13 @@ function SignupForm() {
           />
         </div>
       </Field>
-      <Field label="Phone / WhatsApp">
+      <Field label="Phone / WhatsApp" htmlFor="signup-phone">
         <div className="relative">
           <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             required
             type="tel"
+            id="signup-phone"
             autoComplete="tel"
             placeholder="+880 1XXX-XXXXXX"
             value={phone}
@@ -145,14 +148,15 @@ function SignupForm() {
         </div>
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Password">
+        <Field label="Password" htmlFor="signup-password">
           <div className="relative">
             <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               required
               type={showPw ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Min 6 characters"
+              id="signup-password"
+            placeholder="Min 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="pl-11 pr-11"
@@ -160,21 +164,22 @@ function SignupForm() {
             <button
               type="button"
               onClick={() => setShowPw((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary"
+              className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
               aria-label={showPw ? "Hide password" : "Show password"}
             >
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </Field>
-        <Field label="Confirm Password">
+        <Field label="Confirm Password" htmlFor="confirm-password">
           <div className="relative">
             <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               required
               type={showPw ? "text" : "password"}
               autoComplete="new-password"
-              placeholder="Repeat password"
+              id="confirm-password"
+            placeholder="Repeat password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               className="pl-11"
