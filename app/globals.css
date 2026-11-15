@@ -637,10 +637,7 @@
     scroll-margin-block: 24px;
   }
 
-  .portal-canvas .bg-white\\/40,
-  .portal-canvas .bg-white\\/60 {
-    background-color: var(--workspace-surface);
-  }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
