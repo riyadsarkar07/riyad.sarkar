@@ -1,5 +1,4 @@
 import type { LucideIcon } from "lucide-react";
-import { motion } from "framer-motion";
 
 interface StatCardProps {
   label: string;
@@ -9,23 +8,17 @@ interface StatCardProps {
   delay?: number;
 }
 
-export function StatCard({ label, value, icon: Icon, hint, delay = 0 }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, hint }: StatCardProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, type: "spring", stiffness: 220, damping: 24 }}
-      className="glass gradient-border hover-lift group relative overflow-hidden rounded-[1.25rem] p-5"
-    >
-      <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-cyan-400/10 blur-2xl" />
+    <div className="portal-surface group relative overflow-hidden rounded-xl p-5 transition-[border-color,box-shadow] duration-200 hover:border-primary/25 hover:shadow-md">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600/20 to-cyan-400/20 text-cyan-500">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-sky-500/15 bg-sky-500/10 text-sky-700 dark:text-sky-300">
           <Icon className="h-4.5 w-4.5" />
         </div>
       </div>
-      <p className="mt-2 font-display text-3xl font-bold tracking-tight">{value}</p>
+      <p className="mt-2 font-display text-3xl font-semibold tabular-nums tracking-tight">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-    </motion.div>
+    </div>
   );
 }
