@@ -454,6 +454,21 @@
     background-image: radial-gradient(850px 380px at 98% -12%, rgba(14, 165, 233, 0.045), transparent 75%);
   }
 
+  /* Support controls prioritise legibility over decorative neon. */
+  .portal-canvas .btn-primary-glow {
+    background: #0369a1;
+    box-shadow: 0 2px 8px rgba(3, 105, 161, 0.16);
+  }
+
+  .portal-canvas .btn-primary-glow:hover {
+    background: #075985;
+    box-shadow: 0 4px 12px rgba(3, 105, 161, 0.2);
+  }
+
+  .portal-canvas .btn-primary-glow::after {
+    display: none;
+  }
+
   .portal-workspace {
     background-color: var(--workspace-surface);
     border: 1px solid var(--workspace-line);
