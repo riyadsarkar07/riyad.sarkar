@@ -26,6 +26,7 @@ Use a 4px spacing rhythm; 8px controls, 12px cards, and 16px large surfaces. Mea
 - [x] Remove marketing grain/scroll progress and Lenis smooth scroll from authenticated routes.
 - [x] Polish chat queue, thread, inspector, message bubbles, composer, and case selected state.
 - [x] Extract an explicit accessible realtime connection indicator.
+- [x] Extract read-only customer case history into a focused component with accessible loading/retry states.
 - [x] Preserve IME composition during Enter-to-send and expose sending state.
 - [x] Add screen-reader stable values for animated homepage metrics.
 - [ ] Confirm responsive screenshots at 360/390/768/1024/1440px in real browser sessions.
@@ -35,7 +36,7 @@ Use a 4px spacing rhythm; 8px controls, 12px cards, and 16px large surfaces. Mea
 
 ## Phase 2 — support workspace components and flows (next PRs)
 
-- [ ] Extract visual-only `CaseRow`, `QueuePanel`, `ConversationPanel`, `CaseInspector`, `Composer`, `CaseHistory` components from `components/portal/live-chat.tsx`, keeping existing request sequencing, realtime subscriptions and mutation calls untouched.
+- [ ] Extract visual-only `CaseRow`, `QueuePanel`, `ConversationPanel`, `CaseInspector`, `Composer` components from `components/portal/live-chat.tsx`, keeping existing request sequencing, realtime subscriptions and mutation calls untouched.
 - [ ] Explicit reconnect/offline/stale UX, local skeletons and manual retry states without replacing existing content.
 - [ ] Clear three-pane desktop inbox (Queue 280–340px / conversation flexible / Inspector 320–380px), list+thread tablet, sequential mobile workflow.
 - [ ] Show customer history independently of active queue filters, with click-through to read-only resolved/closed transcripts.
