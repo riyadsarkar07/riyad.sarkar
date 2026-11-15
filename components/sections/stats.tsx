@@ -22,13 +22,15 @@ function AnimatedStat({
   return (
     <RevealItem>
       <Spotlight className="h-full rounded-[1.25rem]">
-    <div className="group relative h-full overflow-hidden rounded-[1.25rem] border border-border/70 bg-white/65 p-5 text-center backdrop-blur-md transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-glass dark:bg-white/[0.04] sm:p-6">
+    <div className="relative h-full overflow-hidden rounded-xl border border-border/70 bg-card/90 p-5 text-center shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-primary/25 hover:shadow-md sm:p-6">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
       <p className="font-display text-3xl font-bold tracking-tight min-[400px]:text-4xl sm:text-5xl">
-        <span ref={ref} className="text-gradient">
+        {/* Stable semantic value for screen readers and non-animated rendering. */}
+        <span className="sr-only">{formatNumber(value)}{suffix}</span>
+        <span ref={ref} className="text-gradient" aria-hidden="true">
           {formatNumber(current)}
         </span>
-        <span className="text-gradient">{suffix}</span>
+        <span className="text-gradient" aria-hidden="true">{suffix}</span>
       </p>
       <p className="mt-2 text-sm font-medium text-muted-foreground">
         {t.stats[labelKey as keyof typeof t.stats]}
