@@ -75,7 +75,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-6 py-6">
+      <div className="flex items-center gap-2.5 border-b border-border/60 px-5 py-6">
         <Logo />
         <div>
           <p className="font-display text-sm font-bold leading-tight">{title}</p>
@@ -83,7 +83,8 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Portal navigation">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Portal navigation">
+        <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/75">Workspace navigation</p>
         {items.map((item) => {
           const active = isActive(item);
           return (
@@ -93,15 +94,15 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
               onClick={() => setOpen(false)}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
+                "group flex min-h-11 items-center gap-3 rounded-lg border border-transparent px-3.5 py-2.5 text-sm font-medium transition-colors focus-visible:outline-offset-1",
                 active
-                  ? "bg-gradient-to-r from-blue-600/15 to-cyan-400/15 text-primary shadow-inner"
-                  : "text-muted-foreground hover:bg-primary/5 hover:text-primary",
+                  ? "border-primary/20 bg-primary/[0.09] text-foreground dark:bg-primary/[0.12]"
+                  : "text-muted-foreground hover:bg-primary/[0.045] hover:text-foreground",
               )}
             >
               <item.icon className={cn("h-4.5 w-4.5", active ? "text-cyan-500" : "text-muted-foreground group-hover:text-primary")} />
               {item.label}
-              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-glow" />}
+              {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />}
             </Link>
           );
         })}
@@ -117,7 +118,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
             <p className="truncate text-[11px] text-muted-foreground">{profile?.email ?? ""}</p>
           </div>
         </div>
-        <Button variant="outline" className="w-full" onClick={handleLogout}>
+        <Button variant="outline" className="w-full" onClick={handleLogout} aria-label="Sign out of your account">
           <LogOut className="h-4 w-4" /> Logout
         </Button>
       </div>
@@ -127,7 +128,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/70 bg-background/80 shadow-[8px_0_28px_rgba(8,74,140,0.05)] backdrop-blur-xl lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-border/70 bg-card shadow-[8px_0_28px_rgba(8,74,140,0.035)] lg:block">
         {sidebar}
       </aside>
 
