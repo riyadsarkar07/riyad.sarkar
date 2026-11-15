@@ -72,6 +72,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
+    const trigger = mobileTrigger.current;
     document.body.style.overflow = "hidden";
     const frame = window.requestAnimationFrame(() => closeButton.current?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
@@ -102,7 +103,7 @@ export function PortalNav({ items, title, subtitle }: PortalNavProps) {
       window.cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      mobileTrigger.current?.focus();
+      trigger?.focus();
     };
   }, [open]);
 
